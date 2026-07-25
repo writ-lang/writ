@@ -1,0 +1,24 @@
+; compare_new.pol — compare_old.pol with the `restore` move REPEALED (the
+; amendment). The schema is unchanged (so `mode-tracks-shadow` is preserved),
+; but a broken machine can no longer climb back to working, so it can never
+; reach `safe`: `break` leads to a situation from which `safe` is unreachable.
+; The OLD guarantee `still-safe` (live) therefore FAILS here, and `pol compare`
+; reports it LOST with the NEW witness route `1. break`, exiting 1.
+
+(schema sys
+  (type mode-t (working broken safe))
+  (type machine
+    (arrow mode   (to mode-t))
+    (arrow shadow (to mode-t)))
+  (equation mode-tracks-shadow (= machine.mode machine.shadow)))
+
+(instance day-one (of sys)
+  (machine m)
+  (mode   (m working))
+  (shadow (m working)))
+
+(use sys)
+(initial day-one)
+
+(transition break  (when (is m.mode working)) (do (set m.mode broken)))
+(transition finish (when (is m.mode working)) (do (set m.mode safe)))

@@ -1,0 +1,79 @@
+# What this repo produces but does not keep. Every entry below corresponds to a
+# tool this project actually runs — dune, opam, npm (the VS Code client), python
+# (the fitness checks), d2 (the diagrams) — rather than a copied-in catch-all;
+# an ignore rule for a tool nobody runs only hides the day someone starts.
+
+# ── OCaml / dune ─────────────────────────────────────────────
+# dune keeps everything in _build; the loose artifacts below appear only when a
+# compiler is invoked by hand, which is exactly when they are least wanted.
+/_build/
+*.install
+*.merlin
+*.annot
+*.cmi
+*.cmo
+*.cmx
+*.cmt
+*.cmti
+*.cma
+*.cmxa
+*.cmxs
+*.o
+*.a
+*.so
+*.byte
+*.native
+*.exe
+# Coverage output, if a run is ever instrumented.
+*.coverage
+bisect*.coverage
+/_coverage/
+
+# ── opam ─────────────────────────────────────────────────────
+# A switch created inside the checkout (opam switch create .).
+/_opam/
+# pol.opam is NOT ignored: it is generated from dune-project by
+# (generate_opam_files true), and `opam pin` / `opam install .` must find it in
+# the sources before anything is built. Regenerate it with `make build`.
+
+# ── Release output (make release) ────────────────────────────
+# The tarball, and the checksum built beside it. Anchored: a `dist/` belonging
+# to some future subproject is that subproject's business.
+/dist/
+
+# ── VS Code extension (tooling/vscode) ───────────────────────
+# Fetched by `npm install`; never committed. The lockfile IS committed.
+node_modules/
+# Packaged extension bundles.
+*.vsix
+# npm debug output.
+npm-debug.log*
+yarn-error.log*
+
+# ── Python bytecode ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+
+# ── Merge and patch leftovers ────────────────────────────────
+# Never intentional, and easy to commit by accident during a conflict.
+*.orig
+*.rej
+
+# ── Editor / OS cruft ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+# Personal editor settings at the ROOT only — tooling/vscode/ is the extension
+# source and has no leading dot, so it is untouched by this.
+/.vscode/
+
+# ── Local tooling and environment state (not project source) ─
+# Editor and assistant scratch: how the work gets done on one machine, not part
+# of what is built.
+.omc/
+.afk-flow/
+.claude/settings.local.json
+.direnv/
+.env

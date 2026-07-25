@@ -1,0 +1,23 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+classes: {
+  violated: {style: {stroke-width: 4; double-border: true}}
+}
+
+s1: "(ind, ind, open)"
+s2: "(cap, ind, open)  !" {class: violated}
+s3: "(ind, ind, concl)"
+s4: "(cap, ind, concl)  !" {class: violated}
+
+s1 -> s2: capture-watchdog
+s2 -> s1: restore-watchdog
+s1 -> s3: conclude
+s2 -> s4: conclude
+s3 -> s4: capture-watchdog
+s4 -> s3: restore-watchdog

@@ -1,0 +1,11 @@
+; The questions, kept apart from the puzzle (Wish 12).
+
+(property solvable
+  "everything can reach the right bank intact"
+  (possible (and (is farmer.at right) (is wolf.at right)
+                 (is goat.at right)   (is cabbage.at right))))
+
+(property no-blunders
+  "from every reachable arrangement, the crossing can still succeed"
+  (live (and (is farmer.at right) (is wolf.at right)
+             (is goat.at right)   (is cabbage.at right))))

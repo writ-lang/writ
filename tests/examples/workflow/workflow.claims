@@ -1,0 +1,25 @@
+; The questions about the regulated workflow (§16), kept beside the model.
+
+; Can a case get stuck — reachable, but never settleable? `live` asks whether a
+; settled docket is still reachable from EVERY reachable situation. Even where
+; the assignee slot is empty (the escalation state), the case can still be
+; assigned and then settled, so the guarantee holds: no reachable case is ever
+; stranded.
+(property settle-able
+  "the case can always still be settled"
+  (live (is claim-1.stage settled)))
+
+; May the assignee slot be empty here — and must it always be fillable? The slot
+; is vacatable and starts empty; `live (defined …)` confirms it can always be
+; (re)filled from any reachable situation.
+(property assignee-fillable
+  "the assignee slot can always still be filled"
+  (live (defined claim-1.assignee)))
+
+; Which reassignment moves can break the unit-of-record law? `pol check` reports
+; officer-in-unit can be broken by reassign-to-fraud and reassign-to-kyc (both
+; write case.officer, an arrow the law's route traverses). We acknowledge both,
+; recording ownership (§16.3). settle / assign / escalate touch none of the
+; law's arrows, so accepting them would be reported `stale`.
+(accept reassign-to-fraud officer-in-unit)
+(accept reassign-to-kyc   officer-in-unit)

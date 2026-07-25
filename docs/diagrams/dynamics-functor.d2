@@ -1,0 +1,17 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+edge: "quiver edge: capture-watchdog"
+map: "its image: a partial endo-map of the instance space" {
+  a: "(ind, ind, open)"
+  b: "(cap, ind, open)"
+  c: "(cap, ind, concl)"
+  a -> b: "writes captured"
+}
+
+edge -> map: "dynamics functor" {style.stroke-dash: 3}

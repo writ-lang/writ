@@ -1,0 +1,49 @@
+# The Pol Prologue test stack. Each service solves one puzzle end-to-end with
+# `pol` and checks the answers; the image is built once and shared.
+#
+#   docker compose build              # build `pol` from source (once)
+#   docker compose up                 # run the whole sequence
+#   docker compose run --rm river     # just the river
+#
+# A service exits 0 iff every assertion for its puzzle passed.
+
+services:
+  river:
+    build: .
+    image: pol-prologue-tests
+    command: ["river"]
+
+  island:
+    build: .
+    image: pol-prologue-tests
+    command: ["island"]
+
+  # Institutional architecture (§3/§4). Runs `pol check` AND, inside the
+  # run-tests `oversight` function, `pol compare oversight.pol oversight-repeal.pol`
+  # — both files ship in the image via `COPY tests/examples`.
+  oversight:
+    build: .
+    image: pol-prologue-tests
+    command: ["oversight"]
+
+  workflow:
+    build: .
+    image: pol-prologue-tests
+    command: ["workflow"]
+
+  access:
+    build: .
+    image: pol-prologue-tests
+    command: ["access"]
+
+  # pol control — export a model's move list as a re-usable quiver instance.
+  control:
+    build: .
+    image: pol-prologue-tests
+    command: ["control"]
+
+  # pol compare --git — compare two commits of one model (needs git, in the image).
+  gitcompare:
+    build: .
+    image: pol-prologue-tests
+    command: ["gitcompare"]

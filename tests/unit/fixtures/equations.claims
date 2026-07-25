@@ -1,0 +1,8 @@
+; equations.claims — accept a move that CANNOT break the law, to force a
+; `stale` finding. `conclude` writes only `stage`, never an arrow the equation
+; mentions, so declaring it as breaking `same-agency` is stale. Meanwhile
+; `capture-watchdog` (which CAN break it) is left unaccepted, so it is reported
+; as `undeclared`. `pol check equations.pol --claims equations.claims` prints
+; both tokens.
+
+(accept conclude same-agency)

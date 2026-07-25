@@ -1,0 +1,22 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+world: "world category (the schema)" {
+  case
+  bureau
+  person
+}
+sets: "Par(FinSet)" {
+  d: "{docket}"
+  b: "{watchdog, prosecutions}"
+  p: "{alice}"
+}
+
+world.case -> sets.d: "instance" {style.stroke-dash: 3}
+world.bureau -> sets.b: "instance" {style.stroke-dash: 3}
+world.person -> sets.p: "instance" {style.stroke-dash: 3}

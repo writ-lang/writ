@@ -1,0 +1,12 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+
+q: "*"
+q -> q: capture-watchdog
+q -> q: restore-watchdog
+q -> q: conclude
+q -> q: assign-judge

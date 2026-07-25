@@ -1,0 +1,17 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+case
+bureau_a: bureau
+bureau_b: bureau
+indep: indep-status
+
+case -> bureau_a: "investigator (f)"
+case -> bureau_b: "prosecutor (f)"
+bureau_a -> indep: independence
+bureau_b -> indep: independence

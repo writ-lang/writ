@@ -1,0 +1,14 @@
+# Keep the build context small and reproducible. The build stage compiles
+# tooling/cli/pol.exe from core/ + runtime/ + tooling/cli/; the runtime stage
+# COPYs tests/examples from this context — so tests/examples must NOT be ignored.
+_build
+dist
+.git
+tooling/vscode
+tooling/lsp
+docs
+scripts
+tests/unit
+tests/models
+**/*.install
+**/.DS_Store

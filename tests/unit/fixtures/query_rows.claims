@@ -1,0 +1,7 @@
+; query_rows.claims — the `captured` query used by the query-reports-rows gate:
+; the bureaus whose independence has been captured. Evaluated at the initial
+; situation (state 0), it binds b = watchdog.
+
+(query captured
+  (where (b bureau))
+  (is b.independence captured))

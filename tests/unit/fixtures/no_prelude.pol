@@ -1,0 +1,17 @@
+; no_prelude.pol — uses stdlib's `toggle` form WITHOUT (load "stdlib.pol").
+; There is no implicit prelude, so `toggle` is never brought into scope; it
+; survives expansion as an unknown top-level datum and the parser rejects it
+; with a positioned "unknown" error. `pol check no_prelude.pol` exits non-zero.
+
+(schema tiny
+  (type flag (lo hi))
+  (type box (arrow f (to flag))))
+
+(instance i (of tiny)
+  (box b)
+  (f (b lo)))
+
+(use tiny)
+(initial i)
+
+(toggle b.f lo hi)

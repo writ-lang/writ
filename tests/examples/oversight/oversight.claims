@@ -1,0 +1,29 @@
+; The questions about the oversight system, kept next to the model (§16).
+
+; Can the case ever conclude at all? (§16.1 `possible` — and, holding, it now
+; prints the shortest route that concludes the docket.)
+(property conviction-possible
+  "the docket can conclude"
+  (possible (is docket.stage concluded)))
+
+; Can ONE lawful move permanently destroy accountability? `live` asks whether a
+; concluded docket is still reachable from EVERY reachable situation. It holds
+; here because restore-watchdog can always undo a capture, so the prosecutor can
+; regain independence and the case can still conclude.
+(property accountability
+  "the docket can always still conclude"
+  (live (is docket.stage concluded)))
+
+; Which of our own powers can violate our own declared law? `pol check` reports
+; that same-agency can be broken by capture-watchdog and restore-watchdog (both
+; write watchdog.independence, an arrow the same-agency routes traverse). We
+; acknowledge exactly those two — recording ownership (§16.3). We do NOT accept
+; conclude or assign-judge: neither writes an arrow on either route, so an
+; accept on them would be reported `stale`.
+(accept capture-watchdog same-agency)
+(accept restore-watchdog same-agency)
+
+; Which bureaus are captured right now? (§16.2)
+(query captured-bureaus
+  (where (b bureau))
+  (is b.independence captured))

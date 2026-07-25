@@ -1,0 +1,20 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+case
+stage_t: "stage-t  =  {open, concluded}"
+person
+bureau
+indep: "indep-status  =  {independent, captured}"
+
+case -> stage_t: stage
+case -> person: "judge (vacatable)" {style.stroke-dash: 4}
+case -> bureau: "investigator (f)"
+case -> bureau: "prosecutor (f)"
+person -> bureau: "employer (f)"
+bureau -> indep: independence

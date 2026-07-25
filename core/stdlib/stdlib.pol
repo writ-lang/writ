@@ -1,0 +1,42 @@
+; stdlib.pol — the Pol Standard Library
+;
+; Everything here is generic: no domain vocabulary, no policy. If a form in
+; this file mentions a worldly concept, it belongs in a domain library, not
+; here.
+
+; 1. Derived logic
+; Universal roster quantification, from the kernel's `some`.
+(form (all (X T) G) => (not (some (X T) (not G))))
+
+; 2. The quiver schema — dynamics as data
+; `pol control MODEL.pol` exports a model's control quiver as an instance of
+; this schema: one `edge` entity per transition.
+(schema quiver
+  (type node)
+  (type edge
+    (arrow src (to node) fixed)
+    (arrow tgt (to node) fixed)))
+
+; 3. Relations as spans
+; A many-to-many relation between A and B is a junction type — the standard
+; span construction.
+(form (relation R A B)
+  => (type R
+       (arrow left  (to A) fixed)
+       (arrow right (to B) fixed)))
+
+; 4. Behaviour templates
+; A two-state flip on path P between values A and B — two guarded moves,
+; never a fake self-loop.
+(form (toggle P A B)
+  => (transition (when (is P A)) (do (set P B)))
+     (transition (when (is P B)) (do (set P A))))
+
+; A one-way latch: once P leaves A for B, no move here brings it back.
+(form (latch P A B)
+  => (transition (when (is P A)) (do (set P B))))
+
+; 5. The phase idiom
+; A model with modes declares an enumerated mode type, one mutable arrow to
+; it, and conjoins each mode-restricted move's guard with the mode test.
+(form (phase-gated P V G) => (and (is P V) G))

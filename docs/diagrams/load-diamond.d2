@@ -1,0 +1,16 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+
+stdlib: stdlib.pol
+domain: domain.lib.pol
+own: "model's own datums"
+universe: loaded universe
+
+stdlib -> domain: load
+stdlib -> own: load
+domain -> universe: include
+own -> universe: include

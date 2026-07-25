@@ -1,0 +1,21 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+classes: {
+  apex: {style: {stroke-width: 4; double-border: true}}
+}
+
+jd: "joint-delegation" {class: apex}
+mp
+senator
+region
+
+jd -> mp: "p1 (f)"
+jd -> senator: "p2 (f)"
+mp -> region: "region (f)"
+senator -> region: "region (f)"

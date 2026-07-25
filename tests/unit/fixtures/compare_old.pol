@@ -1,0 +1,32 @@
+; compare_old.pol — a tiny recoverable machine. `mode` walks working -> broken
+; -> working (via `restore`) -> safe (via `finish`). Because `restore` lets a
+; broken machine climb back to working and then finish, EVERY reachable
+; situation can still reach `safe`, so the `live` property `still-safe`
+; (compare_old.claims) HOLDS.
+;
+; compare_new.pol is this model MINUS `restore`: broken then becomes a trap that
+; can never reach `safe`, so `still-safe` FAILS there. `pol compare` reports the
+; guarantee LOST and exits 1. (Mirrors the any_model/captured_trap trap at small
+; scale: delete the recovery move, lose the liveness guarantee.)
+;
+; `shadow` is a second, never-written arrow so the schema carries a real
+; `mode-tracks-shadow` equation; identical in old and new, it reports preserved.
+
+(schema sys
+  (type mode-t (working broken safe))
+  (type machine
+    (arrow mode   (to mode-t))
+    (arrow shadow (to mode-t)))
+  (equation mode-tracks-shadow (= machine.mode machine.shadow)))
+
+(instance day-one (of sys)
+  (machine m)
+  (mode   (m working))
+  (shadow (m working)))
+
+(use sys)
+(initial day-one)
+
+(transition break   (when (is m.mode working)) (do (set m.mode broken)))
+(transition restore (when (is m.mode broken))  (do (set m.mode working)))
+(transition finish  (when (is m.mode working)) (do (set m.mode safe)))

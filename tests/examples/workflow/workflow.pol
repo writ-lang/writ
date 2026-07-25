@@ -1,0 +1,68 @@
+; A regulated workflow — a KYC / claims operation (§3, "Regulated workflow").
+;
+; A case is wired (fixed arrows) to a reviewing officer and to its unit of
+; record. It also carries a mutable APPROVING officer and a vacatable assignee
+; slot. The law `officer-in-unit` demands the approving officer belong to the
+; case's unit of record — two routes case → unit-t that must agree. A
+; reassignment to an officer in another unit breaks that law. The automated
+; process settles a case that has an assignee; where there is no assignee it
+; ends at an escalation `gap` — the boundary where a human takes over.
+
+(schema workflow
+  (type unit-t  (kyc fraud))
+  (type stage-t (screening settled))
+  (type agent
+    (arrow unit (to unit-t) fixed))       ; each officer belongs to one unit
+  (type case
+    (arrow unit     (to unit-t) fixed)    ; the unit of record (wired)
+    (arrow reviewer (to agent)  fixed)    ; the wired reviewing officer
+    (arrow officer  (to agent))           ; the approving officer (reassignable)
+    (arrow stage    (to stage-t))
+    (arrow assignee (to agent)  vacatable)) ; may be empty
+  ; the approving officer must belong to the case's unit of record:
+  (equation officer-in-unit
+    (= case.officer.unit case.unit)))
+
+(instance intake (of workflow)
+  (agent ann bob)
+  (case claim-1)
+  (unit     (ann kyc) (bob fraud) (claim-1 kyc))
+  (reviewer (claim-1 ann))
+  (officer  (claim-1 ann))
+  (stage    (claim-1 screening))
+  (assignee (claim-1 vacant)))
+
+(use workflow)
+(initial intake)
+
+; Reassignment — the move that can break officer-in-unit: bob is in fraud, the
+; case's unit of record is kyc, so approving via bob violates the law.
+(transition reassign-to-fraud
+  (when (is claim-1.officer ann))
+  (do (set claim-1.officer bob)))
+
+(transition reassign-to-kyc
+  (when (is claim-1.officer bob))
+  (do (set claim-1.officer ann)))
+
+; Staffing the vacatable assignee slot.
+(transition assign
+  (when (not (defined claim-1.assignee)))
+  (do (set claim-1.assignee ann)))
+
+(transition withdraw-assignee
+  (when (defined claim-1.assignee))
+  (do (vacate claim-1.assignee)))
+
+; The automated close: a case with an assignee settles.
+(transition settle
+  (when (and (is claim-1.stage screening)
+             (defined claim-1.assignee)))
+  (do (set claim-1.stage settled)))
+
+; The escalation boundary: no assignee, so the automated process cannot settle
+; on its own — it ends here and a human takes over.
+(transition escalate
+  (when (and (is claim-1.stage screening)
+             (not (defined claim-1.assignee))))
+  (do (gap "escalated to a human: no assignee, automated settling ends here")))

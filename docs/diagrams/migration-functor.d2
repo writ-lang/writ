@@ -1,0 +1,18 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+schemas: "schemas" {
+  s: oversight
+  t: eu-accession
+  s -> t: "F"
+}
+instances: "instances" {
+  it: "instances of eu-accession"
+  is: "instances of oversight"
+  it -> is: "Δ_F   (pol migrate --along F)"
+}

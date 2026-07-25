@@ -1,0 +1,74 @@
+; any_model.pol — a Complete Worked Model
+;
+; A small republic: a government with a bill life-cycle and an emergency
+; regime, one watchdog bureau, one prosecution bureau, one high-level case
+; wired through both. The model's editorial claims live next door in
+; any_model.claims.
+;
+; Versioning is git's job: this file at HEAD is the current constitutional
+; order; amendments are commits (date = commit date, sources in a `Cite:`
+; trailer).
+
+(load "stdlib.pol")
+(load "politics.lib.pol")
+
+; The starting configuration
+(instance day-one (of politics)
+  (chamber    assembly)
+  (people     electorate)
+  (bureau     watchdog prosecutions)
+  (case       docket)
+  (government gov)
+
+  (investigator   (docket watchdog))
+  (prosecutor     (docket prosecutions))
+  (independence   (watchdog independent) (prosecutions independent))
+  (stage          (docket investigating))
+
+  (executive-bloc (gov incumbent-party))
+  (bill           (gov none))
+  (mood           (gov favours-incumbent))
+  (support        (gov majority))
+  (regime         (gov normal)))
+
+(use politics)
+(initial day-one)
+
+; Dynamics
+; The ordinary machinery of government:
+(bill-cycle gov)                       ; pass / sign / veto / override
+(case-pipeline docket)                 ; investigate → prosecute → conclude
+(swing gov)                            ; the electorate's mood, via stdlib toggle
+
+; The contested moves: the assembly may capture either bureau — and, under
+; the current text, restore either. HOLDER slots are editorial.
+(captured-by watchdog      assembly)
+(captured-by prosecutions  assembly)
+(restored-by watchdog      assembly)
+(restored-by prosecutions  assembly)
+
+; Emergency rule: declared freely, lifted only while the assembly still
+; commands a majority — an asymmetry with consequences the claims probe.
+(power declare-emergency
+  (when (is gov.regime normal))
+  (does (set gov.regime emergency)))
+
+(power lift-emergency
+  (when (phase-gated gov.regime emergency (at-least-majority gov)))
+  (does (set gov.regime normal)))
+
+; A modelled boundary: if support has collapsed to a minority during an
+; emergency, the written rules run out — whoever acts next is outside them.
+(power emergency-without-majority
+  (when (phase-gated gov.regime emergency (is gov.support minority)))
+  (does (gap "emergency rule with minority support: the text is silent")))
+
+; Support erosion and recovery, one step at a time. Plain enums — no
+; ordering in the kernel; the guard pins the current value, so each successor
+; is a plain `set`.
+(transition support-erodes-1
+  (when (is gov.support supermajority)) (do (set gov.support majority)))
+(transition support-erodes-2
+  (when (is gov.support majority))      (do (set gov.support minority)))
+(transition support-recovers
+  (when (is gov.support minority))      (do (set gov.support majority)))

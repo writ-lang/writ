@@ -1,0 +1,32 @@
+; The engine unit tests. OCaml stdlib only, no external framework: plain
+; assertions that raise on failure and print a pass summary. They link the three
+; engine libraries — the data model, the front end, and the interrogator.
+
+; The .pol data the tests read is declared as a dependency, so dune copies it
+; into the build context the tests actually run in. Without this they only
+; worked by climbing OUT of _build to the source tree — which broke the moment
+; `dune build @install` put core/stdlib/*.pol inside _build, because the climb
+; then stopped at _build/default, where tests/models and the fixtures were not.
+
+(tests
+ (names
+  test_core
+  test_syntax
+  test_data
+  test_engine
+  test_control
+  test_compare
+  test_loadpath)
+ (deps
+  (glob_files fixtures/*.{pol,claims})
+  (glob_files %{workspace_root}/tests/models/*.{pol,claims})
+  (glob_files %{workspace_root}/core/stdlib/*.pol))
+ (libraries pol_data pol_syntax pol_runtime pol_loadpath))
+
+; The language-server tests drive [Server.handle] (pure: JSON in, JSON out), so
+; they link the [pol_lsp] library alongside the engine. No I/O — the resolver
+; serves fixture text from an in-memory map.
+
+(test
+ (name test_lsp)
+ (libraries pol_data pol_syntax pol_runtime pol_lsp))

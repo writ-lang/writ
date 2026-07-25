@@ -1,0 +1,18 @@
+; control_min.pol — a tiny model exercising `pol control`. Two NAMED
+; transitions (raise, lower) plus one UNNAMED transition (rendered as move-3),
+; so the emitted quiver has three edges self-looping on one node.
+
+(schema sw
+  (type pos-t (down up))
+  (type switch (arrow pos (to pos-t))))
+
+(instance i (of sw)
+  (switch s)
+  (pos (s down)))
+
+(use sw)
+(initial i)
+
+(transition raise (when (is s.pos down)) (do (set s.pos up)))
+(transition lower (when (is s.pos up))   (do (set s.pos down)))
+(transition       (when (is s.pos up))   (do (set s.pos down)))

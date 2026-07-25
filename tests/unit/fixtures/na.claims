@@ -1,0 +1,9 @@
+; na.claims — the property names `b.ghost`, an arrow the `box` type does not
+; declare. Kernel §8: a property naming structure the schema lacks is n/a —
+; reported, but never a pass and never exit 1. Before the fix, parse-time path
+; type-checking of property formulas rejected the unknown arrow outright (a hard
+; parse error → exit 2); now the shape is decoded and arrow resolution is
+; deferred to the checker, which returns n/a → exit 0.
+
+(property phantom-arrow "a property naming an arrow the schema lacks"
+  (possible (is b.ghost hi)))

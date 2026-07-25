@@ -1,0 +1,19 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+oversight: "oversight (source schema)" {
+  bureau
+  case
+}
+eu: "eu-accession (target schema)" {
+  wb: watchdog-body
+  pr: proceeding
+}
+
+oversight.bureau -> eu.wb: "map" {style.stroke-dash: 3}
+oversight.case -> eu.pr: "map" {style.stroke-dash: 3}

@@ -1,0 +1,15 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+case
+person
+bureau
+
+case -> person: "judge (vacatable)" {style.stroke-dash: 4}
+person -> bureau: "employer (f)"
+case -> bureau: "investigator (f)"

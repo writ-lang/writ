@@ -1,0 +1,19 @@
+; any_model.claims — the questions, kept beside the model in the repo.
+;
+; These are the three claims and the query from docs/model.md, written as the
+; politics.lib claim-form invocations they are meant to be (kernel §6 /
+; politics §7), not as the raw (property …)/(query …) datums they expand to.
+;
+; model.md's claims block shows only (load "politics.lib.pol"), but that library's
+; `swing` form references stdlib's `toggle`, so stdlib must load first — we add
+; (load "stdlib.pol") here (a spec omission in model.md).
+
+(load "stdlib.pol")
+(load "politics.lib.pol")
+
+(conviction-reachable docket)      ; possible — sanity
+(accountability docket)            ; live — holds only while both
+                                   ;   restored-by moves exist
+(no-permanent-emergency gov)       ; live
+
+(query captured (where (b bureau)) (is b.independence captured))

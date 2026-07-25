@@ -1,0 +1,7 @@
+; The front end: reader, form expander, grammar, parser, declarations, claims
+; parser, loader. It turns source text into the core data model, so it depends
+; on pol_data and nothing else — never the interrogator (pol_runtime).
+
+(library
+ (name pol_syntax)
+ (libraries pol_data))

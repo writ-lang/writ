@@ -1,0 +1,17 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+xc: "docket in X"
+yc: "docket in Y"
+xb: "watchdog in X"
+yb: "prosecutions in Y"
+
+xc -> yc: "α_case"
+xc -> xb: "investigator (in X)"
+yc -> yb: "investigator (in Y)"
+xb -> yb: "α_bureau"

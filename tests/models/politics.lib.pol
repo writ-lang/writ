@@ -1,0 +1,127 @@
+; politics.lib.pol — the Political Domain as a Pol Library
+;
+; Nothing in this file is known to the engine: it is types, equations, and
+; forms over the kernel's twenty-eight words plus stdlib. If this file ever
+; needs an engine change, that is a kernel bug, not a library feature.
+;
+; Requires stdlib's forms (toggle, phase-gated). A library file itself holds
+; declarations only; the (load "stdlib.pol") that pulls stdlib in belongs in
+; the MODEL that uses this library.
+
+; 1. Vocabulary
+(schema politics
+
+  ; value types the domain genuinely shares
+  (type indep-status (independent captured))
+  (type bill-status  (none passed vetoed enacted))
+  (type bloc         (incumbent-party opposition-party))
+  (type mood-t       (favours-incumbent favours-opposition))
+  (type regime-t     (normal emergency))
+
+  ; ordered scales are plain enums + the comparison forms of §2
+  (type support-t    (minority majority supermajority))
+  (type stage-t      (investigating prosecuting concluded))
+
+  ; structural labels — open types; a model's entities take these types
+  ; to say what they are
+  (type person) (type office) (type chamber) (type court)
+  (type legislature) (type executive) (type people) (type clock)
+
+  ; a watchdog agency
+  (type bureau
+    (arrow independence (to indep-status)))
+
+  ; the executive carrier: which bloc governs, the bill life-cycle,
+  ; public mood, parliamentary support, and the constitutional regime
+  (type government
+    (arrow executive-bloc (to bloc))
+    (arrow bill           (to bill-status))
+    (arrow mood           (to mood-t))
+    (arrow support        (to support-t))
+    (arrow regime         (to regime-t)))
+
+  ; a case wired to its agencies by fixed arrows; paths reach through
+  ; the wiring: docket.investigator.independence
+  (type case
+    (arrow stage        (to stage-t))
+    (arrow investigator (to bureau) fixed)
+    (arrow prosecutor   (to bureau) fixed)))
+
+; 2. Ordering, as forms
+(form (at-least-majority G)
+  => (or (is G.support majority) (is G.support supermajority)))
+(form (at-least-supermajority G)
+  => (is G.support supermajority))
+
+; 3. The constitutional surface — renames onto kernel words
+(form (does &rest ES)            => (do @ES))
+(form (power NAME &rest CLAUSES) => (transition NAME @CLAUSES))
+
+; For .claims files — declaring a power's known breakage of a law:
+(form (unconstitutional T &rest EQS) => (accept T @EQS))
+
+; 4. Verbs — constitution-style one-liners
+; SUBJECT (a bureau) may be captured / restored; HOLDER is editorial.
+(form (captured-by SUBJECT HOLDER)
+  => (transition (when (is SUBJECT.independence independent))
+       (do (set SUBJECT.independence captured))))
+
+(form (restored-by SUBJECT HOLDER)
+  => (transition (when (is SUBJECT.independence captured))
+       (do (set SUBJECT.independence independent))))
+
+; A headship, and its dismissal:
+(form (headship) => (arrow headed-by (to person) vacatable))
+(form (dismissed-by SUBJECT HOLDER)
+  => (transition (when (defined SUBJECT.headed-by))
+       (do (vacate SUBJECT.headed-by))))
+
+; 5. Behaviour batteries
+; The bill life-cycle on a government G, with a supermajority override.
+(form (bill-cycle G)
+  => (transition (when (is G.bill none))    (do (set G.bill passed)))
+     (transition (when (is G.bill passed))  (do (set G.bill enacted)))
+     (transition (when (is G.bill passed))  (do (set G.bill vetoed)))
+     (transition (when (and (is G.bill vetoed) (at-least-supermajority G)))
+       (do (set G.bill enacted))))
+
+; Investigate → prosecute → conclude for a case C, each step gated on the
+; acting agency's independence: capture an agency, the pipeline stalls.
+(form (case-pipeline C)
+  => (transition (when (and (is C.investigator.independence independent)
+                            (is C.stage investigating)))
+       (do (set C.stage prosecuting)))
+     (transition (when (and (is C.prosecutor.independence independent)
+                            (is C.stage prosecuting)))
+       (do (set C.stage concluded))))
+
+; The electorate's mood swing on a government G — stdlib's `toggle`.
+(form (swing G) => (toggle G.mood favours-incumbent favours-opposition))
+
+; 6. Exit guards, and the freeze idiom
+; An exit guard says: this move is enabled AND would change the state.
+(form (capture-exit SUBJECT) => (is SUBJECT.independence independent))
+(form (restore-exit SUBJECT) => (is SUBJECT.independence captured))
+(form (dismiss-exit SUBJECT) => (defined SUBJECT.headed-by))
+(form (bill-exit G)          => (not (is G.bill enacted)))
+(form (pipeline-exit C)
+  => (or (and (is C.investigator.independence independent)
+              (is C.stage investigating))
+         (and (is C.prosecutor.independence independent)
+              (is C.stage prosecuting))))
+
+; 7. Reusable claims — for .claims files
+(form (conviction-reachable C)
+  => (property conviction-reachable
+       "a conviction can be reached from the initial state"
+       (possible (is C.stage concluded))))
+
+(form (accountability C)
+  => (property accountability
+       "a high-level case can still reach a conviction"
+       (live (is C.stage concluded))))
+
+(form (no-permanent-emergency G)
+  => (property no-permanent-emergency
+       "emergency rule can always still be lifted"
+       (live (is G.regime normal))))
