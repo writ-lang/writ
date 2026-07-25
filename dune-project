@@ -25,6 +25,13 @@
 
 (license AGPL-3.0-or-later)
 
+(source
+ (github sajonaro/pol))
+
+(homepage "https://github.com/sajonaro/pol")
+
+(bug_reports "https://github.com/sajonaro/pol/issues")
+
 (package
  (name pol)
  (synopsis

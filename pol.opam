@@ -8,6 +8,8 @@ description:
 maintainer: ["alex.kunich@gmail.com"]
 authors: ["Alex Kunich"]
 license: "AGPL-3.0-or-later"
+homepage: "https://github.com/sajonaro/pol"
+bug-reports: "https://github.com/sajonaro/pol/issues"
 depends: [
   "ocaml" {>= "4.14"}
   "dune" {>= "3.0" & >= "3.0"}
@@ -27,3 +29,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
+dev-repo: "git+https://github.com/sajonaro/pol.git"
