@@ -15,6 +15,8 @@
   test_data
   test_rules
   test_rules_parser
+  test_rules_sorts
+  test_rules_check
   test_engine
   test_control
   test_compare

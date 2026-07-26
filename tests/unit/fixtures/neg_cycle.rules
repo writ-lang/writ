@@ -1,0 +1,17 @@
+; Extension §5: recursion through negation. `p` is defined by the absence of
+; `q`, and `q` is defined by `p`, so no stratum order exists and the fixpoint
+; would have no least solution. Rejected at read time, at the `(not …)`, naming
+; the whole cycle.
+;
+; The bodies are range-restricted on purpose: this fixture must fail
+; stratification and nothing else.
+
+(relation p (person))
+(relation q (person))
+
+(rule (p X)
+  (is X.reports-to Y)
+  (not (q X)))
+
+(rule (q X)
+  (p X))
