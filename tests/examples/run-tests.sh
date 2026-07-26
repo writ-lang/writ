@@ -175,9 +175,33 @@ gitcompare() {
   rm -rf "$tmp"
 }
 
+crosscheck() {
+  echo "== The modality cross-check — two implementations of one question =="
+  echo "   Q: does the rules engine, asked the SAME properties over the SAME"
+  echo "      space, reach the same verdicts as \`pol check\`?"
+  out=$(POL="$POL" sh "$here/modality-cross-check.sh" 2>&1)
+  st=$?
+  printf '%s\n' "$out" | sed 's/^/     | /'
+  exit_is "cross-check: the two implementations agree everywhere" "$st" 0
+  # The property total is counted from the claims files rather than written
+  # down, so adding a property to any scenario obliges the oracle to cover it
+  # instead of quietly shrinking the cross-check.
+  want=$(cat "$here"/*/*.claims | grep -c '^(property')
+  has "cross-check: all $want properties in the repo were considered" "$out" \
+    "considered $want properties"
+  has "cross-check: A. a possible is its satisfying set — non-empty holds" \
+    "$out" "river/solvable  possible: satisfying set of"
+  has "cross-check: B. a live is its COUNTEREXAMPLE set — empty holds" \
+    "$out" "workflow/settle-able  live: counterexample set of 0"
+  has "cross-check:    and a failing live names its witnesses" \
+    "$out" "access/revocation-possible  live: counterexample set of 4"
+  has "cross-check: C. the unexercised never branch says so" "$out" \
+    "never: 0 properties — branch unexercised"
+}
+
 # The scenarios, in order — the single source of truth for `all`, numbering
 # (1-based, as `list` prints), and name lookup. Each is a function above.
-scenarios="river island oversight workflow access control gitcompare"
+scenarios="river island oversight workflow access control gitcompare crosscheck"
 
 list_scenarios() {
   echo "tests (run one by name or number, e.g. '$0 3' or '$0 river'):"

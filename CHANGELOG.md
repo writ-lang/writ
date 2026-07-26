@@ -37,7 +37,11 @@ derivation tree. A situation is written as its state index, in and out. Every
 well-formed question exits 0 — an empty relation is an answer — and an
 unreadable rules file or an undeclared relation exits 2. Sort inference,
 stratification, range restriction and path checking are all read-time
-rejections that blame a `line:col`.
+rejections that blame a `line:col`. Every worked example carries a `.rules`
+file re-asking its `.claims` properties as derivations, and `make examples`
+cross-checks the two implementations against each other: all eleven properties
+across the five scenarios get the same verdict from `pol derive` as from
+`pol check`.
 
 **Editor support.** A language server and a VS Code client — diagnostics from
 the real engine, completion, hover and an outline.
