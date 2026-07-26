@@ -10,7 +10,7 @@ open Pol_data
 
 (* An alias, not a second record: [Errors.t] carries this position, and a
    diagnostic may exist without one. *)
-type pos = Errors.pos = { line : int; col : int }
+type pos = Errors.pos = { file : string option; line : int; col : int }
 type t = Atom of string * pos | List of t list * pos
 
 let pos_of = function Atom (_, p) -> p | List (_, p) -> p
@@ -24,6 +24,7 @@ let err_at (d : t) (msg : string) : ('a, Errors.t) result =
 (* ---------------------------------------------------------------- reader *)
 
 type cursor = {
+  file : string option;
   src : string;
   mutable off : int;
   mutable line : int;
@@ -33,7 +34,12 @@ type cursor = {
 (* Raised inside the reader, converted to a [result] at the boundary. *)
 exception Bad of pos * string
 
-let at c = { line = c.line; col = c.col }
+(* The ONE place in the engine that builds a position — which is why the file
+   name is stamped here rather than bolted on by whoever reports the error. Every
+   position the front end blames a datum at comes through [at], so every one of
+   them knows its own file for free, and keeps knowing it after [Loader] has
+   inlined the datum into another file's list. *)
+let at c = { file = c.file; line = c.line; col = c.col }
 let eof c = c.off >= String.length c.src
 let peek c = if eof c then None else Some c.src.[c.off]
 
@@ -129,8 +135,13 @@ let rec read_datum c =
   | Some '"' -> read_quoted c
   | Some _ -> read_bare c
 
-let read_string s =
-  let c = { src = s; off = 0; line = 1; col = 1 } in
+(* [?file] is the name the text came from — a name, never a path this reader
+   opens: reading text is what it does, finding it is the caller's job. Omitting
+   it is not a degraded mode, it is the honest answer for text that has no file
+   (a query typed on the command line, an unnamed buffer), and reading that way
+   behaves exactly as it always did. *)
+let read_string ?file s =
+  let c = { file; src = s; off = 0; line = 1; col = 1 } in
   let rec go acc =
     skip_trivia c;
     if eof c then Ok (List.rev acc) else go (read_datum c :: acc)

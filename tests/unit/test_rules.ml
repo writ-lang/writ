@@ -17,7 +17,7 @@ let check name cond =
 
 (* Positions are irrelevant to lowering — they exist so the CHECKER can blame a
    variable — so the fixtures use one throwaway position throughout. *)
-let p = { Errors.line = 1; col = 1 }
+let p = { Errors.file = None; line = 1; col = 1 }
 let v name = Rules.Var (name, p)
 let c name = Rules.Const (name, p)
 

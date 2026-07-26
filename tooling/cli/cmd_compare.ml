@@ -20,8 +20,8 @@ let parse_map (path : string) : (string * string) list =
   match read_file path with
   | Error e -> die 2 (path ^ ": " ^ e)
   | Ok src -> (
-      match Reader.read_string src with
-      | Error e -> die 2 (path ^ ": " ^ Errors.to_string e)
+      match Reader.read_string ~file:path src with
+      | Error e -> die 2 (located path e)
       | Ok datums ->
           List.map
             (function

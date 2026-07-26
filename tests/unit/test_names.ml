@@ -47,7 +47,7 @@ let rejects_at name src ~line ~col ~sub =
   | Ok _ -> check (name ^ " — accepted, but must be rejected") false
   | Error e ->
       check name
-        (e.Errors.pos = Some { Errors.line; col }
+        (e.Errors.pos = Some { Errors.file = None; line; col }
         && contains_sub ~sub e.Errors.msg)
 
 let () =

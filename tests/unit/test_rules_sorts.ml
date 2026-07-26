@@ -76,7 +76,7 @@ let rejected name m src ~line ~col ~sub =
       check
         (name ^ " is at " ^ string_of_int line ^ ":" ^ string_of_int col
        ^ ", not " ^ Errors.to_string e)
-        (e.Errors.pos = Some { Errors.line; col });
+        (e.Errors.pos = Some { Errors.file = None; line; col });
       check
         (name ^ " says `" ^ sub ^ "`, not " ^ e.Errors.msg)
         (contains_sub ~sub e.Errors.msg)
@@ -147,7 +147,7 @@ let () =
   | Ok _ -> check "sort conflict: expected a rejection" false
   | Error e ->
       check "sort conflict is at the second occurrence, 3:16"
-        (e.Errors.pos = Some { Errors.line = 3; col = 16 });
+        (e.Errors.pos = Some { Errors.file = None; line = 3; col = 16 });
       check "sort conflict names the first occurrence's position"
         (contains_sub ~sub:"3:10" e.Errors.msg);
       check "sort conflict names the column that forced each"

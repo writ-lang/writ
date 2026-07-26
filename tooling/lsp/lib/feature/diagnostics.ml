@@ -50,14 +50,25 @@ let mark ~range msg =
    unresolvable [(load …)], a load cycle — carries the position of its '(', and
    a token range on a delimiter is ZERO-WIDTH, which draws nothing. form_range
    spans '(' to its matching ')' and falls back to token_range everywhere else,
-   so atom-positioned errors are unchanged. *)
-let of_error (t : Text.t) (e : Errors.t) =
-  let range =
-    match e.Errors.pos with
-    | Some p -> Text.form_range t (Text.lsp_of_pos t p)
-    | None -> Text.line_range t 0
+   so atom-positioned errors are unchanged.
+
+   A position from ANOTHER file is treated as no position at all. A diagnostic
+   belongs to the document being analysed, but a fault inside a [(load …)]ed
+   library carries coordinates into THAT file, which the loader inlined into this
+   one's datums; drawing them on this buffer would underline whatever text
+   happens to sit at that line and column — a squiggle placed with total
+   confidence on a file the author is not even looking at. So the range falls
+   back to line 1, which is where an error with nowhere to point already goes,
+   and the message carries the [file:line:col] that [Errors.to_string] renders —
+   the only place the real location can still be read. *)
+let of_error (t : Text.t) ~(file : string) (e : Errors.t) =
+  let mine (p : Errors.pos) =
+    match p.Errors.file with None -> true | Some f -> f = file
   in
-  mark ~range e.Errors.msg
+  match e.Errors.pos with
+  | Some p when mine p ->
+      mark ~range:(Text.form_range t (Text.lsp_of_pos t p)) e.Errors.msg
+  | Some _ | None -> mark ~range:(Text.line_range t 0) (Errors.to_string e)
 
 (* The buffer's top-level datums, or none when it does not even read (an
    unbalanced paren); the role then falls back to a library/model whose loader
@@ -71,7 +82,9 @@ let datums_of (t : Text.t) : Reader.t list =
    demands a model's (use)/(initial), which a claims file legitimately lacks. *)
 let structural (resolve : Loader.resolve) (path : string) :
     (unit, Errors.t) result =
-  let* datums = Loader.read_datums resolve (Filename.basename path) in
+  let* datums =
+    Loader.read_datums resolve ~file:path (Filename.basename path)
+  in
   let* inlined = Loader.inline resolve datums in
   let* _ = Expander.expand inlined in
   Ok ()
@@ -93,4 +106,6 @@ let check (t : Text.t) ~(resolve : Loader.resolve) ~(path : string) :
 
 let of_text (t : Text.t) ~(resolve : Loader.resolve) ~(path : string) :
     Json.t list =
-  match check t ~resolve ~path with Ok () -> [] | Error e -> [ of_error t e ]
+  match check t ~resolve ~path with
+  | Ok () -> []
+  | Error e -> [ of_error t ~file:path e ]

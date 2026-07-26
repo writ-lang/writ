@@ -261,23 +261,23 @@ let () =
   match t.Rules_parser.rules with
   | [ { Rules.body = [ Rules.Guard (Rules.Is (p, v), lp) ]; _ } ] -> (
       check "positions: the literal is at 2:3"
-        (lp = { Errors.line = 2; col = 3 });
+        (lp = { Errors.file = None; line = 2; col = 3 });
       check "positions: the path is at 2:7"
-        (p.Rules.pos = { Errors.line = 2; col = 7 });
+        (p.Rules.pos = { Errors.file = None; line = 2; col = 7 });
       (match p.Rules.root with
       | Rules.Var ("X", rp) ->
           check "positions: the path root is at 2:7"
-            (rp = { Errors.line = 2; col = 7 })
+            (rp = { Errors.file = None; line = 2; col = 7 })
       | _ -> check "positions: the path root is a variable" false);
       (match p.Rules.steps with
       | [ ("reports-to", sp) ] ->
           check "positions: the step is blamed at the path"
-            (sp = { Errors.line = 2; col = 7 })
+            (sp = { Errors.file = None; line = 2; col = 7 })
       | _ -> check "positions: one step" false);
       match v with
       | Rules.Var ("Y", vp) ->
           check "positions: the value variable is at 2:20"
-            (vp = { Errors.line = 2; col = 20 })
+            (vp = { Errors.file = None; line = 2; col = 20 })
       | _ -> check "positions: the value is a variable" false)
   | _ -> check "positions: one guard literal" false
 

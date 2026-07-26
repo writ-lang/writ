@@ -77,7 +77,7 @@ let rejected name m src ~line ~col ~sub =
       check
         (name ^ " is at " ^ string_of_int line ^ ":" ^ string_of_int col
        ^ ", not " ^ Errors.to_string e)
-        (e.Errors.pos = Some { Errors.line; col });
+        (e.Errors.pos = Some { Errors.file = None; line; col });
       check
         (name ^ " says `" ^ sub ^ "`, not " ^ e.Errors.msg)
         (contains_sub ~sub e.Errors.msg)
@@ -111,7 +111,7 @@ let () =
   | Ok _ -> check "negation cycle: expected a rejection" false
   | Error e ->
       check "negation cycle is blamed at the (not …), 3:33"
-        (e.Errors.pos = Some { Errors.line = 3; col = 33 });
+        (e.Errors.pos = Some { Errors.file = None; line = 3; col = 33 });
       check "negation cycle names the whole cycle"
         (contains_sub ~sub:"negation cycle: `p` → `q` → `p`" e.Errors.msg);
       check "negation cycle does not claim one site is the fix"
@@ -170,7 +170,7 @@ let () =
   | Ok _ -> check "bare guard over a mutable arrow: expected a rejection" false
   | Error e ->
       check "a bare mutable arrow is blamed at the path, 2:17"
-        (e.Errors.pos = Some { Errors.line = 2; col = 17 });
+        (e.Errors.pos = Some { Errors.file = None; line = 2; col = 17 });
       (* The fix has to be named, or the message is a dead end. *)
       check "and the message names the fix that exists"
         (contains_sub ~sub:"holds" e.Errors.msg)

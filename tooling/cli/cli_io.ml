@@ -42,9 +42,21 @@ let make_resolve (base : string) : Loader.resolve =
   in
   try_ (Load_path.candidates ~base name)
 
+(* Which file the coordinates index, said ONCE. An error that carries a file of
+   its own names it and nothing else: that file may be a library this model
+   loaded, whose datums the loader spliced into this one's, in which case the
+   path on the command line is not where the reader should look — and printing
+   both would make one error claim two locations. An error with no file of its
+   own (a positionless failure, or one over text with no name) is attributed to
+   the path we were asked about, which is the closest true thing there is to say. *)
+let located (path : string) (e : Errors.t) : string =
+  match e.Errors.pos with
+  | Some { Errors.file = Some _; _ } -> Errors.to_string e
+  | Some { Errors.file = None; _ } | None -> path ^ ": " ^ Errors.to_string e
+
 let load_model (resolve : Loader.resolve) (path : string) : Model.t =
   match Loader.read_model resolve path with
-  | Error e -> die 2 (path ^ ": " ^ Errors.to_string e)
+  | Error e -> die 2 (located path e)
   | Ok m -> m
 
 let build_space (path : string) (m : Model.t) : Space.t =
@@ -53,7 +65,7 @@ let build_space (path : string) (m : Model.t) : Space.t =
 let read_claims (resolve : Loader.resolve) (m : Model.t) (path : string) :
     Claims.t =
   match Loader.read_claims resolve m path with
-  | Error e -> die 2 (path ^ ": " ^ Errors.to_string e)
+  | Error e -> die 2 (located path e)
   | Ok cl -> cl
 
 (* The third file type (extension §1), read exactly as the other two are. It
@@ -64,10 +76,10 @@ let read_claims (resolve : Loader.resolve) (m : Model.t) (path : string) :
 let read_rules (resolve : Loader.resolve) (m : Model.t) (path : string) :
     Rules.program =
   match Loader.read_rules resolve m path with
-  | Error e -> die 2 (path ^ ": " ^ Errors.to_string e)
+  | Error e -> die 2 (located path e)
   | Ok t -> (
       match Rules_check.check m t with
-      | Error e -> die 2 (path ^ ": " ^ Errors.to_string e)
+      | Error e -> die 2 (located path e)
       | Ok p -> p)
 
 (* The questions live beside the model, in the sibling [.claims] file

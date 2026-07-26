@@ -333,10 +333,10 @@ and cannot fail), and `check_arrow` resolves both against `Schema.type_of`.
 Both endpoints now report at the atom that is wrong:
 
 ```
-pol: x.pol: 1:49: arrow `f` names an undeclared type `nosuchtype` as its codomain
+pol: x.pol:1:49: arrow `f` names an undeclared type `nosuchtype` as its codomain
 exit=2
 
-pol: a.pol: 1:50: arrow `f` names an undeclared type `nosuchdom` as its domain
+pol: a.pol:1:50: arrow `f` names an undeclared type `nosuchdom` as its domain
 exit=2
 ```
 
@@ -354,9 +354,12 @@ own models, libraries, or fixtures was relying on the hole.
 
 ## 3. §13 a position from a loaded file is reported against the *loading* file
 
-**Status:** open. Found 2026-07-26 while implementing the relational
+**Status:** **fixed** 2026-07-26. Found while implementing the relational
 extension; recorded as a parked concern in the extension's design note
-before the reproduction below showed it is worse than "no filename".
+before the reproduction below showed it is worse than "no filename". Kept
+rather than deleted because the reproduction is the record of *why* the
+filename had to ride on the position instead of being attached by the
+caller — the mistake the obvious fix makes.
 
 ### What the spec requires
 
@@ -408,18 +411,67 @@ This is the same mechanism §6.2 relies on for its own guarantee, so the
 cost lands precisely where libraries are used — the case the load rules
 exist to support.
 
-### Where the fix goes
+### How it was fixed
 
-Add a `file : string option` to `Errors.t`, set it when `Loader.inline`
-splices a loaded file's datums, and print it in preference to the path on
-the command line. This is a one-field change to a type in `core/data/`
-that every error path in the engine constructs, so it is mechanical but
-wide — which is why it was parked rather than done inside a feature run.
+The field went on `Errors.pos`, not on `Errors.t`, and it is set by the
+**reader** rather than by `Loader.inline`. `pos` is constructed in exactly
+one place in the engine — `Reader.at`, fed by a cursor that now carries the
+name `read_string` was given — so all ~133 error construction sites
+inherited a filename without one of them being touched, and a position is
+never in existence without one. Setting it at the splice would have been
+the same amount of code and wrong for the case that matters: by the time
+`inline` runs, the datums it is splicing already exist, and anything that
+reads a position before or after the splice deserves the same answer.
 
-### Why it is not fixed yet
+`Loader` labels each file with the name it read it under. The two names
+differ for the file the caller asked about — `resolve` searches for a
+basename (design D3) while the path the caller typed is what they can act
+on — so the entry points pass the path as the label and a `(load …)`
+target gets the name the load datum gave it.
 
-Engine-wide and pre-existing. It wants its own change, not a corner of
-someone else's.
+The CLI now prints the error's own filename when it has one and falls back
+to the path on the command line when it does not, never both: two
+filenames on one error is two claims about where it is.
+
+The reproduction above, before and after:
+
+```
+pol: m.pol: 1:55: expected an (arrow …) declaration        ; column 55 of a
+exit=2                                                    ; 16-column line
+
+pol: lib.pol:1:55: expected an (arrow …) declaration       ; where (equation
+exit=2                                                     ; actually is
+```
+
+A same-file error names the same file it always did, now from the position
+rather than from the command line: `pol: single.pol:1:56: …`. An error with
+no position keeps the command line's path and its bare message, as it must
+— `pol: nosuch.pol: cannot resolve load: nosuch.pol`.
+
+`file = None` stayed meaningful — it is what a query typed on the command
+line and an unnamed buffer have, and it means "no name", never "no
+position".
+
+The **editor** treats a position from another file as no position at all.
+A diagnostic belongs to the document being analysed; a coordinate into a
+loaded library indexes lines this buffer does not have, and drawing it
+would underline whatever text happens to sit there with total confidence —
+the same failure as the wrong filename, in the medium where it is hardest
+to notice. So the range falls back to line 1, where an error with nowhere
+to point already goes, and the message carries the real `file:line:col`.
+That is the conservative option: it never claims a location it cannot
+support, at the cost of not putting the squiggle on the `(load …)` that
+pulled the fault in, which would need `inline` to thread the load site back
+out.
+
+Nine assertions pin it: `tests/unit/test_loadpath.ml` builds the
+reproduction above over an in-memory resolver and checks the library is
+named, that column 55 lands on the `(equation` that is wrong, and — the
+assertion that would have failed before — that the loading file's line 1 is
+too short to hold that column at all; plus a same-file fault naming the
+caller's path, and a string read having a position and no file.
+`tests/unit/test_lsp.ml` drives the cross-file buffer and checks the
+squiggle is not pinned to one of its lines.
 
 ---
 
@@ -511,7 +563,7 @@ Inside a `.rules` file, a constant that cannot inhabit its column is
 rejected at read time with a position:
 
 ```
-pol: c.rules: 2:33: `nabu` is not a situation, which is what column 1 of
+pol: c.rules:2:33: `nabu` is not a situation, which is what column 1 of
 built-in `init` takes
 exit=2
 ```
