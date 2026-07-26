@@ -35,7 +35,11 @@ RULES.rules RELATION` prints the rows; `"(RELATION ARG…)"` binds any position,
 so the dynamics run backward as readily as forward; `--why` prints a fact's
 derivation tree. A situation is written as its state index, in and out. Every
 well-formed question exits 0 — an empty relation is an answer — and an
-unreadable rules file or an undeclared relation exits 2. Sort inference,
+unreadable rules file or an undeclared relation exits 2. A relation is
+declared `(relation NAME ARITY)`, or `(relation NAME (T1 … Tn))` to give a sort
+per column — `Situation`, `Edge`, or a schema type — which is what makes rules
+writable over a model where two types share an arrow name and the root of a
+path therefore cannot be typed from the arrow. Sort inference,
 stratification, range restriction and path checking are all read-time
 rejections that blame a `line:col`. Every worked example carries a `.rules`
 file re-asking its `.claims` properties as derivations, and `make examples`

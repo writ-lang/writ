@@ -171,24 +171,23 @@ let rec seed_guard st rid benv (g : Rules.gexp) =
 
 (* ── Seeds ───────────────────────────────────────────────────────────────── *)
 
-let bwhy k i = "column " ^ string_of_int (i + 1) ^ " of built-in `" ^ k ^ "`"
-
+(* The per-position sorts come from [Rules_terms.builtin_cols] — the one table
+   [Rules_paths] also checks constants against, so the two cannot drift. G is
+   not among them: it is not a term, and is never sorted. Its CONTENTS are
+   seeded exactly as a bare guard's are. *)
 let seed_builtin st rid (b : Rules.builtin) =
+  let name, cols = Rules_terms.builtin_cols b in
+  let rec go i = function
+    | [] -> Ok ()
+    | (t, srt) :: rest ->
+        let* () = seed_var st rid t srt (Rules_terms.bwhy name i) in
+        go (i + 1) rest
+  in
+  let* () = go 0 cols in
   match b with
-  | Rules.Situation_ s -> seed_var st rid s Rules.Situation (bwhy "situation" 0)
-  | Rules.Init s -> seed_var st rid s Rules.Situation (bwhy "init" 0)
-  | Rules.Edge_ (e, s1, s2) ->
-      let* () = seed_var st rid e Rules.Edge (bwhy "edge" 0) in
-      let* () = seed_var st rid s1 Rules.Situation (bwhy "edge" 1) in
-      seed_var st rid s2 Rules.Situation (bwhy "edge" 2)
-  | Rules.Gap_edge (e, s) ->
-      let* () = seed_var st rid e Rules.Edge (bwhy "gap-edge" 0) in
-      seed_var st rid s Rules.Situation (bwhy "gap-edge" 1)
-  (* The G of [(holds S G)] is not a term and is never sorted; its CONTENTS are
-     seeded exactly as a bare guard's are. *)
-  | Rules.Holds (s, g) ->
-      let* () = seed_var st rid s Rules.Situation (bwhy "holds" 0) in
-      seed_guard st rid [] g
+  | Rules.Holds (_, g) -> seed_guard st rid [] g
+  | Rules.Situation_ _ | Rules.Init _ | Rules.Edge_ _ | Rules.Gap_edge _ ->
+      Ok ()
 
 let seed_literal st rid (l : Rules.literal) =
   match l with

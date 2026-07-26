@@ -61,6 +61,9 @@ predator with its prey, and from there the crossing can never succeed.
 | `pol compare OLD NEW [--map M]` | report each equation and property **preserved / LOST / gained** across two models |
 | `pol compare --git R1 R2 MODEL` | …across two git revisions of one file |
 | `pol control MODEL` | emit the move list as an instance of the standard library's `quiver` schema |
+| `pol derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
+| `pol derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
+| `pol derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
 | `pol --help` | the full reference |
 | `pol --version` | the version this binary was built from |
 
@@ -123,6 +126,13 @@ docker compose up     # builds pol from source in a container, runs every scenar
   scenarios, exercising `equation` laws, `accept` acknowledgments, `pol compare`,
   a declared `gap`, and a privilege **latch**.
 - **control**, **gitcompare** — `pol control` and `pol compare --git`.
+- **crosscheck** — the modality cross-check. Each of the five scenarios above
+  also carries a `.rules` file that re-asks its `.claims` properties as
+  derivations, and this scenario runs both instruments over all 11 of them:
+  `pol check`'s CTL reading against `pol derive`'s rules encoding. Two
+  independent implementations of one question, so a disagreement is a bug in
+  one of them rather than a number to adjust — the only test here whose oracle
+  its author did not choose.
 
 ## Editor support
 
@@ -143,7 +153,10 @@ make extension        # builds the language server and installs the client
   vocabulary for one subject, e.g.
   [`tests/models/politics.lib.pol`](tests/models/politics.lib.pol)) is ordinary
   user code and lives beside the models that load it.
-- **A proposed extension:** [`docs/interrogator.md`](docs/interrogator.md).
+- **The relational extension:** [`docs/interrogator.md`](docs/interrogator.md) —
+  partly built. The `.rules` file, the built-in relations that expose the
+  derived state category, and `pol derive` (§0–§2, §4, §5) ship; `pol solve`,
+  the search for structure-preserving maps (§3), does not.
 
 ## Building from source
 
@@ -170,8 +183,11 @@ review. The toolchain is resolved by
 Built: the full language (schema / instance / transitions / equations / forms),
 the interrogator (state-space enumeration, the three modalities with witnesses,
 queries, equation observation), and the tool interface `pol check` / `query` /
-`compare` (+ `--git`) / `control`. Deferred: the §16.4 schema dictionaries
-(`functor` / `check … via`) and §17 fiber reporting.
+`compare` (+ `--git`) / `control` / `derive` — the last being the relational
+extension's rules engine over the enumerated universe. Deferred: the §16.4
+schema dictionaries (`functor` / `check … via`), §17 fiber reporting, and the
+extension's own `pol solve` (its §3), which searches for functors and
+simulations rather than deriving facts.
 
 ## License
 

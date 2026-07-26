@@ -65,7 +65,11 @@ COMMANDS
            completed-stratum negations it rests on. Every well-formed question
            exits 0, an empty answer set included — an empty relation is an
            answer — and an unreadable rules file or an undeclared relation
-           exits 2. This verb never exits 1.
+           exits 2. This verb never exits 1. A relation is declared
+           `(relation NAME ARITY)`, or `(relation NAME (T1 … Tn))` to give a
+           sort per column (Situation, Edge, or a schema type) — needed when a
+           column's sort cannot be inferred, as it cannot for a variable
+           rooted in an arrow name that two types share.
 
 OPTIONS
   --claims FILE    the questions to ask (properties, queries, accepts)

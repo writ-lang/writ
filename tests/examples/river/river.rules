@@ -47,3 +47,25 @@
 
 (relation no-blunders 1)
 (rule (no-blunders S) (situation S) (not (can-still-finish S)))
+
+; A TYPED relation declaration, and the model that makes one mandatory.
+;
+; Everything above roots its paths at a named constant — `farmer.at`, `wolf.at`
+; — so the fixpoint reads each root's type straight out of the roster. The
+; moment a path is rooted at a VARIABLE, that stops working here: arrow names
+; are dom-scoped (kernel §7), and river.pol gives the name `at` to both
+; `traveler` and `cargo` (river.pol:22,24). An ambiguous name seeds nothing, and
+; constants never seed, so `X` below has no sort to be found anywhere in the
+; rule — `(relation across 2)` is rejected at the variable.
+;
+; `(relation NAME (T1 … Tn))` answers exactly that: it seeds each column's sort
+; directly, and `X` is sorted from the head column it occupies. Naming `cargo`
+; also says which half of the ambiguity is meant — the farmer is a `traveler`
+; and does not appear below.
+;
+; What it buys, beyond the syntax: the per-item view the all-four conjunctions
+; above cannot give. `intact` is one bit per situation; `across` is the crossing
+; in progress, and `pol derive river.pol river.rules "(across 34 X)"` reads off
+; who is over at the end.
+(relation across (Situation cargo))
+(rule (across S X) (situation S) (holds S (is X.at right)))

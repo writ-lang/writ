@@ -145,21 +145,43 @@ let const_ok (m : Model.t) (srt : Rules.sort) (c : string) =
       List.mem c (Schema.elements_of m.Model.schema ty)
       || Instance.type_of_entity m.Model.initial c = Some ty
 
+(* One column, one constant, one message shape — the [why] is all that differs
+   between a user relation's column and a built-in's. *)
+let check_col m ~why i (t : Rules.term) (srt : Rules.sort option) =
+  match (t, srt) with
+  | Rules.Const (c, p), Some srt when not (const_ok m srt c) ->
+      Errors.err ~pos:p
+        ("`" ^ c ^ "` is not " ^ Rules_terms.sort_name srt ^ ", which is what "
+       ^ why i ^ " holds")
+  | (Rules.Const _ | Rules.Var _), _ -> Ok ()
+
 let check_args m sorts rel ts =
   let rec go i = function
     | [] -> Ok ()
     | t :: rest ->
         let* () =
-          match (t, Rules_sorts.col_sort sorts rel i) with
-          | Rules.Const (c, p), Some srt when not (const_ok m srt c) ->
-              Errors.err ~pos:p
-                ("`" ^ c ^ "` is not " ^ Rules_terms.sort_name srt
-               ^ ", which is what " ^ Rules_terms.col_why rel i ^ " holds")
-          | _ -> Ok ()
+          check_col m ~why:(Rules_terms.col_why rel) i t
+            (Rules_sorts.col_sort sorts rel i)
         in
         go (i + 1) rest
   in
   go 0 ts
+
+(* A built-in's columns are the most sharply sorted positions in the language:
+   §3 fixes them per position, with no fixpoint to wait for, so the sort is
+   known even where the rest of the rule is not. That makes a typo there the
+   easiest one to write and the quietest one to leave unchecked — the row it
+   names can never exist, and §9 says an empty answer set is an answer. G is
+   exempt because it is not a term position, so [builtin_cols] omits it. *)
+let check_builtin m (b : Rules.builtin) =
+  let name, cols = Rules_terms.builtin_cols b in
+  let rec go i = function
+    | [] -> Ok ()
+    | (t, srt) :: rest ->
+        let* () = check_col m ~why:(Rules_terms.bwhy name) i t (Some srt) in
+        go (i + 1) rest
+  in
+  go 0 cols
 
 let check_rule m sorts (r : Rules.rule) =
   let* () = iter_r (check_literal m sorts r.Rules.id) r.Rules.body in
@@ -168,7 +190,8 @@ let check_rule m sorts (r : Rules.rule) =
     (function
       | Rules.Pos_rel (rel, ts, _) | Rules.Neg_rel (rel, ts, _) ->
           check_args m sorts rel ts
-      | Rules.Built_in _ | Rules.Guard _ -> Ok ())
+      | Rules.Built_in (b, _) -> check_builtin m b
+      | Rules.Guard _ -> Ok ())
     r.Rules.body
 
 let check (m : Model.t) (sorts : Rules_sorts.t) (rules : Rules.rule list) :

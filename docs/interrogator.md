@@ -63,6 +63,25 @@ A rules file is a third file type alongside `.pol`
   (subordinate Z Y))              ; exclude; the tool is where it belongs
 ```
 
+- A **declaration** is `(relation NAME ARITY)` — as above, and the common
+  case — or `(relation NAME (T1 … Tn))`, which gives a **sort per column**:
+  `Situation`, `Edge`, or a schema type name. Arity is then the list's length.
+  The untyped form stays legal and needs no annotation wherever the columns
+  can be typed from use; the typed form **seeds** each column's sort directly,
+  and is required where nothing else can supply one. It is not optional
+  sugar: arrow names are scoped to the type that owns them
+  ([§7](kernel-spec.md#7-names)), so one name may be shared by several types,
+  and a variable rooted in a shared arrow name — `X.at`, where both
+  `traveler` and `cargo` own `at` — cannot be typed from the arrow. No
+  built-in supplies an entity sort either, so without the annotation such a
+  rule is unwritable. A typed column is checked like any other: a term
+  resolving to a different sort is a conflict at that term.
+
+  ```lisp
+  (relation subordinate (person person))   ; the declaration above, typed
+  (relation across (Situation cargo))      ; sorts may be mixed
+  ```
+
 - A **head** is a declared relation applied to variables or constants.
 - A **body** is a conjunction of literals: kernel guards over paths
   (`is`, `defined`, and their boolean combinations —
@@ -73,7 +92,13 @@ A rules file is a third file type alongside `.pol`
   in an entity position of type T ranges over T's roster; in a situation
   position, over reachable situations; in an edge position, over
   transitions). A variable whose type cannot be inferred is an error at the
-  variable.
+  variable. "First use" is resolved by a **program-wide least fixpoint** over
+  `(relation, column) → sort`, not by a left-to-right pass: in the transitive
+  closure above, `Y` occurs only in the head and in a sort-transparent
+  relation literal, so nothing in that rule types it — it is typed by
+  `subordinate`'s second column, learned from the other rule. A left-to-right
+  reading would reject this section's own example. Constants never seed a
+  sort; a constant in a sorted column is checked against it.
 - Semantics: least fixpoint, computed bottom-up (semi-naïve), per stratum.
 
 ## 2. Built-in relations — the derived category as data

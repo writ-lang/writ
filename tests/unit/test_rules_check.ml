@@ -2,10 +2,10 @@
    read-time rejections that are not sort inference (those are TRS).
 
    [Rules_check.check] is the only constructor of a [Rules.program], so this is
-   the gate everything downstream trusts. `pol derive` does not exist yet, so
-   these unit tests are the only way to prove any of it now; the fixtures below
-   are the same files the run's fitness gates will drive through the CLI later,
-   which is why each is exercised here rather than eyeballed. *)
+   the gate everything downstream trusts. Every program here is a string
+   literal, so a case is read where it is asserted; the .rules FILES under
+   tests/unit/fixtures/ — the same ones the run's fitness gates drive through
+   the CLI — are exercised next door, in test_rules_fixtures.ml. *)
 
 open Pol_data
 open Pol_syntax
@@ -202,6 +202,41 @@ let () =
   accepted "a situation index is a bare non-negative integer" org
     "(relation p (Situation))\n(rule (p 0) (init S))"
 
+(* A BUILT-IN's columns are sorted by §3 itself, per position, with no fixpoint
+   to wait for — so they are the sharpest-sorted positions in the language and
+   the easiest place to hide a typo. One case per built-in, because the sorts
+   are a table and a table is exactly the thing that acquires a hole: the whole
+   family went unchecked while the user-relation cases above passed. *)
+let () =
+  rejected "a non-index constant in situation's column" org
+    "(relation p (Situation))\n(rule (p S) (situation S) (situation nabu))"
+    ~line:2 ~col:38
+    ~sub:
+      "is not a situation, which is what column 1 of built-in `situation` holds";
+  rejected "a non-index constant in init's column" org
+    "(relation p (Situation))\n(rule (p S) (situation S) (init nabu))" ~line:2
+    ~col:33 ~sub:"is not a situation, which is what column 1 of built-in `init`";
+  rejected "a non-transition constant in edge's edge column" org
+    "(relation p (Situation))\n(rule (p S) (edge no-such-move S T))" ~line:2
+    ~col:19 ~sub:"is not an edge, which is what column 1 of built-in `edge`";
+  rejected "a non-index constant in edge's target column" org
+    "(relation p (Situation))\n(rule (p S) (edge speak S nabu))" ~line:2 ~col:27
+    ~sub:"is not a situation, which is what column 3 of built-in `edge`";
+  rejected "a non-transition constant in gap-edge's edge column" org
+    "(relation p (Situation))\n(rule (p S) (gap-edge no-such-move S))" ~line:2
+    ~col:23 ~sub:"is not an edge, which is what column 1 of built-in `gap-edge`";
+  rejected "a non-index constant in holds's situation column" org
+    "(relation p (Situation))\n\
+     (rule (p S) (situation S) (holds nabu (is nabu.stands quiet)))"
+    ~line:2 ~col:34
+    ~sub:"is not a situation, which is what column 1 of built-in `holds`";
+  (* The control: the same built-ins with constants that DO inhabit their
+     columns. G is not one of them — it is a non-term position (§3), so the
+     entity name inside it is checked as a guard path, not as a column. *)
+  accepted "constants that inhabit their built-in columns" org
+    "(relation p (Situation))\n\
+     (rule (p S) (edge speak 0 S) (holds 0 (is nabu.stands quiet)))"
+
 (* A kernel [some] binder is not a rule variable: it is bound by the
    quantifier and scoped to its own guard body, so §4's "must already be bound"
    does not reach it. Without that reading this formula — the one at
@@ -211,66 +246,6 @@ let () =
     "(relation quiet-day (Situation))\n\
      (rule (quiet-day S) (situation S) (holds S (not (some (a account) (is \
      a.role admin)))))"
-
-(* --- the fixtures the later gates will drive ------------------------------- *)
-
-let repo_root () =
-  let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
-    else if n = 0 then dir
-    else up (Filename.dirname dir) (n - 1)
-  in
-  up (Sys.getcwd ()) 8
-
-let resolve : Loader.resolve =
- fun name ->
-  let p = Filename.concat (repo_root ()) ("tests/unit/fixtures/" ^ name) in
-  match open_in_bin p with
-  | exception Sys_error _ ->
-      Error { Errors.pos = None; msg = "cannot resolve " ^ name }
-  | ic ->
-      let n = in_channel_length ic in
-      let s = really_input_string ic n in
-      close_in ic;
-      Ok s
-
-let model_file name =
-  match Loader.read_model resolve name with
-  | Ok m -> m
-  | Error e -> failwith (name ^ ": " ^ Errors.to_string e)
-
-let fixture m name =
-  match Loader.read_rules resolve m name with
-  | Error e -> Error e
-  | Ok t -> Rules_check.check m t
-
-let fixture_rejected name m file ~sub =
-  match fixture m file with
-  | Ok _ -> check (file ^ ": expected a rejection") false
-  | Error e ->
-      check (file ^ " is positioned") (e.Errors.pos <> None);
-      check
-        (file ^ " says `" ^ sub ^ "` (" ^ name ^ "), not " ^ e.Errors.msg)
-        (contains_sub ~sub e.Errors.msg)
-
-let () =
-  let base = model_file "rules_base.pol" in
-  (match fixture base "closure.rules" with
-  | Ok _ -> check "closure.rules is a legal program" true
-  | Error e -> check ("closure.rules: " ^ Errors.to_string e) false);
-  (match fixture base "rules_empty.rules" with
-  | Ok p ->
-      check "rules_empty.rules declares a relation with no rules"
-        (p.Rules.rules = [] && List.length p.Rules.relations = 1)
-  | Error e -> check ("rules_empty.rules: " ^ Errors.to_string e) false);
-  fixture_rejected "stratification" base "neg_cycle.rules" ~sub:"negation cycle";
-  fixture_rejected "sorts" base "untyped_var.rules" ~sub:"cannot be inferred";
-  fixture_rejected "range restriction" base "unsafe.rules" ~sub:"not bound";
-  fixture_rejected "the built-in namespace" base "redefine_builtin.rules"
-    ~sub:"built-in";
-  fixture_rejected "the ALL-CAPS collision"
-    (model_file "caps_base.pol")
-    "caps_collision.rules" ~sub:"reads as a variable here but names an element"
 
 let () =
   print_string

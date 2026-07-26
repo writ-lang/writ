@@ -69,3 +69,26 @@ let path_str (p : Rules.gpath) =
   String.concat "." (term_name p.Rules.root :: List.map fst p.Rules.steps)
 
 let col_why rel i = "column " ^ string_of_int (i + 1) ^ " of `" ^ rel ^ "`"
+let bwhy k i = "column " ^ string_of_int (i + 1) ^ " of built-in `" ^ k ^ "`"
+
+(* Extension §3's fixed per-position sorts: the built-in's name, then its TERM
+   positions in written order, each with the sort that position always has.
+
+   One table, because two readings of it have to agree about which sort sits in
+   which column — what a built-in SEEDS ([Rules_sorts]) and what a constant
+   written there must INHABIT ([Rules_paths]). Two copies would be two chances
+   to disagree, and the disagreement would be silent in exactly the direction
+   that matters: a column checked against the wrong sort.
+
+   [(holds S G)]'s G is deliberately absent. It is the language's one non-term
+   position — a guard datum, never sorted, never unified — so it has no column
+   here; its CONTENTS are walked as a bare guard's are. *)
+let builtin_cols (b : Rules.builtin) : string * (Rules.term * Rules.sort) list =
+  match b with
+  | Rules.Situation_ s -> ("situation", [ (s, Rules.Situation) ])
+  | Rules.Init s -> ("init", [ (s, Rules.Situation) ])
+  | Rules.Edge_ (e, s1, s2) ->
+      ("edge", [ (e, Rules.Edge); (s1, Rules.Situation); (s2, Rules.Situation) ])
+  | Rules.Gap_edge (e, s) ->
+      ("gap-edge", [ (e, Rules.Edge); (s, Rules.Situation) ])
+  | Rules.Holds (s, _) -> ("holds", [ (s, Rules.Situation) ])
