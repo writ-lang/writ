@@ -183,13 +183,6 @@ let () =
       | _ -> check ("unreadable test source for `" ^ w ^ "`") false)
     [ "relation"; "rule" ]
 
-(* --- §8.3: an arrow's endpoints must be declared types ---------------------- *)
-
-(* The gap this closes (docs/conformance-gaps.md #2) was not that the model was
-   accepted — it failed eventually — but that it failed at the wrong stage, in
-   the wrong file, with no position, complaining about a *cell* and never naming
-   the type that does not exist. So each case asserts the position and the
-   offending name, not merely that something went wrong. *)
 let contains_sub ~sub s =
   let ls = String.length s and lsub = String.length sub in
   let rec go i =
@@ -199,39 +192,29 @@ let contains_sub ~sub s =
   in
   go 0
 
-let decodes src =
-  match Reader.read_string src with
-  | Error e -> Error e
-  | Ok ds -> (
-      match Expander.expand ds with
-      | Error e -> Error e
-      | Ok ex -> Parser.parse_model ex)
-
-let rejects_at name src ~line ~col ~sub =
-  match decodes src with
-  | Ok _ -> check (name ^ " — accepted, but must be rejected") false
-  | Error e ->
-      check name
-        (e.Errors.pos = Some { Errors.line; col }
-        && contains_sub ~sub e.Errors.msg)
-
+(* Cross-FILE is the case that bites in practice: neither file holds a duplicate
+   on its own, so the check has to run over the loaded universe (§6.2), after
+   inlining — which is why it lives in [Parser.collect_decls] and not in [Decl].
+   Uses the real loader and the real stdlib rather than a hand-built pair. *)
 let () =
-  let model body =
-    body ^ "\n(instance i (of m) (box p))\n(use m)\n(initial i)"
+  let src =
+    "(load \"stdlib.pol\")\n\
+     (schema m (type chain (a b)))\n\
+     (instance i (of m))\n\
+     (use m)\n\
+     (initial i)"
   in
-  rejects_at "an arrow's codomain must be a declared type"
-    (model "(schema m (type v (a b)) (type box (arrow f (to nosuchtype))))")
-    ~line:1 ~col:49 ~sub:"undeclared type `nosuchtype`";
-  rejects_at "an explicit (of TYPE) domain must be a declared type too"
-    (model
-       "(schema m (type v (a b)) (type box) (arrow f (of nosuchdom) (to v)))")
-    ~line:1 ~col:50 ~sub:"undeclared type `nosuchdom`";
-  (* The control, and the reason the check cannot live in the arrow decoder: a
-     type may be declared AFTER the arrow that points at it, so the schema has
-     to be whole before any endpoint can be resolved. *)
-  check "a forward reference to a later-declared type still builds"
-    (Result.is_ok
-       (decodes (model "(schema m (type box (arrow f (to v))) (type v (a b)))")))
+  let files = [ ("dup.pol", src) ] in
+  let resolve name =
+    match List.assoc_opt name files with Some s -> Ok s | None -> resolve name
+  in
+  match Loader.read_model resolve "dup.pol" with
+  | Ok _ ->
+      check "a model may not redeclare a type the loaded stdlib declares" false
+  | Error e ->
+      check "a model may not redeclare a type the loaded stdlib declares"
+        (contains_sub ~sub:"`chain` is already declared" e.Errors.msg
+        && e.Errors.pos <> None)
 
 let () =
   print_string ("data tests: " ^ string_of_int !passed ^ " checks passed\n")

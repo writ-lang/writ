@@ -43,6 +43,7 @@ let env_of_instance (i : Instance.t) : Grammar.env =
     i.Instance.rosters
 
 let collect_decls (datums : Reader.t list) : (decls, Errors.t) result =
+  let* () = Names.check datums in
   let* schemas =
     map_r Decl.decode_schema
       (List.filter

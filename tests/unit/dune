@@ -23,7 +23,8 @@
   test_engine
   test_control
   test_compare
-  test_loadpath)
+  test_loadpath
+  test_names)
  (deps
   (glob_files fixtures/*.{pol,claims,rules})
   (glob_files %{workspace_root}/tests/models/*.{pol,claims})

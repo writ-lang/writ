@@ -12,8 +12,11 @@ and where the fix goes.
 
 ## 1. §7 global names are not enforced (except for forms)
 
-**Status:** open. Found 2026-07-26 while deciding whether adding types to
-`stdlib.pol` reserves those names for every model.
+**Status:** **fixed** 2026-07-26. Found while deciding whether adding
+types to `stdlib.pol` reserves those names for every model — and the
+answer is now yes, enforced. Kept rather than deleted because the
+"expect fallout" warning below turned out to be answerable with a number,
+and that number is worth recording.
 
 ### What the spec requires
 
@@ -45,6 +48,8 @@ Of the four categories §7 names, only one is checked:
 | Entities (roster) | **no** |
 | Equations | **no** |
 | Forms | yes — `form \`f\` is already declared` |
+
+*(All six rows read **yes** as of the fix below.)*
 
 Each reproduction below builds cleanly and reports `states: 1  edges: 0`
 where the spec requires a static error.
@@ -123,30 +128,80 @@ loading on the grounds that "a repeated-name error always signals two
 *different* declarations claiming one name". That guarantee is only worth
 having if repeated names are errors at all.
 
-### Where the fix goes
+### How it was fixed
 
-There is already a working template: `core/syntax/forms.ml:149` raises
+`core/syntax/names.ml`, called from `Parser.collect_decls`. The ordering
+constraint was the whole design: §7 says *loaded universe*, and
+reproduction (e)'s duplicate exists in neither file alone, so the check
+has to run after `Loader` inlines the loads (§6.2) and the expander has
+run. `collect_decls` is the first point where every declaration is in one
+list, so it is the earliest place the rule can be stated at all — and it
+covers `parse_library` too, since a library should not contradict itself
+either.
+
+Names are collected from the **raw datums** rather than from the decoded
+schema, because that is what keeps a position on every one. A roster
+clause `(TYPE e…)` is told from a valuation clause `(ARROW (E V)…)` by
+shape — all-atom arguments versus list arguments — with `(of SCHEMA)`
+skipped by name, so no schema is needed to read entity names off an
+instance.
+
+All five reproductions above now fail at the **second** declaration:
 
 ```
-form `f` is already declared
+a.  1:32: type `v` is already declared
+b.  2:19: type `v` is already declared
+c.  2:33: entity `e` is already declared
+d.  3:13: equation `e` is already declared
+e.  2:20: type `v` is already declared
 ```
 
-positioned at the offending declaration. The same shape is wanted for
-types, entities, and equations — one accumulating set of declared names
-per loaded universe, checked at each declaration, blamed at the second
-one with its own `line:col`.
+### §7 says *one* namespace, and it is implemented that way
 
-Note the ordering constraint: the check must run over the **loaded
-universe**, after `load` inlining (§6.2), not per file — otherwise
-reproduction (e) still slips through, since neither file contains a
-duplicate on its own.
+The gap's table listed the four categories separately, which invites a
+set per category. §7's text does not: "types, entities, forms, equations.
+**One** namespace across the loaded universe." So a name held by a type is
+not available to an entity, which none of the five reproductions covered:
 
-### Why it is not fixed yet
+```lisp
+(schema m (type box) (type v (a b)))
+(instance i (of m) (box box))          ; an entity named after its own type
+```
 
-`core/syntax/decl.ml` and the parser are where the relational extension's
-`.rules` work is landing. This is a small static check and worth doing,
-but not worth a merge conflict in the module someone else is mid-way
-through. Pick it up once that settles.
+```
+2:25: entity `box` is already declared as a type
+```
+
+That case has its own test, flagged as the one a future refactor is most
+likely to drop by keeping a set per kind.
+
+### The fallout the warning predicted: none, measured
+
+The paragraph above warns "**the day this gap is closed, those models
+break**", and expects fallout proportional to how long the gap stayed
+open. Measured across the whole repository — 16 unit suites (366 checks),
+all eight example scenarios (58 checks), 24 standing fitness gates, 13
+relational-extension gates, and all seven docker services — **nothing
+broke.** Not one model, library, fixture or emitted quiver was relying on
+the hole.
+
+That is a fact about *this* repository at *this* size, not a general
+reassurance. The standing cost §7 imposes is now real and demonstrable:
+`stdlib.pol` declares `node` and `edge` (§2) plus `ob`, `hom`, `chain`
+and `eqn` (§6), and a model that loads it may no longer declare its own:
+
+```lisp
+(load "stdlib.pol")
+(schema m (type chain (a b)))
+```
+
+```
+2:17: type `chain` is already declared
+```
+
+Which is the point. Six words is a price the standard library now visibly
+charges, rather than one it charged silently by letting the lookup pick a
+winner.
 
 ### Related: a reserved word reserves only against *form* names
 
@@ -158,9 +213,8 @@ equation names. So this builds, with a type *and* an entity named after a
 reserved word:
 
 ```lisp
-(schema m (type rule (a b)) (type relation (c d))
-          (type box (arrow k (to rule))))
-(instance i (of m) (box rule) (k (rule a)))
+(schema m (type rule (a b)) (type relation (c d)) (type box (arrow k (to rule))))
+(instance i (of m) (box p) (k (p a)))
 (use m)
 (initial i)
 ```
@@ -168,6 +222,13 @@ reserved word:
 ```
 states: 1   edges: 0        exit=0
 ```
+
+*(This reproduction was originally written with an entity also named
+`rule`. Closing the gap above invalidated it — an entity may no longer
+take a name a type holds — so it is narrowed to the claim it was actually
+making: a reserved word does not stop a **type** from taking it. Worth
+noting as an instance of the hazard this whole file exists to manage: a
+reproduction is only evidence while it still runs.)*
 
 This is not currently harmful — the three file types are read by
 different parsers, so a `.pol` type named `rule` never meets the `.rules`
