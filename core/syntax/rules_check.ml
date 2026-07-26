@@ -220,4 +220,10 @@ let check (m : Model.t) (p : Rules_parser.t) : (Rules.program, Errors.t) result
   let* strata = strata rels rules in
   let* () = Rules_safety.check sorts rules in
   Ok
-    { Rules.relations = rels; rules; sorts = sorts.Rules_sorts.columns; strata }
+    {
+      Rules.relations = rels;
+      rules;
+      sorts = sorts.Rules_sorts.columns;
+      vars = sorts.Rules_sorts.variables;
+      strata;
+    }

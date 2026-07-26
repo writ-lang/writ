@@ -149,12 +149,22 @@ type rule = {
 }
 
 (* What crosses into the engine. [sorts] is the inference fixpoint's answer for
-   every column and [strata] the stratum each relation is evaluated in; both are
-   settled before the engine sees them. *)
+   every column, [vars] its answer for every variable, and [strata] the stratum
+   each relation is evaluated in; all three are settled before the engine sees
+   them.
+
+   [vars] is here because extension §2 makes an unbound path root enumerate ITS
+   SORT'S domain, and the sort of a variable is not recoverable from [sorts]: a
+   variable seeded by an arrow's dom and occurring in no relation column has no
+   column to read it off. Recomputing it in the engine would be a second
+   inference that could disagree with the one that issued the diagnostics, which
+   is exactly what "the parser is the only constructor" exists to prevent. Keyed
+   by rule, because a rule's variables are scoped to it. *)
 type program = {
   relations : relation list;
   rules : rule list;
   sorts : ((string * int) * sort) list;
+  vars : ((rule_id * string) * sort) list;
   strata : (string * int) list;
 }
 
