@@ -20,14 +20,32 @@ open Pol_data
    declarations claiming one name" is only worth saying if repeated names are
    errors at all. *)
 
-type kind = Type | Entity | Equation
+(* Schema names are here because §8.1 puts them here — its one constraint is
+   "NAME is fresh (§7)", which cites this namespace rather than a namespace of
+   its own. So two [(schema m …)] declarations collide exactly as two types
+   would, and a schema may not take a name a type holds either. Contrast §10.1,
+   which says a transition NAME must be fresh and pointedly does *not* cite §7:
+   that one is scoped to transitions and lives in [Parser]. *)
+type kind = Type | Entity | Equation | Schema
 
 let kind_name = function
   | Type -> "type"
   | Entity -> "entity"
   | Equation -> "equation"
+  | Schema -> "schema"
 
-let article = function Entity | Equation -> "an" | Type -> "a"
+let article = function Entity | Equation -> "an" | Type | Schema -> "a"
+
+(* Which section put this name in the namespace — cited off the kind the author
+   has just written, since that is the declaration they can act on. A schema's
+   name is in here only because §8.1 sends it here, and saying "§7 gives types,
+   entities, forms and equations one namespace" over a rejected `schema` would
+   invite the reader to check §7 and find no schemas listed. *)
+let cite = function
+  | Schema -> "§8.1 requires a schema's name to be fresh in §7's one namespace"
+  | Type | Entity | Equation ->
+      "§7 gives types, entities, forms and equations one namespace across the \
+       loaded universe"
 
 (* A roster clause is [(TYPE e…)], all-atom; a valuation clause is
    [(ARROW (E V)…)], whose arguments are lists. Telling them apart needs the
@@ -67,8 +85,9 @@ let schema_names (clauses : Reader.t list) : (string * kind * Errors.pos) list =
 let declared (datums : Reader.t list) : (string * kind * Errors.pos) list =
   List.concat_map
     (function
-      | Reader.List (Reader.Atom ("schema", _) :: _ :: clauses, _) ->
-          schema_names clauses
+      | Reader.List
+          (Reader.Atom ("schema", _) :: Reader.Atom (n, p) :: clauses, _) ->
+          (n, Schema, p) :: schema_names clauses
       | Reader.List (Reader.Atom ("instance", _) :: _ :: clauses, _) ->
           List.map (fun (e, p) -> (e, Entity, p)) (roster_entities clauses)
       | _ -> [])
@@ -88,8 +107,7 @@ let check (datums : Reader.t list) : (unit, Errors.t) result =
             Errors.err ~pos:p
               (kind_name k ^ " `" ^ n ^ "` is already declared"
               ^ (if k = k0 then "" else " as " ^ article k0 ^ " " ^ kind_name k0)
-              ^ " — §7 gives types, entities, forms and equations one \
-                 namespace across the loaded universe")
+              ^ " — " ^ cite k)
         | None ->
             Hashtbl.add seen n k;
             go rest)

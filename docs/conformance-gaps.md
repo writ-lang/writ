@@ -649,3 +649,308 @@ way and were split at real seams — `runtime/derive_answers.ml` out of
 `derive_table.ml` (maintaining the store versus interrogating it) and
 `tests/unit/test_facts.ml` out of `test_derive.ml` (the §2 adapter versus
 the §6 fixpoint, matching the modules they exercise).
+
+---
+
+## 6. Part II constraints unenforced — a systematic sweep
+
+**Status:** **fixed** 2026-07-26 — nine of them, plus one twin the fix for the
+eighth exposed. Found by reading Part II's **Constraints** bullets one at a time
+against the front end rather than by tripping over a symptom, which is why they
+arrive together. Two further holes the sweep uncovered in §9 are recorded at the
+end as **open**, because closing them needs a decision this run had no mandate
+to make.
+
+### What the spec requires
+
+Nine bullets, verbatim:
+
+| § | Constraint |
+| --- | --- |
+| 8.1 | `schema` — NAME is fresh (§7) |
+| 8.2 | `type` — NAME fresh; **VALUEs distinct** |
+| 8.3 | `arrow` — FLAG is `fixed` or `vacatable`, **each at most once** |
+| 8.3 | `arrow` — **NAME fresh among the owner's arrows** (§7) |
+| 8.3 | `fixed` — "the answer is set once by the instance and never changes: wiring" |
+| 9.3 | `vacant` — an empty slot is "permitted only for vacatable arrows" |
+| 10.1 | `transition` — NAME, if present, fresh |
+| 10.1 | `transition` — **exactly one `when`** |
+| 10.1 | `transition` — **exactly one `do`** |
+
+§13 puts all of them at the `static`/`parse` stages and requires every error to
+"belong to one stage and name a `line:col`".
+
+### What actually happened
+
+Every reproduction below **built cleanly, exit 0**. The state-space line is what
+`pol check` printed:
+
+```lisp
+; 1. §8.1 — two schemas of one name              states: 1  edges: 0
+(schema m (type v (a b)))
+(schema m (type w (c d)))
+(instance i (of m)) (use m) (initial i)
+```
+
+```lisp
+; 2. §8.2 — an enumerated type repeats a value    states: 1  edges: 0
+(schema m (type v (a a)))
+(instance i (of m)) (use m) (initial i)
+```
+
+```lisp
+; 3. §8.3 — a flag twice                          states: 1  edges: 0
+(schema m (type v (a b)) (type box (arrow f (to v) fixed fixed)))
+(instance i (of m) (box p) (f (p a))) (use m) (initial i)
+```
+
+```lisp
+; 4. §8.3 — one type, two arrows named f          states: 1  edges: 0
+(schema m (type v (a b)) (type box (arrow f (to v)) (arrow f (to v))))
+(instance i (of m) (box p) (f (p a))) (use m) (initial i)
+```
+
+```lisp
+; 5. §10.1 — two (when …), the FIRST silently won  states: 1  edges: 0
+(schema m (type v (a b)) (type box (arrow f (to v))))
+(instance i (of m) (box p) (f (p a))) (use m) (initial i)
+(transition t (when (is p.f b)) (when (is p.f a)) (do (set p.f b)))
+```
+
+```lisp
+; 6. §10.1 — two (do …), the second discarded      states: 2  edges: 1
+(schema m (type v (a b)) (type box (arrow f (to v)) (arrow g (to v))))
+(instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)
+(transition t (when (is p.f a)) (do (set p.f b)) (do (set p.g b)))
+```
+
+```lisp
+; 7. §10.1 — two transitions of one name           states: 4  edges: 4
+(schema m (type v (a b)) (type box (arrow f (to v)) (arrow g (to v))))
+(instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)
+(transition dup (when (is p.f a)) (do (set p.f b)))
+(transition dup (when (is p.g a)) (do (set p.g b)))
+```
+
+```lisp
+; 8. §8.3 — (set …) a fixed arrow                  states: 2  edges: 3
+(schema m (type v (a b)) (type box (arrow f (to v) fixed) (arrow g (to v))))
+(instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)
+(transition setfixed (when (is p.f a)) (do (set p.f b)))
+(transition setstate (when (is p.g a)) (do (set p.g b)))
+```
+
+```lisp
+; 9. §9.3 — (vacate …) a non-vacatable arrow   states: 2  edges: 1  dead ends: 1
+(schema m (type v (a b)) (type box (arrow f (to v))))
+(instance i (of m) (box p) (f (p a))) (use m) (initial i)
+(transition emptyit (when (is p.f a)) (do (vacate p.f)))
+```
+
+Case 5 is the sharpest of the shape-level ones. With `p.f = a` initially, a
+false first guard beside a true second one gave `states: 1  edges: 0` — the
+first `when` won and the second was dropped without a word, so the author's move
+existed nowhere and nothing said so.
+
+### Why it matters
+
+**Seven of the nine pick a silent winner.** That is gap 1's failure verbatim, in
+seven more places: two declarations, or two clauses, claim one slot, the model
+builds, and whichever the lookup reaches decides what the model *means*. `(a a)`
+reads as a two-value type and behaves as a one-value type. Two arrows named `f`
+on one type both stand, and `Schema.arrow_in`'s scan order decides what every
+chain through `box.f` denotes. Two `do` clauses mean half the author's effects
+are not in the model.
+
+**Two of them change the state space, which is worse.** Cases 8 and 9 do not
+merely mis-resolve a name; they distort the graph every modality answer is
+computed over.
+
+`State.build_ctx` hoists fixed cells out of the state vector, so a write to one
+has no cell to land in: the effect applies, changes nothing, and the move
+becomes a **phantom self-loop** wherever its guard holds. Case 8's space has one
+real edge and reported **three**. Self-loops are exactly what `live` (AG EF F)
+is most sensitive to — it reads one as progress — so an illegal write does not
+just go unnoticed, it invents structure and then gets asked questions about it.
+
+Case 9 goes the other way: `build_ctx` **rejects** an unset non-vacatable cell in
+an instance, and a `(vacate …)` built one anyway. The engine could reach a
+situation its own totality check forbids — reachable, reported, and
+unrepresentable as a written instance.
+
+**Case 7 broke a tool's own round-trip.** `pol control` emits one `edge` entity
+per transition (§17), so two transitions named `dup` produce a quiver instance
+whose roster names `dup` twice — and since gap 1 closed, that output no longer
+re-parses:
+
+```
+pol: q.pol:5:13: entity `dup` is already declared — §7 gives types, entities,
+forms and equations one namespace across the loaded universe
+```
+
+The standing gate `control-emits-reparseable-quiver` could not see it: its
+fixture's transitions are uniquely named.
+
+### How it was fixed
+
+Four homes, each the place the constraint's own scope points at.
+
+**`core/syntax/names.ml` — case 1.** A fourth `kind`, `Schema`. §8.1's single
+constraint is "NAME is fresh (§7)", which cites *this* namespace rather than one
+of its own, so a schema name collides with a type's exactly as two types do. The
+section cited in the message is now chosen by the kind the author just wrote:
+saying "§7 gives types, entities, forms and equations one namespace" over a
+rejected `schema` would invite the reader to check §7 and find no schemas
+listed, so a schema is told about §8.1 instead.
+
+**`core/syntax/decl.ml` — cases 2, 3, 4.** Values and flags are checked inside
+the decoders, where the repeated atom's position is in hand. Arrow-name
+freshness cannot be: the two declarations need not sit together, since one may be
+nested in a `(type …)` body and the other written at schema top level with an
+`(of TYPE)` domain naming the same owner. So it joined the `check_*` pass that
+already waits for the whole schema, keyed on the pair **(dom, name)** — never the
+name alone. §7 is explicit that `bureau` and `case` may each own a `status`, and
+`tests/examples/river` leans on it (`traveler.at`, `cargo.at`); a global check
+would have passed every new test and broken the river. Two controls pin the
+scoping.
+
+`decl.ml` would have crossed the 300-line cap, and was split at the seam its own
+comments already drew: `core/syntax/decl_checks.ml` holds `arrow_at` and the
+three checks that need an assembled schema, `decl.ml` keeps the decoders. That is
+a real division — decoding turns a datum into data and cannot see forward,
+checking resolves names against the finished result.
+
+**`core/syntax/parser.ml` — cases 5, 6, 7.** `List.find_map` was what made the
+surplus clause vanish: it took the first match and never looked at the rest.
+Collecting every `when` and every `do` is what makes the second one *nameable*,
+and the second is what gets blamed — the first is where the author probably meant
+to write it. Transition-name freshness is scoped to transitions, not global:
+§10.1 says NAME must be fresh and, unlike §8.1, pointedly does **not** cite §7,
+so a move may share a name with a type. There is a control for that too, and it
+is the assertion that would fail if the check were ever folded into `Names`.
+
+**`core/syntax/grammar.ml` — cases 8, 9.** `check_effect` already resolved an
+effect's path against the schema, so the arrow being written was one line away.
+`(set …)` now rejects a `fixed` last arrow and `(vacate …)` a non-`vacatable`
+one, both at the path atom.
+
+### The twin the eighth fix exposed
+
+Asking whether `vacate` had the *other* hole found that it did. A
+`fixed vacatable` arrow is writable by `(vacate …)`, and lands nowhere in exactly
+the same way:
+
+```lisp
+(schema m (type v (a b)) (type box (arrow f (to v) fixed vacatable) (arrow g (to v))))
+(instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)
+(transition vacfixed (when (is p.f a)) (do (vacate p.f)))
+(transition setstate (when (is p.g a)) (do (set p.g b)))
+```
+
+```
+states: 2   edges: 3        exit=0        ; one real edge, two phantom
+```
+
+So the rule is stated once, over both effects — *no move may write a fixed
+arrow* — rather than twice as a property of `set`. Fixing only case 8 would have
+left the twin, the same mistake gap 2's `(of TYPE)` domain nearly was and gap 5's
+out-of-range situation index actually was. It is the third time in this file, and
+the lesson is now cheap enough to state as a habit: when a rule is about a write,
+check every verb that writes.
+
+### The nine, before and after
+
+```
+1.  states: 1  edges: 0   ->  2:9  schema `m` is already declared
+2.  states: 1  edges: 0   ->  1:22 `a` is already a value of type `v`
+3.  states: 1  edges: 0   ->  1:58 arrow `f` repeats the flag `fixed`
+4.  states: 1  edges: 0   ->  1:60 arrow `f` is already declared on `box`
+5.  states: 1  edges: 0   ->  3:34 a transition has exactly one (when GUARD)
+6.  states: 2  edges: 1   ->  3:51 a transition has exactly one (do EFFECT…)
+7.  states: 4  edges: 4   ->  4:13 transition `dup` is already declared
+8.  states: 2  edges: 3   ->  3:49 arrow `f` is fixed, so no move may set it
+9.  states: 2  edges: 1   ->  3:51 arrow `f` is not vacatable, …
+    twin: states: 2  edges: 3  ->  3:52 arrow `f` is fixed, so no move may empty it
+```
+
+And the two that distorted the space no longer do. Case 8's model, with the
+illegal transition removed by its author, is the space it always should have
+been — and `pol control` no longer lists a move that cannot move:
+
+```
+states: 2   edges: 1        (edge setstate)
+```
+
+Case 9's, with the arrow declared `vacatable` as §9.3 requires, likewise:
+`states: 2  edges: 1`.
+
+Sixteen assertions land in `tests/unit/test_names.ml`: eleven rejections — the
+nine above, the twin, and arrow freshness across the two syntaxes — each the
+reproduction verbatim, each asserting the exact `line:col`; and five controls for
+the cases a careless fix would break: two types each owning an arrow
+of one name, `fixed vacatable` together, a transition named after a type, and the
+legal `set`/`vacate` of a mutable arrow. `tests/unit/test_control.ml` pins case
+7's round-trip from both ends: the duplicate is refused before `control` can see
+it, and what `control` emits from a model that *does* read now survives §7 rather
+than only the reader — the check that would have caught the broken round-trip and
+that the standing gate cannot.
+
+Verified: 17 unit suites (394 checks, exit 0), `make examples` 58/58, 24/24
+standing gates, 13/13 relational-extension gates, `make build`/`lint` green.
+Nothing in the repository's models, libraries or fixtures was relying on any of
+the nine.
+
+### What the sweep covered and found clean
+
+So the next reader knows where not to look again. Read bullet by bullet against
+the code: **§5** (the value grammar), **§6** (`load`, once-per-file),
+**§9** apart from the two below, **§11** (forms), and **§8.5 chain typing** —
+`(is p.f.nosuch a)` is already `3:25: `v` has no arrow `nosuch``. §9.4's "each
+exactly once" for `use` and `initial` was already enforced, and §9.2's "each
+entity belongs to exactly one type" falls out of gap 1.
+
+### Still open: two more silent winners in §9
+
+Found by the sweep, **not fixed**, because both need a decision about §7's
+namespace that a bug-fixing run should not make on its own.
+
+**a. §9.1 "NAME fresh" — two instances may share a name.**
+
+```lisp
+(schema m (type v (a b)) (type box (arrow f (to v))))
+(instance i (of m) (box p) (f (p a)))
+(instance i (of m) (box q) (f (q b)))
+(use m) (initial i)
+(transition t (when (is p.f a)) (do (set p.f b)))
+```
+
+```
+states: 2   edges: 1        exit=0
+```
+
+`(initial i)` resolves through `List.find_opt`, so the first declaration wins and
+the second — a different roster and a different valuation — is discarded. The
+decision this needs: §7's namespace lists types, entities, forms and equations,
+and **instances are not among them**, while §9.1 says "NAME fresh" without
+citing §7. So either §7's list is incomplete or instance names have a namespace
+of their own, and the answer determines whether an instance may be named after a
+type. §8.1's schema names were fixable above precisely because §8.1 *does* cite
+§7 and settles the question; §9.1 does not.
+
+**b. §8.3 "each entity's arrow has one answer" — a cell may be valued twice.**
+
+```lisp
+(schema m (type v (a b)) (type box (arrow f (to v))))
+(instance i (of m) (box p) (f (p a)) (f (p b))) (use m) (initial i)
+```
+
+```
+states: 1   edges: 0        exit=0
+```
+
+`State.build_ctx`'s `val_of` scans the valuation and returns the first match, so
+`p.f` is `a` and the `b` is silently dropped. §9.3's constraints do not spell
+"at most once per cell" out as a bullet — the requirement is §8.3's "Each
+entity's arrow has **one** answer" — so the fix has to decide which section it
+is enforcing and where the rule is documented, and it belongs with (a) rather
+than bolted onto this run.

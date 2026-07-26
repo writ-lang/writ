@@ -4,8 +4,11 @@
    from disk and needs a resolver, these need none — and because the two
    together crossed the 300-line cap.
 
-   Both groups close gaps recorded in docs/conformance-gaps.md, where every case
-   below is a verbatim reproduction that used to build cleanly. *)
+   Every group closes a gap recorded in docs/conformance-gaps.md, where every
+   case below is a verbatim reproduction that used to build cleanly. The suite
+   has outgrown its name: it started on §7's namespace (gap 1) and now covers
+   §8's and §10.1's declaration constraints too (gap 6), which belong here for
+   the same reason — a source string, the real front end, and one line:col. *)
 
 open Pol_data
 open Pol_syntax
@@ -113,6 +116,132 @@ let () =
      (use m)\n\
      (initial i)"
     ~line:2 ~col:25 ~sub:"entity `box` is already declared as a type"
+
+(* --- §8: the declaration constraints (gap 6's sweep) ------------------------ *)
+
+(* Each of these built cleanly and reported `states: 1  edges: 0` before the
+   sweep, so what is asserted is the position: the constraint is only useful if
+   it names the atom the author has to change. *)
+let () =
+  rejects_at "§8.1 two schemas may not share a name"
+    "(schema m (type v (a b)))\n\
+     (schema m (type w (c d)))\n\
+     (instance i (of m)) (use m) (initial i)"
+    ~line:2 ~col:9 ~sub:"schema `m` is already declared";
+  rejects_at "§8.2 an enumerated type's values must be distinct"
+    "(schema m (type v (a a)))\n(instance i (of m)) (use m) (initial i)" ~line:1
+    ~col:22 ~sub:"`a` is already a value of type `v`";
+  rejects_at "§8.3 a flag may not be repeated"
+    "(schema m (type v (a b)) (type box (arrow f (to v) fixed fixed)))\n\
+     (instance i (of m) (box p) (f (p a))) (use m) (initial i)"
+    ~line:1 ~col:58 ~sub:"repeats the flag `fixed`";
+  rejects_at "§8.3 one type may not declare two arrows of one name"
+    "(schema m (type v (a b)) (type box (arrow f (to v)) (arrow f (to v))))\n\
+     (instance i (of m) (box p) (f (p a))) (use m) (initial i)"
+    ~line:1 ~col:60 ~sub:"arrow `f` is already declared on `box`";
+  (* The two controls that keep §8.3's freshness scoped to the owner rather than
+     global. §7 is explicit that `bureau` and `case` may each own a `status`, and
+     tests/examples/river leans on it (traveler.at, cargo.at) — a check keyed on
+     the name alone would pass every test above and break the river. The second
+     control covers the same pair declared through different syntax, which is the
+     case a per-[(type …)]-body check would miss. *)
+  check "two types may each own an arrow of the same name"
+    (Result.is_ok
+       (decodes
+          "(schema m (type v (a b)) (type box (arrow at (to v)))\n\
+          \  (type crate (arrow at (to v))))\n\
+           (instance i (of m) (box p) (crate q) (at (p a) (q a)))\n\
+           (use m) (initial i)"));
+  check "a fixed and a vacatable flag together are each still once"
+    (Result.is_ok
+       (decodes
+          "(schema m (type v (a b)) (type box (arrow f (to v) fixed vacatable) \
+           (arrow g (to v))))\n\
+           (instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)"));
+  rejects_at "§8.3 freshness reaches across a top-level arrow and a type body"
+    "(schema m (type v (a b)) (type box (arrow f (to v)))\n\
+    \  (arrow f (of box) (to v)))\n\
+     (instance i (of m) (box p) (f (p a))) (use m) (initial i)"
+    ~line:2 ~col:10 ~sub:"arrow `f` is already declared on `box`"
+
+(* --- §10.1: exactly one `when`, exactly one `do`, NAME fresh ---------------- *)
+
+(* The two duplicate-clause cases are the sharpest of the sweep, because the
+   surplus clause was *discarded in silence*: with `(when (is p.f b))` before
+   `(when (is p.f a))` and `p.f = a` initially, the space was `states: 1
+   edges: 0` — the false first guard won and the true second one was dropped, so
+   the author's move existed nowhere and nothing said so. *)
+let () =
+  rejects_at "§10.1 a transition has exactly one (when …)"
+    "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+     (instance i (of m) (box p) (f (p a))) (use m) (initial i)\n\
+     (transition t (when (is p.f b)) (when (is p.f a)) (do (set p.f b)))"
+    ~line:3 ~col:34 ~sub:"exactly one (when GUARD)";
+  rejects_at "§10.1 a transition has exactly one (do …)"
+    "(schema m (type v (a b)) (type box (arrow f (to v)) (arrow g (to v))))\n\
+     (instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)\n\
+     (transition t (when (is p.f a)) (do (set p.f b)) (do (set p.g b)))"
+    ~line:3 ~col:51 ~sub:"exactly one (do EFFECT…)";
+  rejects_at "§10.1 two transitions may not share a name"
+    "(schema m (type v (a b)) (type box (arrow f (to v)) (arrow g (to v))))\n\
+     (instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)\n\
+     (transition dup (when (is p.f a)) (do (set p.f b)))\n\
+     (transition dup (when (is p.g a)) (do (set p.g b)))"
+    ~line:4 ~col:13 ~sub:"transition `dup` is already declared";
+  (* §10.1 says NAME must be fresh and, unlike §8.1, does NOT cite §7 — so the
+     namespace is the transitions' own. A move named after a type is legal, and
+     this is the control that would fail if the check were folded into [Names]. *)
+  check "a transition may take a name a type already holds"
+    (Result.is_ok
+       (decodes
+          "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+           (instance i (of m) (box p) (f (p a))) (use m) (initial i)\n\
+           (transition box (when (is p.f a)) (do (set p.f b)))"))
+
+(* --- §8.3 / §9.3: what a move may write ------------------------------------- *)
+
+(* These two changed what a model MEANS, which is why they are the ones worth
+   being precise about. Writing a fixed cell landed nowhere — [State.build_ctx]
+   hoists fixed values out of the state vector — so the move became a phantom
+   self-loop on every situation its guard admitted: the `set`-fixed model below
+   reported `states: 2  edges: 3` where only one edge is real. Vacating a
+   non-vacatable arrow built a situation [build_ctx] rejects in an instance, so
+   the engine could reach a state its own totality check forbids. *)
+let () =
+  rejects_at "§8.3 no move may (set …) a fixed arrow"
+    "(schema m (type v (a b)) (type box (arrow f (to v) fixed) (arrow g (to \
+     v))))\n\
+     (instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)\n\
+     (transition setfixed (when (is p.f a)) (do (set p.f b)))"
+    ~line:3 ~col:49 ~sub:"arrow `f` is fixed, so no move may set it";
+  (* The twin, found by asking whether the other effect had the same hole: it
+     did. A `fixed vacatable` arrow is writable by [vacate] and lands nowhere in
+     exactly the same way — `states: 2  edges: 3` again. *)
+  rejects_at "§8.3 no move may (vacate …) a fixed arrow either"
+    "(schema m (type v (a b)) (type box (arrow f (to v) fixed vacatable) \
+     (arrow g (to v))))\n\
+     (instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)\n\
+     (transition vacfixed (when (is p.f a)) (do (vacate p.f)))"
+    ~line:3 ~col:52 ~sub:"arrow `f` is fixed, so no move may empty it";
+  rejects_at "§9.3 no move may (vacate …) a non-vacatable arrow"
+    "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+     (instance i (of m) (box p) (f (p a))) (use m) (initial i)\n\
+     (transition emptyit (when (is p.f a)) (do (vacate p.f)))"
+    ~line:3 ~col:51 ~sub:"arrow `f` is not vacatable, so no move may empty it";
+  (* The controls: the legal versions of both, which must keep building. *)
+  check "a move may set a mutable arrow"
+    (Result.is_ok
+       (decodes
+          "(schema m (type v (a b)) (type box (arrow f (to v) fixed) (arrow g \
+           (to v))))\n\
+           (instance i (of m) (box p) (f (p a)) (g (p a))) (use m) (initial i)\n\
+           (transition setstate (when (is p.g a)) (do (set p.g b)))"));
+  check "a move may vacate a vacatable arrow"
+    (Result.is_ok
+       (decodes
+          "(schema m (type v (a b)) (type box (arrow f (to v) vacatable)))\n\
+           (instance i (of m) (box p) (f (p a))) (use m) (initial i)\n\
+           (transition emptyit (when (is p.f a)) (do (vacate p.f)))"))
 
 let () =
   print_string ("name tests: " ^ string_of_int !passed ^ " checks passed\n")

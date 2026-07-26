@@ -126,31 +126,83 @@ and check_each s env = function
       let* () = check_guard s env g in
       check_each s env rest
 
-(* Kernel §5: [(set P V)] additionally requires V lie in the codomain of P's
-   last arrow. [Schema.check_path] validates the path and hands back its arrows
-   in order; the last arrow's [cod] is the type V must inhabit — an enumerated
-   value of it, or (for an open cod) an entity the env declares of that type.
-   The value's own [line:col] is re-attached on a rejection. *)
-let check_set (s : Schema.t) (env : env) (pd : Reader.t) (vd : Reader.t) :
-    (unit, Errors.t) result =
+(* The arrow an effect writes to: the last of the path's arrows, with the path's
+   own [line:col] to blame. [None] for a rootless path (no steps, so nothing is
+   written); a rejected path keeps reporting at the path atom, as before. *)
+let written_arrow (s : Schema.t) (env : env) (pd : Reader.t) :
+    (Schema.arrow option, Errors.t) result =
   let* pth = path pd in
   match Schema.check_path s env pth with
   | Error e -> Error { e with Errors.pos = Some (Reader.pos_of pd) }
-  | Ok arrows -> (
+  | Ok arrows -> Ok (List.nth_opt (List.rev arrows) 0)
+
+(* §8.3: "`fixed` — the answer is set once by the instance and never changes:
+   wiring." So no move may write a fixed arrow, by either effect.
+
+   This is not a tidiness rule. [State.build_ctx] hoists every fixed cell out of
+   the state vector, so a write to one has no cell to land in: the effect is
+   applied, changes nothing, and the move becomes a self-loop on every situation
+   its guard admits. Those phantom edges are not cosmetic — every modality answer
+   is computed over that graph, and [live] (AG EF F) reads a self-loop as
+   progress. An illegal write does not merely go unnoticed; it invents structure
+   and then gets asked questions about it.
+
+   [(vacate P)] is checked here too and not only for [vacatable], because a
+   `fixed vacatable` arrow is otherwise the same hole through the other effect.
+
+   [what] arrives as a phrase rather than a bare verb so it carries a space: this
+   region is the drift-checked one, where a clean lowercase one-word literal is
+   read as a keyword the editor must highlight. *)
+let check_mutable (what : string) (a : Schema.arrow) (pd : Reader.t) :
+    (unit, Errors.t) result =
+  if a.Schema.fixed then
+    Reader.err_at pd
+      ("arrow `" ^ a.Schema.name ^ "` is fixed, so no move may " ^ what
+     ^ " — §8.3 makes a fixed answer wiring the instance sets once")
+  else Ok ()
+
+(* Kernel §5: [(set P V)] additionally requires V lie in the codomain of P's last
+   arrow — an enumerated value of it, or (for an open cod) an entity the env
+   declares of that type. The value's own [line:col] is re-attached on a
+   rejection. *)
+let check_set (s : Schema.t) (env : env) (pd : Reader.t) (vd : Reader.t) :
+    (unit, Errors.t) result =
+  let* last = written_arrow s env pd in
+  match last with
+  | None -> Ok ()
+  | Some last ->
+      let* () = check_mutable "set it" last pd in
       let* v = target vd in
-      match List.rev arrows with
-      | [] -> Ok ()
-      | last :: _ ->
-          let cod = last.Schema.cod in
-          let ok =
-            match Schema.type_of s cod with
-            | Some { flavor = Enumerated _; _ } ->
-                List.mem v (Schema.elements_of s cod)
-            | Some { flavor = Open; _ } -> List.assoc_opt v env = Some cod
-            | None -> true
-          in
-          if ok then Ok ()
-          else Reader.err_at vd ("value " ^ v ^ " not in codomain " ^ cod))
+      let cod = last.Schema.cod in
+      let ok =
+        match Schema.type_of s cod with
+        | Some { flavor = Enumerated _; _ } ->
+            List.mem v (Schema.elements_of s cod)
+        | Some { flavor = Open; _ } -> List.assoc_opt v env = Some cod
+        | None -> true
+      in
+      if ok then Ok ()
+      else Reader.err_at vd ("value " ^ v ^ " not in codomain " ^ cod)
+
+(* §9.3 makes emptiness the privilege of a [vacatable] arrow, and
+   [State.build_ctx] enforces it on an *instance*: an unset, non-vacatable cell
+   is rejected there. A [(vacate P)] on such an arrow let the engine walk into
+   exactly the state its own totality check forbids — reachable, reported, and
+   unrepresentable as a written instance. The engine must not be able to reach a
+   situation the instance rules would refuse. *)
+let check_vacate (s : Schema.t) (env : env) (pd : Reader.t) :
+    (unit, Errors.t) result =
+  let* last = written_arrow s env pd in
+  match last with
+  | None -> Ok ()
+  | Some a ->
+      let* () = check_mutable "empty it" a pd in
+      if a.Schema.vacatable then Ok ()
+      else
+        Reader.err_at pd
+          ("arrow `" ^ a.Schema.name
+         ^ "` is not vacatable, so no move may empty it — §9.3 permits an \
+            empty slot only where the arrow allows one")
 
 let check_effect (s : Schema.t) (env : env) (d : Reader.t) :
     (unit, Errors.t) result =
@@ -158,6 +210,6 @@ let check_effect (s : Schema.t) (env : env) (d : Reader.t) :
   | Reader.List (Reader.Atom (k, _) :: args, _) -> (
       match (k, args) with
       | "set", [ pd; vd ] -> check_set s env pd vd
-      | "vacate", [ pd ] -> check_path_at s env pd
+      | "vacate", [ pd ] -> check_vacate s env pd
       | _ -> Ok ())
   | _ -> Ok ()
