@@ -57,7 +57,7 @@ let run (model : string) (rules_path : string) ~(why : bool) (spec : string) =
   let t = Derive.run sp prog in
   let rel, given = parse_ask spec in
   let arity =
-    match Derive_table.sorts_of t rel with
+    match Derive_answers.sorts_of t rel with
     | Some ss -> List.length ss
     (* An undeclared relation is an AUTHOR error, not an empty answer: the
        question names something the rules file never brought into existence. *)
@@ -74,8 +74,19 @@ let run (model : string) (rules_path : string) ~(why : bool) (spec : string) =
   let answer =
     if why then Report_derive.why t rel (ground spec args)
     else
-      match Derive_table.query t rel args with
-      | Some tuples -> Report_derive.rows t rel tuples
+      match Derive_answers.query t rel args with
+      | Some (Ok tuples) -> Report_derive.rows t rel tuples
+      (* A constant its column can never hold is a mis-asked question, not an
+         empty answer, and the same wording the .rules parser uses — a query is
+         not a looser door into the engine than a file is. *)
+      | Some (Error (i, srt)) ->
+          die 2
+            ("`"
+            ^ Option.value ~default:"?" (List.nth args i)
+            ^ "` is not " ^ Rules_terms.sort_name srt
+            ^ ", which is what column "
+            ^ string_of_int (i + 1)
+            ^ " of `" ^ rel ^ "` takes")
       (* Unreachable: the arity and the declaration were both checked above. *)
       | None -> die 2 ("no relation named `" ^ rel ^ "` in " ^ rules_path)
   in

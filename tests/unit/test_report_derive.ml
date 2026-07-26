@@ -57,13 +57,14 @@ let derive m src =
       | Ok p -> Derive.run sp p)
 
 let arity_of t rel =
-  match Derive_table.sorts_of t rel with
+  match Derive_answers.sorts_of t rel with
   | Some ss -> List.length ss
   | None -> failwith ("no relation `" ^ rel ^ "`")
 
 let bound t rel args =
-  match Derive_table.query t rel args with
-  | Some rs -> rs
+  match Derive_answers.query t rel args with
+  | Some (Ok rs) -> rs
+  | Some (Error _) -> failwith (rel ^ ": an argument cannot inhabit its column")
   | None -> failwith ("no relation `" ^ rel ^ "`")
 
 let all t rel = bound t rel (List.init (arity_of t rel) (fun _ -> None))

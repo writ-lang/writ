@@ -60,9 +60,10 @@ let intern t (s : string) : int =
       t.n_atoms <- i + 1;
       i
 
-(* An out-of-range index is still a code: it names no situation, so it matches
-   nothing, which is the right answer for both a probe and a negation. Bounds
-   are checked where a state is actually read ([Facts.state]). *)
+(* Parses; does NOT bound-check. [code] adds the range test, because that is the
+   caller that has to tell "no rows" from "that index names no situation" — see
+   the comment there. [key] deliberately does not: it interns for insertion, and
+   every index the engine inserts came out of the space already. *)
 let situation (s : string) : int option =
   match int_of_string_opt s with Some i when i >= 0 -> Some i | _ -> None
 
@@ -72,7 +73,14 @@ let situation (s : string) : int option =
    has to be recorded as a premise — uses [key]. *)
 let code t (srt : Rules.sort) (s : string) : int option =
   match srt with
-  | Rules.Situation -> situation s
+  (* Range-checked, not merely parsed: index 999 of a four-situation space is as
+     impossible as an entity no roster holds, and [query] now tells the two apart
+     from an empty answer. Safe on the join path too — every index the engine
+     puts in a tuple came out of the space to begin with. *)
+  | Rules.Situation -> (
+      match situation s with
+      | Some i when i < Array.length t.sp.Space.states -> Some i
+      | _ -> None)
   | Rules.Edge | Rules.Entity _ -> Hashtbl.find_opt t.atoms s
 
 let key t (srt : Rules.sort) (s : string) : int option =
@@ -224,68 +232,3 @@ let probe (st : store) ~(delta : bool) (want : int option array) :
       first 0
   in
   List.filter (matches want) cands
-
-(* ── Answers ─────────────────────────────────────────────────────────────── *)
-
-let sorts_of t rel : Rules.sort list option =
-  Option.map (fun st -> Array.to_list st.col) (Hashtbl.find_opt t.rels rel)
-
-let relations t : string list =
-  List.sort compare (Hashtbl.fold (fun k _ acc -> k :: acc) t.rels [])
-
-(* A bound query is the SAME fixpoint plus a filter, and the filter is the same
-   probe the join uses — symmetric in argument position, because the per-column
-   indexes are. That is what makes §2's "backward analysis is free" true rather
-   than aspirational: [(reach X 2)] is not a separate backward traversal, it is
-   [(reach S T)] answered through column 2's index. Rows come back in a
-   deterministic order; how they are printed is the caller's business. *)
-let query t rel (args : string option list) : int array list option =
-  match Hashtbl.find_opt t.rels rel with
-  | None -> None
-  | Some st ->
-      if List.length args <> st.arity then None
-      else begin
-        let want = Array.make st.arity None in
-        let live = ref true in
-        List.iteri
-          (fun i a ->
-            match a with
-            | None -> ()
-            | Some s -> (
-                match code t st.col.(i) s with
-                | Some c -> want.(i) <- Some c
-                | None -> live := false))
-          args;
-        Some
-          (if !live then List.sort compare (probe st ~delta:false want) else [])
-      end
-
-let row t rel (tup : int array) : string list =
-  match Hashtbl.find_opt t.rels rel with
-  | None -> []
-  | Some st -> Array.to_list (Array.mapi (fun i c -> decode t st.col.(i) c) tup)
-
-let fact_id t rel (args : string list) : Rules.fact_id option =
-  match Hashtbl.find_opt t.rels rel with
-  | None -> None
-  | Some st ->
-      if List.length args <> st.arity then None
-      else begin
-        let tup = Array.make st.arity 0 in
-        let live = ref true in
-        List.iteri
-          (fun i s ->
-            match code t st.col.(i) s with
-            | Some c -> tup.(i) <- c
-            | None -> live := false)
-          args;
-        if !live then Hashtbl.find_opt st.ids tup else None
-      end
-
-let fact t (id : Rules.fact_id) : Rules.fact option =
-  Hashtbl.find_opt t.by_id id
-
-(* [None] is a LEAF, not a missing entry (§7): an extensional fact read off the
-   space is derived from nothing and has no tree beneath it. *)
-let derivation t (id : Rules.fact_id) : Rules.derivation option =
-  Hashtbl.find_opt t.derivs id

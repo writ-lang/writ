@@ -112,8 +112,26 @@ relations below are named for it.
 | `(situation S)`      | S is a reachable situation                              |
 | `(init S)`           | S is the initial situation                              |
 | `(edge E S1 S2)`     | transition named E maps situation S1 to situation S2    |
-| `(holds S G)`        | guard G is true in S (G a closed guard datum)           |
+| `(holds S G)`        | guard G is true in S (G a guard datum, not a variable)  |
 | `(gap-edge E S)`     | transition E fires at S with no successor               |
+
+`(holds S G)`'s second argument is the one position in the language that
+is **not a term**: G is a guard datum, never a variable, never sorted,
+never unified. It is not, however, required to be *closed*. Its free
+variables are the surrounding rule's variables, bound exactly as they
+would be in a bare guard literal — so `(holds S (is X.a Y))` with `S` and
+`X` already bound derives a `Y` for each situation, over a **mutable**
+cell. That is the only way to ask "in situation S, where does this
+arrow point", which is what §2's title claims; the fixed-arrow
+restriction of a bare guard applies only where there is no situation to
+read the cell in.
+
+*This paragraph replaces the word "closed", which earlier editions used
+here. It was too strong: read strictly it forbade the binding above and
+left no way to express it, while both consequences spelled out below —
+the modality encodings and backward analysis — work either way. The
+narrower claim, that G is a datum rather than a term, is what the rest of
+this document actually relies on.*
 
 Two consequences worth spelling out:
 

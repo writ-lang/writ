@@ -527,9 +527,10 @@ and stopped. §3 is planned as its own run.
 
 ## 5. The relational extension diverges from its own §2 in two places
 
-**Status:** open, both flagged at design time rather than discovered
-after. These are gaps against `docs/interrogator.md`, not the kernel
-spec, and are listed here because it is the same kind of debt.
+**Status:** **both fixed** 2026-07-26 — (a) by amending the document, (b)
+by amending the code. Flagged at design time rather than discovered after.
+These are gaps against `docs/interrogator.md`, not the kernel spec, and
+are listed here because it is the same kind of debt.
 
 ### a. "closed" is read loosely in `(holds S G)`
 
@@ -588,8 +589,63 @@ question was malformed".
 exists — `Rules_paths.check_col` — and the sorts are already computed;
 only the call site is missing.
 
-### Why neither is fixed yet
+### How both were fixed
 
-Both were surfaced by the extension's own design review and recorded as
-accepted rather than overlooked. (a) is a decision awaiting an owner; (b)
-is small and should be picked up with the next `pol derive` change.
+**(a) the document was amended, not the code.** The choice was: narrow the
+implementation to the strict reading and add the `(cell S SRC ARROW V)`
+built-in the design had rejected, or say in §2 what "closed" was actually
+meant to exclude. The second, because the strict reading forbids a
+binding that has no other expression while §2's own two spelled-out
+consequences work either way — so the loose reading costs nothing the
+document asks for and buys the only way to ask "in situation S, where does
+this arrow point". §2's table entry is now "G a guard datum, not a
+variable", with a paragraph stating that G's free variables are the rule's
+and that the fixed-arrow restriction applies only to a bare guard. The
+superseded wording is called out in the document rather than quietly
+swapped, so a reader of an older copy can tell what changed.
+
+**(b) the code was amended.** `Derive_table.code` already returned `None`
+for a constant its column can never hold; `query` folded that into an
+empty answer, which is what made the two indistinguishable. `query` now
+returns `Error (column, sort)` for the first impossible argument, and the
+CLI turns it into exit 2 with the same wording the `.rules` parser uses:
+
+```
+$ pol derive rules_base.pol space.rules "(reach nabu X)"
+pol: `nabu` is not a situation, which is what column 1 of `reach` takes
+exit=2
+
+$ pol derive rules_base.pol closure.rules "(subordinate zzz X)"
+pol: `zzz` is not an entity of `person`, which is what column 1 of
+`subordinate` takes
+exit=2
+```
+
+while a genuine negative is still an answer:
+
+```
+$ pol derive rules_base.pol closure.rules "(subordinate cabinet X)"
+subordinate  (0 rows)          exit=0
+```
+
+**A second hole found by fixing the first.** An out-of-range state index
+took the other path: `situation` parsed it and never bounds-checked, so
+`(reach 999 X)` in a four-situation space answered "0 rows" while
+`(reach nabu X)` was rejected. `code` now range-checks against the space,
+so both are impossible constants and both are reported. Fixing only the
+documented half would have left the twin — the same mistake gap 2's
+`(of TYPE)` domain nearly was.
+
+**A test asserted the old behaviour and had to be corrected**, which is
+worth recording because it is the one case where changing a test is not
+weakening it: `test_derive.ml` checked that an unknown atom "is empty",
+which is precisely the conflation this gap is about. It now asserts the
+distinction instead — a row that does not hold is `[]`, an atom no roster
+holds is `Error`. Two checks where there was one.
+
+Verified: 17 unit suites (376 checks), examples 58/58, 24/24 standing
+gates, 13/13 extension gates. Two files crossed the 300-line cap on the
+way and were split at real seams — `runtime/derive_answers.ml` out of
+`derive_table.ml` (maintaining the store versus interrogating it) and
+`tests/unit/test_facts.ml` out of `test_derive.ml` (the §2 adapter versus
+the §6 fixpoint, matching the modules they exercise).

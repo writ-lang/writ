@@ -61,19 +61,23 @@ let program m name = program_of m (fixture name)
 (* ── Reading answers back ────────────────────────────────────────────────── *)
 
 let arity d rel =
-  match Derive_table.sorts_of d rel with
+  match Derive_answers.sorts_of d rel with
   | Some ss -> List.length ss
   | None -> failwith ("no relation `" ^ rel ^ "`")
 
 let rows d rel args =
-  match Derive_table.query d rel args with
-  | Some rs -> List.sort compare (List.map (Derive_table.row d rel) rs)
+  match Derive_answers.query d rel args with
+  | Some (Ok rs) -> List.sort compare (List.map (Derive_answers.row d rel) rs)
+  | Some (Error (i, _)) ->
+      failwith
+        (rel ^ ": argument " ^ string_of_int i ^ " cannot inhabit its column")
   | None -> failwith ("no relation `" ^ rel ^ "`")
 
 let all d rel = rows d rel (List.init (arity d rel) (fun _ -> None))
 let base = model_file "rules_base.pol"
 let base_sp = space base
 let closure = Derive.run base_sp (program base "closure.rules")
+let reach = Derive.run base_sp (program base "space.rules")
 
 (* ── The specification's own transitive closure ──────────────────────────── *)
 
@@ -94,112 +98,27 @@ let () =
     (backward = [ [ "mid"; "cabinet" ]; [ "nabu"; "cabinet" ] ]);
   check "the backward image is a strict subset of the unbound answer"
     (List.length backward < List.length (all closure "subordinate"));
-  check "a query for a row that does not hold, or an unknown atom, is empty"
-    (rows closure "subordinate" [ Some "cabinet"; Some "nabu" ] = []
-    && rows closure "subordinate" [ Some "nobody-at-all"; None ] = [])
+  (* Two different negatives, and the whole point of gap 5b is that they must
+     not look alike. `cabinet` and `nabu` are both real people, so asking for a
+     pair that is simply not in the relation is an ANSWER: no rows. An atom no
+     roster holds cannot appear in any row of any relation, so asking about it is
+     a mis-asked question, and reporting it as "no rows" left the author unable
+     to tell a false claim from a typo. *)
+  check "a row that does not hold is an empty answer"
+    (rows closure "subordinate" [ Some "cabinet"; Some "nabu" ] = []);
+  check "an atom no roster holds is reported, not answered empty"
+    (match Derive_answers.query closure "subordinate" [ Some "nope"; None ] with
+    | Some (Error (0, Rules.Entity "person")) -> true
+    | _ -> false)
 
 (* ── An empty relation is an answer ──────────────────────────────────────── *)
 
 let () =
   let d = Derive.run base_sp (program base "rules_empty.rules") in
   check "a declared relation with no rules derives the empty set"
-    (Derive_table.query d "nobody" [ None ] = Some []);
+    (Derive_answers.query d "nobody" [ None ] = Some (Ok []));
   check "…which is not the same as an undeclared one"
-    (Derive_table.query d "no-such-relation" [ None ] = None)
-
-(* ── The five built-ins, against what Space.t says ───────────────────────── *)
-
-let index sp s = State.M.find s sp.Space.index
-
-(* Recomputed from [Space.t] rather than called through [Facts]: a cross-check
-   that calls the thing it checks proves only that it is deterministic. *)
-let space_edges sp =
-  List.filter_map
-    (fun (e : Space.edge) ->
-      match e.Space.dst with
-      | `To s' ->
-          Some
-            [
-              e.Space.via;
-              string_of_int (index sp e.Space.src);
-              string_of_int (index sp s');
-            ]
-      | `Gap _ -> None)
-    sp.Space.edges
-
-let space_gaps sp =
-  List.filter_map
-    (fun (e : Space.edge) ->
-      match e.Space.dst with
-      | `Gap _ -> Some [ e.Space.via; string_of_int (index sp e.Space.src) ]
-      | `To _ -> None)
-    sp.Space.edges
-
-let reach = Derive.run base_sp (program base "space.rules")
-
-let () =
-  let sits =
-    List.init (Array.length base_sp.Space.states) (fun i -> [ string_of_int i ])
-  in
-  check "(situation S) is exactly Space.states, by index — four of them"
-    (all reach "situation" = List.sort compare sits && List.length sits = 4);
-  check "(init S) is exactly Space.initial's index"
-    (all reach "init"
-    = [ [ string_of_int (index base_sp base_sp.Space.initial) ] ]);
-  check "(edge E S1 S2) is exactly the `To edges of Space.edges"
-    (all reach "edge" = List.sort compare (space_edges base_sp));
-  check "the four edges are the ones the two transitions can fire"
-    (all reach "edge"
-    = [
-        [ "mid-speaks"; "0"; "2" ];
-        [ "mid-speaks"; "1"; "3" ];
-        [ "nabu-speaks"; "0"; "1" ];
-        [ "nabu-speaks"; "2"; "3" ];
-      ]);
-  check "(gap-edge E S) is empty where the model declares no gap"
-    (all reach "gap-edge" = [] && space_gaps base_sp = [])
-
-(* A gap edge exists only where a model declares one, so [gap-edge] is
-   cross-checked against the fixture that does: gap.pol's `hi` can only exit. *)
-let () =
-  let gm = model_file "gap.pol" in
-  let gsp = space gm in
-  let d =
-    Derive.run gsp
-      (program_of gm "(relation exits 2)\n(rule (exits E S) (gap-edge E S))")
-  in
-  check "(gap-edge E S) is exactly the `Gap edges of Space.edges"
-    (all d "gap-edge" = List.sort compare (space_gaps gsp));
-  check "…which is the one row a rule over it derives"
-    (all d "gap-edge" = [ [ "boom"; "1" ] ]
-    && all d "exits" = [ [ "boom"; "1" ] ])
-
-(* [(holds S G)] is the kernel evaluator's graph: every situation, every
-   person. *)
-let () =
-  let d =
-    Derive.run base_sp
-      (program_of base
-         "(relation vocal (Situation person))\n\
-          (rule (vocal S X) (situation S) (holds S (is X.stands vocal)))")
-  in
-  let want =
-    List.concat_map
-      (fun i ->
-        List.filter_map
-          (fun p ->
-            let g =
-              Model.Is ({ Value.root = p; steps = [ "stands" ] }, "vocal")
-            in
-            if Eval.guard_holds base_sp.Space.ctx base_sp.Space.states.(i) [] g
-            then Some [ string_of_int i; p ]
-            else None)
-          [ "nabu"; "mid"; "cabinet" ])
-      (List.init (Array.length base_sp.Space.states) Fun.id)
-  in
-  check "(holds S G) agrees with the kernel evaluator, state by state"
-    (all d "vocal" = List.sort compare want);
-  check "…and is not vacuously empty" (want <> [])
+    (Derive_answers.query d "no-such-relation" [ None ] = None)
 
 (* ── Recursion over the derived category ─────────────────────────────────── *)
 
@@ -264,11 +183,11 @@ let () =
    `--why` would walk for ever. *)
 let fact_ids d =
   List.concat_map
-    (fun rel -> List.filter_map (Derive_table.fact_id d rel) (all d rel))
-    (Derive_table.relations d)
+    (fun rel -> List.filter_map (Derive_answers.fact_id d rel) (all d rel))
+    (Derive_answers.relations d)
 
 let rec above d seen id =
-  match Derive_table.derivation d id with
+  match Derive_answers.derivation d id with
   | None -> seen
   | Some dv ->
       List.fold_left

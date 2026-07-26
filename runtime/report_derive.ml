@@ -48,7 +48,7 @@ and operands (gs : Model.guard list) : string =
 (* ── Rows (§9) ───────────────────────────────────────────────────────────── *)
 
 let atom_row (t : Derive_table.t) (rel : string) (tup : int array) : string =
-  "  " ^ String.concat "  " (Derive_table.row t rel tup)
+  "  " ^ String.concat "  " (Derive_answers.row t rel tup)
 
 (* A header line, then the rows indented two spaces. The count is on the header
    because an empty answer set is an ANSWER (§9) and has to look like one: a
@@ -64,7 +64,8 @@ let rows (t : Derive_table.t) (rel : string) (tuples : int array list) : string
 (* ── Derivation trees (§7) ───────────────────────────────────────────────── *)
 
 let fact_text (t : Derive_table.t) (f : Rules.fact) : string =
-  String.concat " " (f.Rules.rel :: Derive_table.row t f.Rules.rel f.Rules.args)
+  String.concat " "
+    (f.Rules.rel :: Derive_answers.row t f.Rules.rel f.Rules.args)
 
 (* Two spaces of indent per level, so a fact proved from a fact proved from the
    model puts a line at four spaces. Three kinds of premise are LEAVES and each
@@ -82,9 +83,12 @@ let rec node (t : Derive_table.t) (depth : int) (id : Rules.fact_id) :
     string list =
   let line =
     indent depth
-    ^ match Derive_table.fact t id with Some f -> fact_text t f | None -> "?"
+    ^
+    match Derive_answers.fact t id with
+    | Some f -> fact_text t f
+    | None -> "?"
   in
-  match Derive_table.derivation t id with
+  match Derive_answers.derivation t id with
   | None -> [ line ]
   | Some d -> line :: List.concat_map (premise t (depth + 1)) d.Rules.premises
 
@@ -96,7 +100,7 @@ and premise (t : Derive_table.t) (depth : int) (p : Rules.premise) : string list
   | Rules.Premise_absent (rel, args) ->
       [
         indent depth ^ "not "
-        ^ String.concat " " (rel :: Derive_table.row t rel args);
+        ^ String.concat " " (rel :: Derive_answers.row t rel args);
       ]
 
 (* [--why] on a fact that does not hold is an ANSWER, not a failure (§7): the
@@ -104,6 +108,6 @@ and premise (t : Derive_table.t) (depth : int) (p : Rules.premise) : string list
    would be indistinguishable from a fact with no premises. *)
 let why (t : Derive_table.t) (rel : string) (args : string list) : string =
   let asked = String.concat " " (rel :: args) in
-  match Derive_table.fact_id t rel args with
+  match Derive_answers.fact_id t rel args with
   | None -> asked ^ "\n" ^ indent 1 ^ "not derived"
   | Some id -> String.concat "\n" (node t 0 id)
