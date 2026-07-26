@@ -5,6 +5,8 @@
 ; The OLD guarantee `still-safe` (live) therefore FAILS here, and `pol compare`
 ; reports it LOST with the NEW witness route `1. break`, exiting 1.
 
+(load "stdlib.pol")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
+
 (schema sys
   (type mode-t (working broken safe))
   (type machine

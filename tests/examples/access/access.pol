@@ -11,6 +11,8 @@
 ; granted, has no revoke move. It is the irreversible grant §3 asks the model to
 ; declare — here, on purpose (break-glass), not a defect.
 
+(load "stdlib.pol")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
+
 (schema access
   (type role-t   (user admin))
   (type source-t (root external))

@@ -8,6 +8,8 @@
 ; process settles a case that has an assignee; where there is no assignee it
 ; ends at an escalation `gap` — the boundary where a human takes over.
 
+(load "stdlib.pol")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
+
 (schema workflow
   (type unit-t  (kyc fraud))
   (type stage-t (screening settled))

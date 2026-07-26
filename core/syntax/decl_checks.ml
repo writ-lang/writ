@@ -80,12 +80,66 @@ let check_arrows_fresh (arrows : (Schema.arrow * arrow_at) list) :
   in
   go arrows
 
+(* The landing type of a checked chain: the last arrow's cod, or the root's own
+   type where the chain has no steps. *)
+let path_cod (s : Schema.t) env (p : Value.path) : (string, Errors.t) result =
+  match Schema.check_path s env p with
+  | Error _ as e -> e
+  | Ok arrows -> (
+      match List.rev arrows with
+      | last :: _ -> Ok last.Schema.cod
+      | [] -> (
+          match List.assoc_opt p.Value.root env with
+          | Some ty -> Ok ty
+          | None -> Ok ""))
+
+(* A law's chains, resolved against its subject. The subject is bound to itself
+   — [(case, case)] — exactly as [Schema.check_path] wants a root typed, and a
+   [some] extends that env the same way a transition's guard does. A pair of
+   compared chains must land in one type, for the reason [Grammar.check_is]
+   gives: otherwise the law is not wrong, it is merely never violated. *)
+let rec check_body (s : Schema.t) env (g : Guard.t) : (unit, Errors.t) result =
+  match g with
+  | Guard.And gs | Guard.Or gs -> check_body_each s env gs
+  | Guard.Not g -> check_body s env g
+  | Guard.Some_ (x, ty, g) -> check_body s ((x, ty) :: env) g
+  | Guard.Defined p -> Result.map (fun _ -> ()) (path_cod s env p)
+  | Guard.Is (p, Guard.Lit _) -> Result.map (fun _ -> ()) (path_cod s env p)
+  | Guard.Is (p, Guard.Chain q) ->
+      let* lcod = path_cod s env p in
+      let* rcod = path_cod s env q in
+      if String.equal lcod rcod then Ok ()
+      else
+        Errors.err
+          ("a law compares a chain landing in `" ^ lcod
+         ^ "` with one landing in `" ^ rcod
+         ^ "` — comparing two chains needs a single target type")
+
+and check_body_each s env = function
+  | [] -> Ok ()
+  | g :: rest ->
+      let* () = check_body s env g in
+      check_body_each s env rest
+
 let check_equation (s : Schema.t) ((eq, pos) : Schema.equation * Errors.pos) :
     (unit, Errors.t) result =
-  let side (p : Value.path) =
-    match Schema.check_path s [ (p.Value.root, p.Value.root) ] p with
-    | Ok _ -> Ok ()
-    | Error e -> Error { e with Errors.pos = Some pos }
-  in
-  let* () = side eq.Schema.lhs in
-  side eq.Schema.rhs
+  match Guard.free_roots eq.Schema.body with
+  | [] ->
+      Errors.err ~pos
+        ("law `" ^ eq.Schema.name
+       ^ "` has no subject — every chain in it is bound by a `some`, so there \
+          is no type for the law to range over")
+  | r1 :: r2 :: _ ->
+      Errors.err ~pos
+        ("law `" ^ eq.Schema.name ^ "` ranges over two types, `" ^ r1
+       ^ "` and `" ^ r2
+       ^ "` — §8.6 gives a law one subject; bind the others with `some`")
+  | [ root ] ->
+      if Schema.type_of s root = None then
+        Errors.err ~pos
+          ("law `" ^ eq.Schema.name ^ "` ranges over `" ^ root
+         ^ "`, which is not a declared type")
+      else
+        Result.map_error
+          (fun (e : Errors.t) -> { e with Errors.pos = Some pos })
+          (check_body s [ (root, root) ] eq.Schema.body)

@@ -77,7 +77,19 @@ let rec guard (d : Reader.t) : (Model.guard, Errors.t) result =
           let* x, ty = binder_of binder in
           let* g = guard body in
           Ok (Model.Some_ (x, ty, g))
-      | _ -> Errors.err ~pos:kp "malformed guard clause")
+      | _ ->
+          (* A known head with the wrong shape is malformed; an UNKNOWN head is
+             almost always a library form whose [(load …)] is missing, and after
+             `=` moved to the standard library that is the first thing anyone
+             hits. §0.7 promises such a name surfaces as a name error, so say
+             which name, rather than blaming the parentheses. *)
+          if List.mem k [ "and"; "or"; "not"; "is"; "defined"; "some" ] then
+            Errors.err ~pos:kp "malformed guard clause"
+          else
+            Errors.err ~pos:kp
+              ("unknown guard `" ^ k
+             ^ "` — if it is a library form, check the (load …) that declares \
+                it; there is no implicit prelude"))
   | Reader.List (_, p) -> Errors.err ~pos:p "malformed guard clause"
   | Reader.Atom (_, p) ->
       Errors.err ~pos:p "expected a guard clause, found a bare atom"

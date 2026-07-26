@@ -28,7 +28,10 @@ let can_break (tr : Model.transition) (eq : Schema.equation) : bool =
         | Model.Gap _ -> None)
       tr.effects
   in
-  let used = eq.lhs.steps @ eq.rhs.steps in
+  (* Every arrow any chain of the law walks — scope-blind on purpose: a move
+     writing an arrow the law never reads cannot change its answer, whether the
+     chain that reads it is bound by a `some` or not. *)
+  let used = Guard.arrows eq.Schema.body in
   List.exists (fun w -> List.mem w used) written
 
 let tr_name (tr : Model.transition) : string =

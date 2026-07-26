@@ -130,23 +130,22 @@ let decode_type (d : Reader.t) :
         | other :: _ -> Reader.err_at other "malformed type body")
   | _ -> Reader.err_at d "expected a (type …) declaration"
 
-(* [(equation NAME (= P1 P2))]. Paths are type-checked after the schema is fully
-   built (both sides share their root type as the common dom). *)
+(* [(equation NAME GUARD)] (§8.6). The body is the guard language of §10.2, so
+   a law can now say anything a [when] can — difference, disjunction, [some] —
+   which is what let `=` leave the kernel and become a stdlib form.
+
+   Its chains are written from the TYPE, not an entity, and the law ranges over
+   that type: "case.investigator… means for every case". Both rules about that
+   subject — that there is exactly one, and that it is a declared type — are
+   [Decl_checks.check_equation]'s, so they read together. *)
 let decode_equation (d : Reader.t) :
     (Schema.equation * Errors.pos, Errors.t) result =
   match d with
-  | Reader.List
-      ( [
-          Reader.Atom ("equation", _);
-          Reader.Atom (name, _);
-          Reader.List ([ Reader.Atom ("=", _); p1; p2 ], _);
-        ],
-        p ) ->
-      let* lhs = Grammar.path p1 in
-      let* rhs = Grammar.path p2 in
-      Ok ({ Schema.name; lhs; rhs }, p)
-  | _ ->
-      Reader.err_at d "malformed equation: expected (equation NAME (= P1 P2))"
+  | Reader.List ([ Reader.Atom ("equation", _); Reader.Atom (name, _); body ], p)
+    ->
+      let* g = Grammar.guard body in
+      Ok ({ Schema.name; body = g }, p)
+  | _ -> Reader.err_at d "malformed equation: expected (equation NAME GUARD)"
 
 let decode_schema (d : Reader.t) : (Schema.t, Errors.t) result =
   match d with

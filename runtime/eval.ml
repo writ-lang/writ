@@ -100,16 +100,21 @@ let apply (ctx : State.ctx) (st : State.t) (effects : Model.effect list) :
   in
   go st effects
 
-(* Kleene path equality for an equation. Its paths share a common dom type; the
-   law must hold at every element of that type, so the root type name is bound to
-   each entity in turn. At a given element the equation is true unless both sides
-   are defined and unequal (undefined on either side ⇒ vacuously satisfied). *)
+(* A law is a guard, and it ranges over its single free root — the subject
+   §8.6 writes its chains from ("case.investigator… means for every case"). The
+   root name is bound to each entity of that type in turn and the guard must
+   hold at every one.
+
+   Kleene-ness is no longer built in here. It used to be: an equation was two
+   chains and an undefined side made it vacuously true. Now `=` is a stdlib form
+   that spells that reading out of strict primitives, so a law means exactly
+   what its guard says and an author who wants strictness can have it. *)
 let eq_holds (ctx : State.ctx) (st : State.t) (eq : Schema.equation) : bool =
-  let entities = entities_of_type ctx eq.lhs.root in
-  List.for_all
-    (fun e ->
-      let env = [ (eq.lhs.root, e); (eq.rhs.root, e) ] in
-      match (eval_path ctx st env eq.lhs, eval_path ctx st env eq.rhs) with
-      | Some (Value.Filled a), Some (Value.Filled b) -> String.equal a b
-      | _ -> true)
-    entities
+  match Guard.free_roots eq.Schema.body with
+  | [ root ] ->
+      List.for_all
+        (fun e -> guard_holds ctx st [ (root, e) ] eq.Schema.body)
+        (entities_of_type ctx root)
+  (* Rejected at declaration (Decl), so unreachable; a law with no subject
+     vacuously holds rather than crashing the interrogator. *)
+  | _ -> true

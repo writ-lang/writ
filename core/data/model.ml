@@ -2,20 +2,13 @@
    transition is one edge of the dynamics functor — a guard (its domain of
    definition) and the effects (the mapping). *)
 
-(* The right-hand side of [is]: a literal element or entity name, or a second
-   chain. Which one is meant is decided LEXICALLY, by the reader's own rule —
-   an atom containing a dot is a chain (§5.2 splits it already), anything else
-   is a literal. Two consequences worth stating where the type is:
+(* [guard] and [rhs] live in [Guard] now, because [Schema.equation] holds one
+   too and [Schema] is below this module. Re-exported here with their
+   constructors so [Model.Is], [Model.And] and the rest keep meaning what they
+   did — the type moved, the vocabulary did not. *)
+type rhs = Guard.rhs = Lit of string | Chain of Value.path
 
-   - every guard written before this existed reads exactly as it did, because a
-     literal has no dot;
-   - a bare [some]-binder on the right stays uncomparable, since it has no dot
-     either. That is the price of deciding lexically instead of inventing a
-     sigil, and it is the cheap half of the trade: the chains that motivate
-     comparison at all — [c.approver] against [c.preparer] — are dotted. *)
-type rhs = Lit of string | Chain of Value.path
-
-type guard =
+type guard = Guard.t =
   | And of guard list
   | Or of guard list
   | Not of guard

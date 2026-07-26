@@ -11,6 +11,8 @@
 ; Everything below is identical to oversight.pol except the restore-watchdog
 ; transition is gone.
 
+(load "stdlib.pol")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
+
 (schema oversight
   (type indep-status (independent captured))
   (type stage-t (open concluded))

@@ -40,7 +40,6 @@ let reserved =
     "fixed";
     "vacatable";
     "equation";
-    "=";
     "instance";
     "initial";
     "vacant";
