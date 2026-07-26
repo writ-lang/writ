@@ -221,7 +221,7 @@ let () =
           (match t1.Model.when_ with
           | Model.Is
               ( { Value.root = "watchdog"; steps = [ "independence" ] },
-                "independent" ) ->
+                Model.Lit "independent" ) ->
               check "parse: guard is (is watchdog.independence independent)"
                 true
           | _ -> check "parse: guard shape" false);

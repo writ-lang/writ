@@ -35,6 +35,22 @@ let target (d : Reader.t) : (string, Errors.t) result =
       if s = "" then Errors.err ~pos:p "empty value atom" else Ok s
   | Reader.List (_, p) -> Errors.err ~pos:p "expected an element or entity name"
 
+(* The right-hand side of [(is P V)]: a dotted atom is a second chain, anything
+   else a literal (§10.2). The test is lexical and deliberately so — the reader
+   already splits a dotted atom (§5.2), a literal element or entity name never
+   contains a dot, and therefore no guard written before chains were allowed
+   here can change meaning. The cost is that a bare [some]-binder stays
+   uncomparable, having no dot either; the chains that motivate comparing at
+   all are dotted. *)
+let rhs (d : Reader.t) : (Model.rhs, Errors.t) result =
+  match d with
+  | Reader.Atom (s, _) when String.contains s '.' ->
+      let* p = path d in
+      Ok (Model.Chain p)
+  | _ ->
+      let* v = target d in
+      Ok (Model.Lit v)
+
 (* ---- the guard decoder: the drift-checked region begins here ------------- *)
 
 let rec guard (d : Reader.t) : (Model.guard, Errors.t) result =
@@ -52,8 +68,8 @@ let rec guard (d : Reader.t) : (Model.guard, Errors.t) result =
           Ok (Model.Not g)
       | "is", [ pd; vd ] ->
           let* pth = path pd in
-          let* v = target vd in
-          Ok (Model.Is (pth, v))
+          let* r = rhs vd in
+          Ok (Model.Is (pth, r))
       | "defined", [ pd ] ->
           let* pth = path pd in
           Ok (Model.Defined pth)
@@ -98,12 +114,25 @@ let effect (d : Reader.t) : (Model.effect, Errors.t) result =
 
 type env = (string * string) list
 
-let check_path_at (s : Schema.t) (env : env) (d : Reader.t) :
-    (unit, Errors.t) result =
+(* A checked path, and the type it lands in — the last arrow's cod, or the
+   root's own type where the chain has no steps. Comparing two chains needs the
+   landing type, which [check_path_at] used to discard. *)
+let check_path_cod (s : Schema.t) (env : env) (d : Reader.t) :
+    (string, Errors.t) result =
   let* pth = path d in
   match Schema.check_path s env pth with
-  | Ok _ -> Ok ()
   | Error e -> Error { e with Errors.pos = Some (Reader.pos_of d) }
+  | Ok arrows -> (
+      match List.rev arrows with
+      | last :: _ -> Ok last.Schema.cod
+      | [] -> (
+          match List.assoc_opt pth.Value.root env with
+          | Some ty -> Ok ty
+          | None -> Ok ""))
+
+let check_path_at (s : Schema.t) (env : env) (d : Reader.t) :
+    (unit, Errors.t) result =
+  Result.map (fun _ -> ()) (check_path_cod s env d)
 
 let rec check_guard (s : Schema.t) (env : env) (d : Reader.t) :
     (unit, Errors.t) result =
@@ -112,12 +141,31 @@ let rec check_guard (s : Schema.t) (env : env) (d : Reader.t) :
       match (k, args) with
       | "and", gs | "or", gs -> check_each s env gs
       | "not", [ g ] -> check_guard s env g
+      | "is", [ pd; vd ] -> check_is s env pd vd
       | "is", pd :: _ -> check_path_at s env pd
       | "defined", [ pd ] -> check_path_at s env pd
       | "some", [ binder; body ] ->
           let* x, ty = binder_of binder in
           check_guard s ((x, ty) :: env) body
       | _ -> Ok ())
+  | _ -> Ok ()
+
+(* [(is A B)] with a chain on the right compares two cells, so they must be
+   cells of one type — the chain analogue of §10.2's "V in the chain's target
+   domain". Without this a mistyped comparison is not an error but a guard that
+   is simply never true, which is the worst of both: no diagnostic, and a move
+   that silently never fires. A literal right side is left to [check_set]'s
+   sibling rules as before. *)
+and check_is s env pd vd =
+  let* lcod = check_path_cod s env pd in
+  match vd with
+  | Reader.Atom (v, _) when String.contains v '.' ->
+      let* rcod = check_path_cod s env vd in
+      if String.equal lcod rcod then Ok ()
+      else
+        Reader.err_at vd
+          ("this chain lands in `" ^ rcod ^ "`, but the left one lands in `"
+         ^ lcod ^ "` — comparing two chains needs a single target type")
   | _ -> Ok ()
 
 and check_each s env = function

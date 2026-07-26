@@ -30,7 +30,7 @@ let arrow name dom cod ~fixed ~vacatable : Schema.arrow =
 
 let ty name flavor arrows : Schema.ty = { name; flavor; arrows }
 let path root steps : Value.path = { root; steps }
-let is e a v = Model.Is (path e [ a ], v)
+let is e a v = Model.Is (path e [ a ], Model.Lit v)
 let set e a v = Model.Set (path e [ a ], v)
 
 let tr name g effs : Model.transition =

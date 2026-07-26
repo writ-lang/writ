@@ -153,7 +153,8 @@ let () =
         List.filter_map
           (fun p ->
             let g =
-              Model.Is ({ Value.root = p; steps = [ "stands" ] }, "vocal")
+              Model.Is
+                ({ Value.root = p; steps = [ "stands" ] }, Model.Lit "vocal")
             in
             if Eval.guard_holds base_sp.Space.ctx base_sp.Space.states.(i) [] g
             then Some [ string_of_int i; p ]

@@ -61,7 +61,9 @@ let lower_path (env : env) (p : gpath) : Value.path =
 (* Substitute an environment through a source guard to get the kernel guard the
    evaluator runs. Pure and total: a variable with no binding lowers to its own
    name, which is precisely what the kernel would then compare against, since
-   [Model.Is] holds a raw string and the evaluator compares it literally. So the
+   [Model.Is] can hold a chain, but a lowered rule guard always yields
+   [Model.Lit]: a rule variable substitutes to a NAME, and the evaluator
+   compares it literally. So the
    worst an unbound variable can do is fail to hold — never raise. Range
    restriction (extension §4) is what guarantees the case does not arise; this
    function does not re-check it, and must not, because it runs per candidate.
@@ -71,7 +73,7 @@ let lower_path (env : env) (p : gpath) : Value.path =
    rejected at read time, and Pol has no shadowing (kernel §7). *)
 let rec lower (g : gexp) (env : env) : Model.guard =
   match g with
-  | Is (p, v) -> Model.Is (lower_path env p, subst env v)
+  | Is (p, v) -> Model.Is (lower_path env p, Model.Lit (subst env v))
   | Defined p -> Model.Defined (lower_path env p)
   | And gs -> Model.And (List.map (fun g -> lower g env) gs)
   | Or gs -> Model.Or (List.map (fun g -> lower g env) gs)

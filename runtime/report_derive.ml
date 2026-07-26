@@ -33,7 +33,8 @@ let path (p : Value.path) : string =
    nested operand needs its parentheses back. *)
 let rec guard (g : Model.guard) : string =
   match g with
-  | Model.Is (p, v) -> "is " ^ path p ^ " " ^ v
+  | Model.Is (p, Model.Lit v) -> "is " ^ path p ^ " " ^ v
+  | Model.Is (p, Model.Chain q) -> "is " ^ path p ^ " " ^ path q
   | Model.Defined p -> "defined " ^ path p
   | Model.And gs -> "and " ^ operands gs
   | Model.Or gs -> "or " ^ operands gs

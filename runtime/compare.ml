@@ -38,7 +38,9 @@ let rec map_guard (mp : (string * string) list) (g : Model.guard) : Model.guard
   | Model.And gs -> Model.And (List.map (map_guard mp) gs)
   | Model.Or gs -> Model.Or (List.map (map_guard mp) gs)
   | Model.Not g -> Model.Not (map_guard mp g)
-  | Model.Is (p, v) -> Model.Is (rename_path mp p, v)
+  | Model.Is (p, Model.Chain q) ->
+      Model.Is (rename_path mp p, Model.Chain (rename_path mp q))
+  | Model.Is (p, (Model.Lit _ as v)) -> Model.Is (rename_path mp p, v)
   | Model.Defined p -> Model.Defined (rename_path mp p)
   | Model.Some_ (x, ty, g) -> Model.Some_ (x, rename_atom mp ty, map_guard mp g)
 

@@ -74,10 +74,11 @@ let rec guard_ok (ctx : State.ctx) (env : (string * string) list)
   match g with
   | Model.And gs | Model.Or gs -> List.for_all (guard_ok ctx env) gs
   | Model.Not g -> guard_ok ctx env g
-  | Model.Is (p, v) -> (
-      match path_cod ctx env p with
-      | Some ty -> value_in_type ctx ty v
-      | None -> false)
+  | Model.Is (p, r) -> (
+      match (path_cod ctx env p, r) with
+      | Some ty, Model.Lit v -> value_in_type ctx ty v
+      | Some ty, Model.Chain q -> path_cod ctx env q = Some ty
+      | None, _ -> false)
   | Model.Defined p -> path_cod ctx env p <> None
   | Model.Some_ (x, ty, g) -> (
       match Schema.type_of ctx.schema ty with

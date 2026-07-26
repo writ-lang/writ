@@ -26,6 +26,7 @@
   test_loadpath
   test_names
   test_binders
+  test_law_as_guard
   test_facts)
  (deps
   (glob_files fixtures/*.{pol,claims,rules})

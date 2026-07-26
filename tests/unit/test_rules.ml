@@ -28,7 +28,8 @@ let path root steps =
 let () =
   let g = Rules.Is (path (c "nabu") [ "reports-to" ], v "Y") in
   match Rules.lower g [ ("Y", "mid") ] with
-  | Model.Is ({ Value.root = "nabu"; steps = [ "reports-to" ] }, "mid") ->
+  | Model.Is ({ Value.root = "nabu"; steps = [ "reports-to" ] }, Model.Lit "mid")
+    ->
       check "lower: a bound variable is substituted in an is value" true
   | _ -> check "lower: a bound variable is substituted in an is value" false
 
@@ -37,7 +38,9 @@ let () =
 let () =
   let g = Rules.Is (path (v "X") [ "reports-to" ], c "cabinet") in
   match Rules.lower g [ ("X", "nabu"); ("Y", "mid") ] with
-  | Model.Is ({ Value.root = "nabu"; steps = [ "reports-to" ] }, "cabinet") ->
+  | Model.Is
+      ({ Value.root = "nabu"; steps = [ "reports-to" ] }, Model.Lit "cabinet")
+    ->
       check "lower: a bound variable is substituted in a path root" true
   | _ -> check "lower: a bound variable is substituted in a path root" false
 
@@ -45,7 +48,8 @@ let () =
 let () =
   let g = Rules.Is (path (c "nabu") [ "reports-to" ], c "mid") in
   match Rules.lower g [ ("mid", "SHOULD-NOT-APPLY") ] with
-  | Model.Is ({ Value.root = "nabu"; steps = [ "reports-to" ] }, "mid") ->
+  | Model.Is ({ Value.root = "nabu"; steps = [ "reports-to" ] }, Model.Lit "mid")
+    ->
       check "lower: a constant is left alone" true
   | _ -> check "lower: a constant is left alone" false
 
@@ -55,7 +59,7 @@ let () =
 let () =
   let g = Rules.Is (path (c "nabu") [ "reports-to" ], v "Y") in
   match Rules.lower g [] with
-  | Model.Is (_, "Y") ->
+  | Model.Is (_, Model.Lit "Y") ->
       check "lower: an unbound variable lowers to itself" true
   | _ -> check "lower: an unbound variable lowers to itself" false
 
@@ -81,7 +85,9 @@ let () =
            Model.Some_
              ( "a",
                "account",
-               Model.Is ({ Value.root = "a"; steps = [ "role" ] }, "admin") );
+               Model.Is
+                 ({ Value.root = "a"; steps = [ "role" ] }, Model.Lit "admin")
+             );
          ]) ->
       check "lower: substitutes through not/and/some, binder untouched" true
   | _ -> check "lower: substitutes through not/and/some, binder untouched" false

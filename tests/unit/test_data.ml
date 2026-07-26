@@ -87,7 +87,7 @@ let () =
             match (t.Model.when_, t.Model.effects) with
             | ( Model.Is
                   ( { Value.root = "watchdog"; steps = [ "independence" ] },
-                    "independent" ),
+                    Model.Lit "independent" ),
                 [ Model.Set (_, "captured") ] ) ->
                 true
             | _ -> false)

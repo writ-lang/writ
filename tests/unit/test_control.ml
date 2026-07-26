@@ -28,7 +28,7 @@ let contains ~sub s =
 (* --- construction helpers (a one-switch world) ------------------------------ *)
 
 let path root steps : Value.path = { root; steps }
-let is e a v = Model.Is (path e [ a ], v)
+let is e a v = Model.Is (path e [ a ], Model.Lit v)
 let set e a v = Model.Set (path e [ a ], v)
 
 let named n g effs : Model.transition =

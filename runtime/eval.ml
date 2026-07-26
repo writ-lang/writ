@@ -46,9 +46,19 @@ let rec guard_holds (ctx : State.ctx) (st : State.t) (env : env)
   | Model.And gs -> List.for_all (guard_holds ctx st env) gs
   | Model.Or gs -> List.exists (guard_holds ctx st env) gs
   | Model.Not g -> not (guard_holds ctx st env g)
-  | Model.Is (p, v) -> (
+  (* Strict on BOTH sides, which is what §10.2 already said of one: "the chain
+     has an answer and it equals V". A chain with no answer on the right makes
+     the comparison false, never vacuously true — that is `=`'s Kleene reading,
+     and keeping the two apart is the point of having both. *)
+  | Model.Is (p, r) -> (
       match eval_path ctx st env p with
-      | Some (Value.Filled x) -> String.equal x v
+      | Some (Value.Filled x) -> (
+          match r with
+          | Model.Lit v -> String.equal x v
+          | Model.Chain q -> (
+              match eval_path ctx st env q with
+              | Some (Value.Filled y) -> String.equal x y
+              | _ -> false))
       | _ -> false)
   | Model.Defined p -> (
       match eval_path ctx st env p with
