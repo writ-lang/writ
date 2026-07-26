@@ -20,25 +20,37 @@ let rec iter_r f = function
       let* () = f x in
       iter_r f xs
 
+(* Where an arrow named its endpoint types, so §8.3's "the `to` TYPE must be a
+   *named*, declared type" can be blamed at the atom that got it wrong. The
+   arrow itself carries no position — [Schema.arrow] is data, not syntax — so
+   the positions travel beside it as far as [check_arrow], exactly as
+   [decode_equation] already does for a path. [dom_at] is [None] when the arrow
+   sits inside a [(type …)] body, because then its domain is the enclosing type
+   and cannot fail to be declared. *)
+type arrow_at = { cod_at : Errors.pos; dom_at : Errors.pos option }
+
 (* [(arrow NAME (to COD) FLAGS…)] — dom is the enclosing type by default, or an
    [(of TYPE)] clause when the arrow is declared at schema top level. *)
 let decode_arrow ~(dom : string) (d : Reader.t) :
-    (Schema.arrow, Errors.t) result =
+    (Schema.arrow * arrow_at, Errors.t) result =
   match d with
   | Reader.List
       (Reader.Atom ("arrow", _) :: Reader.Atom (name, np) :: clauses, _) -> (
       let dom = ref dom and cod = ref None in
+      let cod_at = ref None and dom_at = ref None in
       let fixed = ref false and vacatable = ref false in
       let scan c =
         match c with
-        | Reader.List ([ Reader.Atom ("to", _); Reader.Atom (cd, _) ], _) ->
+        | Reader.List ([ Reader.Atom ("to", _); Reader.Atom (cd, cp) ], _) ->
             cod := Some cd;
+            cod_at := Some cp;
             Ok ()
         | Reader.List (Reader.Atom ("to", tp) :: _, _) ->
             Errors.err ~pos:tp
               "an arrow codomain must be a named type, not an inline set"
-        | Reader.List ([ Reader.Atom ("of", _); Reader.Atom (dm, _) ], _) ->
+        | Reader.List ([ Reader.Atom ("of", _); Reader.Atom (dm, dp) ], _) ->
             dom := dm;
+            dom_at := Some dp;
             Ok ()
         | Reader.Atom ("fixed", _) ->
             fixed := true;
@@ -49,24 +61,24 @@ let decode_arrow ~(dom : string) (d : Reader.t) :
         | other -> Reader.err_at other "unknown arrow clause"
       in
       let* () = iter_r scan clauses in
-      match !cod with
-      | None ->
-          Errors.err ~pos:np ("arrow `" ^ name ^ "` has no (to …) codomain")
-      | Some cod ->
+      match (!cod, !cod_at) with
+      | Some cod, Some cod_at ->
           Ok
-            {
-              Schema.name;
-              dom = !dom;
-              cod;
-              fixed = !fixed;
-              vacatable = !vacatable;
-            })
+            ( {
+                Schema.name;
+                dom = !dom;
+                cod;
+                fixed = !fixed;
+                vacatable = !vacatable;
+              },
+              { cod_at; dom_at = !dom_at } )
+      | _ -> Errors.err ~pos:np ("arrow `" ^ name ^ "` has no (to …) codomain"))
   | _ -> Reader.err_at d "expected an (arrow …) declaration"
 
 (* [(type N (v…))] enumerated, or [(type N BODY…)] open with [(arrow …)] bodies.
    Returns the type and its nested arrows for the schema's flat arrow list. *)
 let decode_type (d : Reader.t) :
-    (Schema.ty * Schema.arrow list, Errors.t) result =
+    (Schema.ty * (Schema.arrow * arrow_at) list, Errors.t) result =
   let is_arrow = function
     | Reader.List (Reader.Atom ("arrow", _) :: _, _) -> true
     | _ -> false
@@ -75,8 +87,8 @@ let decode_type (d : Reader.t) :
   | Reader.List (Reader.Atom ("type", _) :: Reader.Atom (name, _) :: clauses, _)
     -> (
       if List.exists is_arrow clauses then
-        let* arrows = map_r (decode_arrow ~dom:name) clauses in
-        Ok ({ Schema.name; flavor = Open; arrows }, arrows)
+        let* ars = map_r (decode_arrow ~dom:name) clauses in
+        Ok ({ Schema.name; flavor = Open; arrows = List.map fst ars }, ars)
       else
         match clauses with
         | [] -> Ok ({ Schema.name; flavor = Open; arrows = [] }, [])
@@ -111,6 +123,33 @@ let decode_equation (d : Reader.t) :
   | _ ->
       Reader.err_at d "malformed equation: expected (equation NAME (= P1 P2))"
 
+(* §8.3: "The `to` TYPE must be a *named*, declared type" — and the same for an
+   explicit [(of TYPE)] domain. Checked here rather than in [decode_arrow]
+   because a type may be declared after the arrow that points at it, so the
+   schema has to be whole first.
+
+   Without this the name simply never resolves, and the model fails much later
+   with an unpositioned complaint about a *cell* — "mutable cell box.f for p is
+   not vacatable and has no value" — which blames the instance for a fault in
+   the schema and never mentions the type that does not exist. Wrong stage,
+   wrong file when a library is involved, and no line:col at all, which §13
+   requires of every error. *)
+let check_arrow (s : Schema.t) ((a, at) : Schema.arrow * arrow_at) :
+    (unit, Errors.t) result =
+  let declared t = Schema.type_of s t <> None in
+  let blame pos role t =
+    Errors.err ~pos
+      ("arrow `" ^ a.Schema.name ^ "` names an undeclared type `" ^ t
+     ^ "` as its " ^ role)
+  in
+  let* () =
+    if declared a.Schema.cod then Ok ()
+    else blame at.cod_at "codomain" a.Schema.cod
+  in
+  match at.dom_at with
+  | Some p when not (declared a.Schema.dom) -> blame p "domain" a.Schema.dom
+  | _ -> Ok ()
+
 let check_equation (s : Schema.t) ((eq, pos) : Schema.equation * Errors.pos) :
     (unit, Errors.t) result =
   let side (p : Value.path) =
@@ -131,10 +170,11 @@ let decode_schema (d : Reader.t) : (Schema.t, Errors.t) result =
               {
                 Schema.name;
                 types = List.rev types;
-                arrows = List.rev arrows;
+                arrows = List.rev_map fst arrows;
                 equations = List.rev_map fst eqs;
               }
             in
+            let* () = iter_r (check_arrow schema) (List.rev arrows) in
             let* () = iter_r (check_equation schema) (List.rev eqs) in
             Ok schema
         | c :: rest -> (
@@ -143,10 +183,10 @@ let decode_schema (d : Reader.t) : (Schema.t, Errors.t) result =
                 let* ty, ars = decode_type c in
                 go (ty :: types) (List.rev_append ars arrows) eqs rest
             | Reader.List (Reader.Atom ("arrow", _) :: _, _) ->
-                let* a = decode_arrow ~dom:"" c in
+                let* a, at = decode_arrow ~dom:"" c in
                 if a.Schema.dom = "" then
                   Reader.err_at c "a top-level arrow needs an (of TYPE) domain"
-                else go types (a :: arrows) eqs rest
+                else go types ((a, at) :: arrows) eqs rest
             | Reader.List (Reader.Atom ("equation", _) :: _, _) ->
                 let* eq = decode_equation c in
                 go types arrows (eq :: eqs) rest

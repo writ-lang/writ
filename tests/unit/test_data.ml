@@ -183,5 +183,55 @@ let () =
       | _ -> check ("unreadable test source for `" ^ w ^ "`") false)
     [ "relation"; "rule" ]
 
+(* --- §8.3: an arrow's endpoints must be declared types ---------------------- *)
+
+(* The gap this closes (docs/conformance-gaps.md #2) was not that the model was
+   accepted — it failed eventually — but that it failed at the wrong stage, in
+   the wrong file, with no position, complaining about a *cell* and never naming
+   the type that does not exist. So each case asserts the position and the
+   offending name, not merely that something went wrong. *)
+let contains_sub ~sub s =
+  let ls = String.length s and lsub = String.length sub in
+  let rec go i =
+    if i + lsub > ls then false
+    else if String.sub s i lsub = sub then true
+    else go (i + 1)
+  in
+  go 0
+
+let decodes src =
+  match Reader.read_string src with
+  | Error e -> Error e
+  | Ok ds -> (
+      match Expander.expand ds with
+      | Error e -> Error e
+      | Ok ex -> Parser.parse_model ex)
+
+let rejects_at name src ~line ~col ~sub =
+  match decodes src with
+  | Ok _ -> check (name ^ " — accepted, but must be rejected") false
+  | Error e ->
+      check name
+        (e.Errors.pos = Some { Errors.line; col }
+        && contains_sub ~sub e.Errors.msg)
+
+let () =
+  let model body =
+    body ^ "\n(instance i (of m) (box p))\n(use m)\n(initial i)"
+  in
+  rejects_at "an arrow's codomain must be a declared type"
+    (model "(schema m (type v (a b)) (type box (arrow f (to nosuchtype))))")
+    ~line:1 ~col:49 ~sub:"undeclared type `nosuchtype`";
+  rejects_at "an explicit (of TYPE) domain must be a declared type too"
+    (model
+       "(schema m (type v (a b)) (type box) (arrow f (of nosuchdom) (to v)))")
+    ~line:1 ~col:50 ~sub:"undeclared type `nosuchdom`";
+  (* The control, and the reason the check cannot live in the arrow decoder: a
+     type may be declared AFTER the arrow that points at it, so the schema has
+     to be whole before any endpoint can be resolved. *)
+  check "a forward reference to a later-declared type still builds"
+    (Result.is_ok
+       (decodes (model "(schema m (type box (arrow f (to v))) (type v (a b)))")))
+
 let () =
   print_string ("data tests: " ^ string_of_int !passed ^ " checks passed\n")
