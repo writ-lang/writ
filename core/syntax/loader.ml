@@ -95,3 +95,14 @@ let read_claims (resolve : resolve) (m : Model.t) (path : string) :
   let* inlined = inline resolve datums in
   let* expanded = Expander.expand inlined in
   Claims_parser.parse m.Model.schema m.Model.initial expanded
+
+(* A .rules file is the third file type (extension §1) and reads like the other
+   two: its own [(load …)] libraries inlined, its forms expanded, then parsed.
+   The schema is passed for one narrow purpose — a typed column may name a
+   schema type, and the sort words must not be shadowed by one. *)
+let read_rules (resolve : resolve) (m : Model.t) (path : string) :
+    (Rules_parser.t, Errors.t) result =
+  let* datums = read_datums resolve (Filename.basename path) in
+  let* inlined = inline resolve datums in
+  let* expanded = Expander.expand inlined in
+  Rules_parser.parse m.Model.schema expanded

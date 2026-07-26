@@ -1,0 +1,11 @@
+; Extension §1's own example, over rules_base.pol: the transitive closure the
+; language's paths deliberately exclude. Kept verbatim from the specification.
+
+(relation subordinate 2)          ; name and arity
+
+(rule (subordinate X Y)           ; head
+  (is X.reports-to Y))            ; body: base case from the instance
+
+(rule (subordinate X Y)           ; transitive closure — the recursion
+  (is X.reports-to Z)             ; the language's paths deliberately
+  (subordinate Z Y))              ; exclude; the tool is where it belongs

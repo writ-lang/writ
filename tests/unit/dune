@@ -14,12 +14,13 @@
   test_syntax
   test_data
   test_rules
+  test_rules_parser
   test_engine
   test_control
   test_compare
   test_loadpath)
  (deps
-  (glob_files fixtures/*.{pol,claims})
+  (glob_files fixtures/*.{pol,claims,rules})
   (glob_files %{workspace_root}/tests/models/*.{pol,claims})
   (glob_files %{workspace_root}/core/stdlib/*.pol))
  (libraries pol_data pol_syntax pol_runtime pol_loadpath))
