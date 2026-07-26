@@ -1,6 +1,6 @@
 # Schemas as data — a design note
 
-*Status: the encoding is in `stdlib.pol` §6; no emitter exists. Depends on the relational
+*Status: the encoding is in `stdlib.pol` §7; no emitter exists. Depends on the relational
 extension landing first (see "Sequencing").*
 
 Pol already writes one part of itself in itself. `pol control MODEL`
@@ -157,7 +157,7 @@ to say the same thing.
    `.rules` query. Doing this first would mean hand-writing report code
    that the rules engine then replaces.
 2. **~~Add `olog` to the standard library~~ — done.** It sits in
-   `stdlib.pol` §6, beside `quiver`. It is a schema and nothing else, so
+   `stdlib.pol` §7, beside `quiver` (§3). It is a schema and nothing else, so
    it cost nothing to ship early and gives the encoding somewhere to
    live. Note the price paid: `ob`, `hom`, `chain` and `eqn` are now
    reserved for every model that loads stdlib (§7), the same standing
