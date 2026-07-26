@@ -4,7 +4,7 @@
 ; the CLI and the language server and installs them together with the .pol
 ; standard library. The stdlib install stanza lives in the root `dune` — it puts
 ; core/stdlib/*.pol under <prefix>/share/pol/lib/, which is exactly where the
-; resolver in tooling/cli/pol.ml looks (<exe>/../share/pol/lib), so a `(load
+; resolver in tooling/cli/cli_io.ml looks (<exe>/../share/pol/lib), so a `(load
 ; "stdlib.pol")` resolves from any directory once installed.
 ;
 ; pol.opam is GENERATED from the (package) stanza below — edit this file, not

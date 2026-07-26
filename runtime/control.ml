@@ -6,7 +6,8 @@ open Pol_data
    Re-parsing the emitted string against the [quiver] schema validates it.
 
    Engine layer: this is a pure string builder — no I/O and no front end. The
-   printing lives in [tooling/cli/pol.ml]; here we only consume the core [Model]. *)
+   printing lives in [tooling/cli/cmd_control.ml]; here we only consume the core
+   [Model]. *)
 
 (* Edge-entity names, one per transition in order: a named transition keeps its
    name; an UNNAMED transition at 1-based position [i] becomes [move-<i>].
