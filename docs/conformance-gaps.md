@@ -1054,9 +1054,15 @@ disease. That control has its own test.
   spelling would also read as a rule variable, which is why
   `Rules_guard.binder` rejects it; in a model it is merely unconventional,
   and rejecting it would be a style rule wearing a conformance badge.
-- **`where` binders in a `.claims` file.** `Names.check` runs from
-  `Parser.collect_decls`; claims are parsed by `Claims_parser`, which has its
-  own unchecked `binder_of`. Same gap, different door, not yet closed.
+- ~~**`where` binders in a `.claims` file.**~~ **Closed** in the same run.
+  `Claims_parser.parse` now calls `Names.check_binders` before decoding
+  anything. A claims file is parsed against an already-built model rather than
+  the universe's raw datums, so the names come off the schema and the initial
+  instance via `Names.taken_in`; the rule itself is stated once, in
+  `check_binders`, because two copies of a shadowing check would be a second
+  place for the two file types to drift. `Names.binders` grew a `where` case —
+  a query takes its binders as a run of clauses rather than one, so the generic
+  descent walked straight past them.
 - **Enumerated values** are not in the namespace checked against, because a
   value cannot be a chain root and so cannot today be shadowed by a binder.
   That changes if `docs/law-as-guard.md`'s widening lands, which is where

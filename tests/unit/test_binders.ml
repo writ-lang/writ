@@ -64,5 +64,41 @@ let () =
            (transition t (when (some (x box) (is x.f b))) (do (set q.f b)))\n\
            (use m) (initial i)"))
 
+(* The same rule reached from the other side: a .claims file is parsed against
+   an already-built model (§16), so its binders are checked against the model's
+   names rather than a second scan of the universe. *)
+let decodes_claims model_src claims_src =
+  match decodes model_src with
+  | Error e -> Error e
+  | Ok m -> (
+      match Reader.read_string claims_src with
+      | Error e -> Error e
+      | Ok ds -> (
+          match Expander.expand ds with
+          | Error e -> Error e
+          | Ok ex -> (
+              match Claims_parser.parse m.Model.schema m.Model.initial ex with
+              | Error e -> Error e
+              | Ok _ -> Ok ())))
+
+let model_src =
+  "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+   (instance i (of m) (box lo) (f (lo a)))\n\
+   (use m) (initial i)"
+
+let () =
+  (match decodes_claims model_src "(query q (where (lo box)) (is lo.f a))" with
+  | Ok () ->
+      check
+        "a query binder may not shadow an entity — accepted, but must be \
+         rejected"
+        false
+  | Error e ->
+      check "a query binder may not shadow an entity"
+        (contains_sub ~sub:"binder `lo`" e.Errors.msg));
+  check "a query binder that shadows nothing still builds"
+    (Result.is_ok
+       (decodes_claims model_src "(query q (where (x box)) (is x.f a))"))
+
 let () =
   print_string ("binder tests: " ^ string_of_int !passed ^ " checks passed\n")

@@ -118,8 +118,59 @@ let rec binders (d : Reader.t) : (string * Errors.pos) list =
         :: body,
         _ ) ->
       (x, xp) :: List.concat_map binders body
+  (* A query's [(where (VAR TYPE)…)] binds the same way [some] does and shadows
+     the same names (§16.2); it is listed separately only because it takes its
+     binders as a run of clauses rather than one, so the generic descent below
+     would walk straight past them into the atoms. *)
+  | Reader.List (Reader.Atom ("where", _) :: bs, _) ->
+      List.concat_map
+        (function
+          | Reader.List ([ Reader.Atom (x, xp); Reader.Atom _ ], _) ->
+              [ (x, xp) ]
+          | d -> binders d)
+        bs
   | Reader.List (items, _) -> List.concat_map binders items
   | Reader.Atom _ -> []
+
+(* The binder rule, over any way of asking whether a name is already taken.
+   Two callers need it from opposite directions: a model is checked against the
+   universe's raw datums, and a [.claims] file against the model those datums
+   already built (§16). Factored so the rule is *stated* once — two copies of a
+   shadowing check would be a second place for the two file types to drift. *)
+let check_binders (taken : string -> kind option) (datums : Reader.t list) :
+    (unit, Errors.t) result =
+  let rec go = function
+    | [] -> Ok ()
+    | (n, p) :: rest -> (
+        match taken n with
+        | Some k0 ->
+            Errors.err ~pos:p
+              ("binder `" ^ n ^ "` shadows " ^ article k0 ^ " " ^ kind_name k0
+             ^ " of the same name — §7 gives types, entities, forms and \
+                equations one namespace, and there is no shadowing")
+        | None -> go rest)
+  in
+  go (List.concat_map binders datums)
+
+(* The [taken] a [.claims] file needs: its universe is a built [Model.t], not a
+   datum list, so the names come off the schema and the initial instance. Same
+   four kinds [declared] collects, by construction — anything reachable here
+   was put there by a declaration it already saw. *)
+let taken_in (s : Schema.t) (i : Instance.t) (n : string) : kind option =
+  if s.Schema.name = n then Some Schema
+  else if List.exists (fun (t : Schema.ty) -> t.Schema.name = n) s.Schema.types
+  then Some Type
+  else if
+    List.exists
+      (fun (e : Schema.equation) -> e.Schema.name = n)
+      s.Schema.equations
+  then Some Equation
+  else if
+    List.exists
+      (fun (r : Instance.roster) -> List.mem n r.Instance.entities)
+      i.Instance.rosters
+  then Some Entity
+  else None
 
 let check (datums : Reader.t list) : (unit, Errors.t) result =
   let seen = Hashtbl.create 64 in
@@ -144,17 +195,6 @@ let check (datums : Reader.t list) : (unit, Errors.t) result =
      collision is caught wherever the two happen to sit in the file. A binder
      is never *added* to [seen]: it holds its name for the length of a guard
      body, not the universe. *)
-  let rec go_binders = function
-    | [] -> Ok ()
-    | (n, p) :: rest -> (
-        match Hashtbl.find_opt seen n with
-        | Some k0 ->
-            Errors.err ~pos:p
-              ("binder `" ^ n ^ "` shadows " ^ article k0 ^ " " ^ kind_name k0
-             ^ " of the same name — §7 gives types, entities, forms and \
-                equations one namespace, and there is no shadowing")
-        | None -> go_binders rest)
-  in
   match go (declared datums) with
   | Error _ as e -> e
-  | Ok () -> go_binders (List.concat_map binders datums)
+  | Ok () -> check_binders (Hashtbl.find_opt seen) datums
