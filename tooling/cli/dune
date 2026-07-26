@@ -20,6 +20,7 @@
   cmd_query
   cmd_compare
   cmd_control
+  cmd_derive
   help
   version)
  (libraries pol_data pol_syntax pol_runtime pol_loadpath))

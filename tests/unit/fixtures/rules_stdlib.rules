@@ -1,0 +1,23 @@
+; A .rules file that loads the standard library and still means what it says.
+;
+; The whole point is the word `relation`. Forms expand in every file type, so a
+; stdlib that declared `(form (relation R A B) …)` would rewrite the two lines
+; below into type declarations and the rules vocabulary would quietly stop
+; existing the moment an author loaded the library. The span construction is
+; named `span` for exactly that reason (extension §10), and this file is what
+; notices if it is ever renamed back.
+;
+; The declarations that stdlib.pol brings in — the `quiver` and `olog` schemas
+; — are skipped here rather than rejected: a loaded library carries
+; declarations, and a .rules file asks questions.
+
+(load "stdlib.pol")
+
+(relation subordinate (person person))
+
+(rule (subordinate X Y)
+  (is X.reports-to Y))
+
+(rule (subordinate X Y)
+  (is X.reports-to Z)
+  (subordinate Z Y))

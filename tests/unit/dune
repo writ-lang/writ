@@ -18,6 +18,7 @@
   test_rules_sorts
   test_rules_check
   test_derive
+  test_report_derive
   test_engine
   test_control
   test_compare

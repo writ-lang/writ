@@ -56,6 +56,20 @@ let read_claims (resolve : Loader.resolve) (m : Model.t) (path : string) :
   | Error e -> die 2 (path ^ ": " ^ Errors.to_string e)
   | Ok cl -> cl
 
+(* The third file type (extension §1), read exactly as the other two are. It
+   goes one step further than [read_claims] because [Rules_check.check] is the
+   ONLY constructor of a [Rules.program]: sorts, stratification, range
+   restriction and the ALL-CAPS collision check are read-time rejections, so
+   they belong to reading the file and every one of them is a 2. *)
+let read_rules (resolve : Loader.resolve) (m : Model.t) (path : string) :
+    Rules.program =
+  match Loader.read_rules resolve m path with
+  | Error e -> die 2 (path ^ ": " ^ Errors.to_string e)
+  | Ok t -> (
+      match Rules_check.check m t with
+      | Error e -> die 2 (path ^ ": " ^ Errors.to_string e)
+      | Ok p -> p)
+
 (* The questions live beside the model, in the sibling [.claims] file
    ([MODEL.pol] -> [MODEL.claims]) — the convention [pol query] and
    [pol compare] both read the contract by. *)

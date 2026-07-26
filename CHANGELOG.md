@@ -23,9 +23,21 @@ satisfying bindings.
 
 **The tools.** `pol check`, `pol query`, `pol compare` (including `--git`
 between two revisions of one model), `pol control` (a model's dynamics emitted
-as data, an instance of the standard library's `quiver` schema), `pol --help`
-and `pol --version`. Exit status is the interface: 0 clean, 1 a finding, 2
-unreadable input.
+as data, an instance of the standard library's `quiver` schema), `pol derive`,
+`pol --help` and `pol --version`. Exit status is the interface: 0 clean, 1 a
+finding, 2 unreadable input.
+
+**The relational extension** (`docs/interrogator.md`). A third file type, the
+`.rules` file: relation declarations and stratified rules over the model's
+already-enumerated universe, including the derived state category itself
+(`situation`, `init`, `edge`, `holds`, `gap-edge`). `pol derive MODEL.pol
+RULES.rules RELATION` prints the rows; `"(RELATION ARG…)"` binds any position,
+so the dynamics run backward as readily as forward; `--why` prints a fact's
+derivation tree. A situation is written as its state index, in and out. Every
+well-formed question exits 0 — an empty relation is an answer — and an
+unreadable rules file or an undeclared relation exits 2. Sort inference,
+stratification, range restriction and path checking are all read-time
+rejections that blame a `line:col`.
 
 **Editor support.** A language server and a VS Code client — diagnostics from
 the real engine, completion, hover and an outline.
