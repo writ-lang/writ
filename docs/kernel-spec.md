@@ -165,8 +165,10 @@ derivable from the rest — is Appendix E.
 7. **Vocabulary grows; meaning does not.** *(grants wish 11)*
    The extension mechanism (§11) can only rename and paste — it cannot
    compute. Entire domain vocabularies are libraries built from it,
-   while the semantic core stays at twenty-eight words (Appendix B),
-   and every error still points at a line the author wrote.
+   while the semantic core stays at twenty-seven words (Appendix B),
+   and every error still points at a line the author wrote. It shrinks:
+   `=` was a kernel word until a law could hold a guard (§8.6), and is a
+   library form now.
 
 ## 2. Ologs, and what Pol adds
 
@@ -256,6 +258,8 @@ Used by every *Example* in Parts II–III: an oversight system with two
 agencies, one case, one (possibly vacant) judge.
 
 ```lisp
+(load "stdlib.pol")          ; `=` is a library form (§8.6); no implicit prelude
+
 (schema oversight
   (type indep-status (independent captured))
   (type stage-t (open concluded))
@@ -514,23 +518,35 @@ longer says what it contains.
 the signature of an empty slot, not a contradiction;
 `(defined docket.judge.employer)` — false, and tells the cases apart.*
 
-### 8.6 `equation`, `=`
+### 8.6 `equation`
 
-- **Syntax** — `(equation NAME (= CHAIN CHAIN))`.
+- **Syntax** — `(equation NAME GUARD)`, GUARD as in §10.2.
 - **Constraints**
-  - Both chains start at the same type and end at the same type. The
-    chains are written from the *type*, not an entity:
+  - The guard has exactly **one free root** — a root no enclosing `some`
+    binds. That root is the law's *subject*, and it must be a declared
+    type. Chains are written from the *type*, not an entity:
     `case.investigator.independence` here means "for every case…".
+  - Two compared chains must land in one type (§10.2).
   - NAME fresh.
 - **Meaning**
-  - A law: for every entity of the common start type, in every
-    situation, the two chains must give the same answer — **where both
-    have answers**. Where either has no answer, the law does not apply
-    there. (*Kleene equality.*)
+  - A law: for every entity of the subject type, in every situation, the
+    guard holds with the subject bound to that entity.
   - Declaring a law does **not** make it true. Situations violating it
     are part of the model's meaning (§12) and are reported (§15). A law
     is a claim the world is measured against, not a filter on the
     world.
+
+**`=` is not a kernel word.** Equality of two chains is a standard-library
+form, and its *Kleene* reading — vacuously satisfied where either side has
+no answer — is spelled out of the strict primitives §10.2 provides:
+
+```lisp
+(form (= A B) => (not (and (defined A) (defined B) (not (is A B)))))
+```
+
+There is no implicit prelude (§0.7), so a model that writes `(= …)` must
+load the library that defines it. `differ` is its sibling, and the two are
+**not** duals: `is` is strict, so an undefined side makes `differ` true.
 
 *Example. A second law: the judge must be seconded from the
 investigating agency —*
@@ -548,11 +564,29 @@ holds vacuously — an unstaffed bench breaks no seconding rule. After
 `watchdog` — the law holds substantively. That a judge must also
 exist is a separate question: `(live (defined docket.judge))` (§16).*
 
-*Design note.* A law is not a guard: a guard asks about one situation;
-a law is an identity ranging over every entity and every situation,
-checked move-by-move (can this move break it? §15) and observed
-everywhere. The claims-not-axioms behaviour (Pivotal idea 2) requires
-laws to be *declared* datums.
+*Design note.* A law is *written* as a guard but is not *used* as one: a
+guard asks about one situation, while a law ranges over every entity of
+its subject and every situation, is checked move-by-move (can this move
+break it? §15) and is observed everywhere. Sharing the syntax is what
+lets a law say anything a move can test — difference, disjunction,
+`some` — and is why `=` needs no kernel word. What it must not share is
+the *status*: the claims-not-axioms behaviour (Pivotal idea 2) requires
+laws to be **declared** datums, which is why `equation` remains a word
+while `=` does not.
+
+*Example — a law that was unsayable while a law was a pair of chains.
+Separation of duty is a difference, and difference has no equation:*
+
+```lisp
+(equation separation-of-duty
+  (differ case.approver case.preparer))
+```
+
+*Being a law rather than a derived relation is the whole of its value:
+§15 reports which moves can break it, and §16.3 lets each be
+acknowledged. A rules-engine relation (interrogator extension §2) can
+find the cases that violate it today, but no move is analysed against a
+relation and none can be `accept`ed.*
 
 ## 9. Instances
 
@@ -645,13 +679,19 @@ filling is the start, are irreducible acts of naming.
 | `(and G…)`         | every G true; `(and)` is true                                 |
 | `(or G…)`          | some G true; `(or)` is false                                  |
 | `(not G)`           | G false                                                        |
-| `(is CHAIN V)`      | the chain has an answer and it equals V (a value or an entity) |
+| `(is CHAIN RHS)`    | the chain has an answer and it equals RHS — a literal, or a second chain that also has one |
 | `(defined CHAIN)`   | every step of the chain has an answer                          |
 | `(some (x TYPE) G)` | some member of TYPE, bound to `x`, satisfies G                |
 | bare `NAME`          | the nullary form NAME (§11)                                   |
 
-**Constraints** — chains typed per §8.5; V in the chain's target
-domain; TYPE declared.
+**Constraints** — chains typed per §8.5; TYPE declared. RHS is a **chain**
+if the atom contains a dot and a **literal** otherwise, decided lexically
+(§5.2 splits a dotted atom already) — so a literal element or entity name,
+having no dot, reads as it always did, and a bare `some`-binder is not
+comparable. A literal must lie in the chain's target domain; two chains
+must land in one type. `is` is **strict on both sides**: no answer on
+either makes it false, never vacuously true — that reading is `=`'s
+(§8.6), and the two are deliberately distinct.
 
 *Example. In situation `S = (watchdog: captured, prosecutions: independent, stage: open, judge: vacant)`:*
 
@@ -789,8 +829,9 @@ do-nothing moves; a gap has no next situation at all.
 *Design note.* Whole domain vocabularies — ordering comparisons,
 quantifier duals, constitutional verbs — are libraries of forms;
 because a form can only rename and paste, every error still points at a
-line the author wrote, and the semantic core stays at twenty-eight
-words.
+line the author wrote, and the semantic core stays at twenty-seven
+words — one fewer than it began with, since `=` became one of these
+libraries the moment §8.6 let a law hold a guard.
 
 ## 12. The meaning of a model
 
@@ -1160,16 +1201,17 @@ type-d      ::= (type NAME)
 arrow-d     ::= (arrow NAME (to TYPE) flag…)              ; in a type body
               | (arrow NAME (of TYPE) (to TYPE) flag…)    ; at schema top
 flag        ::= fixed | vacatable
-equation-d  ::= (equation NAME (= CHAIN CHAIN))
+equation-d  ::= (equation NAME guard)                      ; §8.6, one free root
 
 instance-d  ::= (instance NAME (of SCHEMA) clause…)
 clause      ::= (TYPE ENTITY…)                            ; roster
               | (ARROW (ENTITY value)…)                   ; valuation
 value       ::= VALUE | ENTITY | vacant
+rhs         ::= CHAIN | VALUE | ENTITY               ; CHAIN iff it has a dot
 
 transition-d::= (transition [NAME] (when guard) (do effect…))
 guard       ::= (and guard…) | (or guard…) | (not guard)
-              | (is CHAIN value) | (defined CHAIN)
+              | (is CHAIN rhs) | (defined CHAIN)
               | (some (VAR TYPE) guard)
               | NAME                                      ; nullary form
 effect      ::= (set CHAIN value) | (vacate CHAIN) | (gap "MSG")
@@ -1198,10 +1240,12 @@ CHAIN       ::= ATOM.ATOM[.ATOM…]                         ; lexical (§5.2)
 | `fixed`     | §8.3   | `defined`            | §10.2  |
 | `vacatable` | §8.3   | `some`               | §10.2  |
 | `equation`  | §8.6   | `form`               | §11.1  |
-| `=`         | §8.6   | `&rest`              | §11.1  |
-| `instance`  | §9.1   | `vacant`             | §9.3   |
+| `instance`  | §9.1   | `&rest`              | §11.1  |
+| `vacant`    | §9.3   |                        |          |
 
-Twenty-eight words. The Part III vocabulary — `property`, `never`,
+Twenty-seven words. `=` was the twenty-eighth until §8.6 let a law hold a
+guard, which made equality expressible as a standard-library form; it is
+one now, and the kernel is a word lighter for it. The Part III vocabulary — `property`, `never`,
 `possible`, `live`, `query`, `where`, `accept`, `check`, `via`,
 `functor`, `from`, `over`, `map` — belongs to tool file formats, not to
 the language. Ordering, quantifier duals, relations, and domain words
@@ -1786,4 +1830,4 @@ this adjunction, stated as semantics.
 Reading the table columnwise is reading the design: the *language* column
 contains only what defines a model; the *tool* column contains every
 question and every search; and no row needed a new kernel word — the
-twenty-eight are enough.
+twenty-seven are enough.

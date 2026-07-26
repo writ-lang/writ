@@ -1,9 +1,10 @@
 # A law should hold a guard — a design note
 
-*Status: proposal, nothing implemented. Blocked on the relational
-extension settling (see "Sequencing"). Supersedes the "unify `is` and
-`=`" sketch, which was wrong for the reason in "The correction" below.
-Open question 1 is resolved and half-implemented; 2–4 remain.*
+*Status: **implemented**. `is` takes a chain on the right (§10.2), an
+`equation` holds a guard (§8.6), and `=` is a standard-library form — the
+kernel is twenty-seven words. Supersedes the "unify `is` and `=`" sketch,
+which was wrong for the reason in "The correction" below. What the note
+predicted, and where it was wrong, is recorded under "What it cost, measured".*
 
 **The change in one line:** `equation` takes a **guard** instead of only
 `(= CHAIN CHAIN)`, and `=` leaves the kernel for the standard library.
@@ -28,8 +29,8 @@ A shared variable across two `is` literals is equality; `--why` returns
 the derivation tree naming the person who holds both roles; and with
 `(holds S …)` the same rule works per-situation over mutable arrows. So
 "which cases violate separation of duty **now**" is answered today, and
-Appendix G's [:1469](kernel-spec.md#L1469) and
-[:1480](kernel-spec.md#L1480) are honest.
+Appendix G's [:1513](kernel-spec.md#L1513) and
+[:1524](kernel-spec.md#L1524) are honest.
 
 What rules cannot reach is everything §15 gives a **declared law**:
 
@@ -39,15 +40,15 @@ What rules cannot reach is everything §15 gives a **declared law**:
 
 plus §16.3's `accept` ledger of owned breakage. Rules observe the world;
 they are not laws, so no move is analysed against them and none can be
-acknowledged. That leaves Appendix G [:1450](kernel-spec.md#L1450) still
-overclaiming:
+acknowledged. That left Appendix G [:1494](kernel-spec.md#L1494)
+overclaiming — until this change, which is why it was worth making:
 
 > Which powers can violate the separation law, and **is every one
 > acknowledged**?
 
 Separation of duty cannot be a law today, so that question has no
 answer — and it is a Pivotal-idea-2 question, the kind Pol exists for.
-Same for [:1486](kernel-spec.md#L1486) and the lockout law.
+Same for [:1530](kernel-spec.md#L1530) and the lockout law.
 
 So the case for this change is not only that the kernel gets smaller. It
 is that **the smaller kernel says more.**
@@ -117,7 +118,7 @@ Laws can now say things they could not:
 ```
 
 One line — and because it is a *law*, §15 reports which moves can break
-it and §16.3 lets each be `accept`ed. Appendix G [:1450](kernel-spec.md#L1450)
+it and §16.3 lets each be `accept`ed. Appendix G [:1494](kernel-spec.md#L1494)
 becomes answerable. Disjunction and `some` come along for free, since the
 body is now the whole guard language.
 
@@ -269,5 +270,61 @@ shadowed only once a chain may appear on the right of `is`.
    with the spec — §8.6, Appendix A's grammar, and Appendix B's keyword
    count all move together, and a kernel that disagrees with its own
    spec about how many words it has is worse than one word heavier.
-4. Only then update Appendix G [:1450](kernel-spec.md#L1450) from an
-   overclaim into an example.
+4. ~~Only then update Appendix G's overclaim into an example.~~ **Done** —
+   [:1494](kernel-spec.md#L1494) is answerable, and §8.6 now carries
+   separation of duty as its worked example of a law that was unsayable
+   while a law was a pair of chains.
+
+## What it cost, measured
+
+The note claimed **"no model has to be rewritten"**. That was true of the
+equations and false of the models, and the difference matters.
+
+Every law is unchanged character for character — the spec's own §4
+`same-agency` is both the before and the after text, and it builds, reports
+its breakage analysis, and prints its violation witness exactly as it did.
+But `=` is a library form now, and §0.7 has no implicit prelude, so a model
+that writes `(= …)` must load the library that defines it. **Seven did**:
+three unit fixtures and four example scenarios, each of which gained one
+`(load "stdlib.pol")` line. The kernel spec's §4 example needed it too.
+
+One line per model is not a rewrite, but it is not nothing, and a note that
+says "no migration" when seven files need touching is the kind of claim that
+gets believed and then discovered. Recorded here rather than quietly fixed.
+
+The failure mode it produces was also worse than it needed to be. A model
+missing the load reported `malformed guard clause`, blaming the parentheses
+for a missing library, when §0.7 promises such a name surfaces as a *name*
+error. An unknown guard head now names itself and points at the load — the
+first thing anyone hits after this change deserved better than the worst
+message in the file.
+
+## What the open questions turned into
+
+1. **Bare variables on the right of `is`** — resolved by the binder
+   namespace, and half-implemented before this change landed; the
+   enumerated-values half is still not needed, because the lexical rule
+   means a bare binder is read as a literal and never reaches a value.
+2. **The common-root-type rule** — implemented as chosen: a law has exactly
+   one free root, that root is its subject, and it must be a declared type.
+   Both halves live in `Decl_checks.check_equation` so they read together.
+   Two subjects, or none, are positioned errors naming the offending types.
+3. **§15's breakage analysis** — did not get harder. It asks which arrows a
+   law reads, which `Guard.arrows` answers for an arbitrary guard as easily
+   as it did for two chains. The conservatism the note feared never
+   materialised.
+4. **`=` leaving `Forms.reserved`** — done, with a test pinning that `=` is
+   free for a form to define and `equation` is still reserved.
+
+## What moved, structurally
+
+`Guard` is its own module in `core/data`, below `Schema`, because
+`Schema.equation` holds one and `Model` already depends on `Schema` — leaving
+the type in `Model` would have closed a cycle. It is re-exported from `Model`
+with its constructors, so every `Model.Is` and `Model.And` in the tree kept
+meaning what it did; the type moved and the vocabulary did not.
+
+`Guard` also carries `paths`, `arrows`, `free_roots` and `equal`. The last is
+explicit rather than polymorphic `=` for the reason `Value.compare_cell`
+gives: `Compare` uses it to decide whether a law survived a version change,
+and a wrong answer there is a wrong "preserved".

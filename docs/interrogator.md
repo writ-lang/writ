@@ -101,6 +101,21 @@ A rules file is a third file type alongside `.pol`
   sort; a constant in a sorted column is checked against it.
 - Semantics: least fixpoint, computed bottom-up (semi-naïve), per stratum.
 
+**`is` differs here from the kernel's, deliberately.** §10.2 lets the right of
+`is` be a second *chain*, so a model can guard on `(is c.approver c.preparer)`.
+In a rule body the right of `is` is a **term** — a variable or a constant — and
+a dotted atom written there is a constant, rejected by the sort checker as a
+value outside the arrow's codomain. Nothing is lost: equality between two
+chains is what a **shared variable** already expresses, and expresses better,
+since the join also *binds*:
+
+```lisp
+(rule (conflict C) (is C.approver P) (is C.preparer P))
+```
+
+The kernel needs the chain form because it has no variables to join on; the
+engine has them, so it does not.
+
 ## 2. Built-in relations — the derived category as data
 
 The rules engine exposes what the interrogator already computes. A
