@@ -93,6 +93,34 @@ let declared (datums : Reader.t list) : (string * kind * Errors.pos) list =
       | _ -> [])
     datums
 
+(* A [some] binder names a variable scoped to its own guard body, so two
+   transitions may each bind [b]: they are disjoint, and nothing in §7 makes a
+   scoped name globally unique. Collecting them is not about uniqueness among
+   themselves.
+
+   What §7 does forbid is shadowing, and a binder is the one construct in the
+   language that can shadow anything. [Eval.eval_path] resolves a chain root
+   through the binding environment BEFORE the roster, so a binder spelled like
+   an entity hides it and the model still builds — the same silent
+   winner-picking this module was written to end, arriving by the one door it
+   left open.
+
+   Read off the raw datums for the module's usual reason: it keeps a position
+   on every binder. A [.rules] file's binders are checked by
+   [Rules_guard.binder] instead, which additionally rejects the ALL-CAPS
+   spelling because there it would also read as a rule variable; in a model
+   that spelling is merely unconventional, and is left alone. *)
+let rec binders (d : Reader.t) : (string * Errors.pos) list =
+  match d with
+  | Reader.List
+      ( Reader.Atom ("some", _)
+        :: Reader.List ([ Reader.Atom (x, xp); Reader.Atom _ ], _)
+        :: body,
+        _ ) ->
+      (x, xp) :: List.concat_map binders body
+  | Reader.List (items, _) -> List.concat_map binders items
+  | Reader.Atom _ -> []
+
 let check (datums : Reader.t list) : (unit, Errors.t) result =
   let seen = Hashtbl.create 64 in
   let rec go = function
@@ -112,4 +140,21 @@ let check (datums : Reader.t list) : (unit, Errors.t) result =
             Hashtbl.add seen n k;
             go rest)
   in
-  go (declared datums)
+  (* Binders are checked only after every declaration is in [seen], so the
+     collision is caught wherever the two happen to sit in the file. A binder
+     is never *added* to [seen]: it holds its name for the length of a guard
+     body, not the universe. *)
+  let rec go_binders = function
+    | [] -> Ok ()
+    | (n, p) :: rest -> (
+        match Hashtbl.find_opt seen n with
+        | Some k0 ->
+            Errors.err ~pos:p
+              ("binder `" ^ n ^ "` shadows " ^ article k0 ^ " " ^ kind_name k0
+             ^ " of the same name — §7 gives types, entities, forms and \
+                equations one namespace, and there is no shadowing")
+        | None -> go_binders rest)
+  in
+  match go (declared datums) with
+  | Error _ as e -> e
+  | Ok () -> go_binders (List.concat_map binders datums)

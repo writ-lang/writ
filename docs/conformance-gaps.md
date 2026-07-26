@@ -985,111 +985,79 @@ than bolted onto this run.
 
 ---
 
-## 7. Binder names are unconstrained, and the rules engine's soundness argument assumes otherwise
+## 7. A binder may shadow a global name
 
-**Status:** open. Found 2026-07-26 while resolving open question 1 of
-`docs/law-as-guard.md` — what `(is a.f x)` should mean when `x` is a
-`some`-binder. The answer turned on what a binder name may be, and the
-answer is: anything at all.
+**Status:** **fixed** 2026-07-26. Found while resolving open question 1 of
+`docs/law-as-guard.md`.
 
-### What the code assumes
+**A correction to this entry's first version, which overstated it.** It was
+filed as a soundness hole in the rules engine, on the reading that
+`core/data/rules.ml:69-71` justifies `lower` with a premise — "an ALL-CAPS
+binder name is rejected at read time" — that nothing enforces. That was
+wrong. It *is* enforced, in `core/syntax/rules_guard.ml:101-110`, which
+rejects an ALL-CAPS binder with the exact reasoning the comment cites. Every
+`Rules.gexp` reaching `lower` comes from that decoder, so the premise holds
+and the rules engine is sound. The mistake was checking `Grammar.binder_of`,
+the kernel's binder, and concluding about the extension's.
 
-`core/data/rules.ml:69-71`, justifying why `lower` may leave a `Some_`
-binder alone while substituting everything around it:
+What survived the correction is a smaller, real gap, in the kernel rather
+than the extension.
 
-> A `[Some_]` binder is a KERNEL variable, not a rule variable, and is
-> left alone: its name cannot collide with `[env]` because **an ALL-CAPS
-> binder name is rejected at read time**, and Pol has no shadowing
-> (kernel §7).
+### What the spec requires
 
-Two premises, both load-bearing, and the first is false.
+§7, *Names*: "There is no shadowing."
 
-### What actually happens
+### What actually happened
 
-`Grammar.binder_of` destructures `(VAR TYPE)` and checks nothing:
-
-```ocaml
-and binder_of (d : Reader.t) : (string * string, Errors.t) result =
-  match d with
-  | Reader.List ([ Reader.Atom (x, _); Reader.Atom (ty, _) ], _) -> Ok (x, ty)
-  | _ -> Reader.err_at d "expected a binder shaped (VAR TYPE)"
-```
-
-So an ALL-CAPS kernel binder is accepted:
+`Grammar.binder_of` destructured `(VAR TYPE)` and checked nothing, so a
+binder could take a name already held by an entity, type, equation or
+schema. `Eval.eval_path` resolves a chain root through the binding
+environment **before** the roster, so the binder silently hid the entity and
+the model built:
 
 ```lisp
-(transition t (when (some (X box) (is X.f lo))) (do (set b.f hi)))
+(schema m (type v (a b)) (type box (arrow f (to v))))
+(instance i (of m) (box lo) (f (lo a)))
+(transition t (when (some (lo box) (is lo.f a))) (do (set lo.f b)))
+(use m) (initial i)
 ```
 
 ```
 states: 2   edges: 1        exit=0
 ```
 
-And a binder may be named after an entity *and* an enumerated value at
-once — all three `lo`s below are distinct things, and the model builds:
+Note the three distinct `lo`s: an entity, an enumerated value, and a binder.
+This is the same invisible winner-picking gap 1 closed for declarations,
+arriving through the one door that gap left open — §7's namespace lists
+types, entities, forms and equations, and a binder is none of those.
 
-```lisp
-(schema s (type flag (lo hi)) (type box (arrow f (to flag))))
-(instance i (of s) (box lo) (f (lo hi)))
-(use s)
-(initial i)
-(transition t (when (some (lo box) (is lo.f hi))) (do (set lo.f lo)))
+### How it was fixed
+
+`Names.binders` collects every `(some (X T) …)` binder off the raw datums,
+keeping a position on each; `Names.check` tests them against the declared
+set once it is complete, so the collision is caught wherever the two sit.
+
+```
+3:28: binder `lo` shadows an entity of the same name — §7 gives types,
+      entities, forms and equations one namespace, and there is no shadowing
 ```
 
-```
-states: 2   edges: 1        exit=0
-```
+**A binder is never added to the declared set.** It holds its name for the
+length of a guard body, not the universe, so two transitions may each bind
+`b`. Disjointness against global names, not uniqueness among binders —
+forcing `b1`, `b2`, `b3` through every model would be a cure worse than the
+disease. That control has its own test.
 
-The second premise — "Pol has no shadowing (kernel §7)" — is true of the
-*sentence* in §7 but vacuous here, because §7's namespace lists types,
-entities, forms and equations, and **not binders**. Nothing makes a
-binder collide with anything, so nothing rejects it.
+### What is deliberately not covered
 
-### Why it matters
-
-**For the rules engine, now.** A rule body may contain kernel guards, and
-kernel guards include `some` (extension §1). So a `.rules` body can bind
-an ALL-CAPS kernel binder whose spelling is exactly the rules engine's
-variable notation (`Rules.is_var`: "a term is a VARIABLE iff it is
-ALL-CAPS"). `lower` then walks that body with the rule's `env` live:
-`Some_` is left alone, but `lower_path env p` substitutes the path's
-root and `subst env v` substitutes the `is` value. A kernel binder named
-`X` inside a rule that also binds `X` is substituted where it should have
-been left. The comment says this cannot arise; nothing stops it.
-
-**For the kernel, later.** `docs/law-as-guard.md` proposes allowing a
-chain on the right of `is`. That makes `(is a.f x)` ambiguous between the
-binder `x` and a literal named `x` — an ambiguity that exists *only*
-because binder names are unconstrained.
-
-### Where the fix goes
-
-`Grammar.binder_of`, which is the one constructor of a kernel binder, plus
-the equivalent in `Claims_parser.binder_of`. Two rules, serving two
-different purposes:
-
-**(a) A binder name must be disjoint from every name readable in its
-place** — §7's global names, and enumerated values anywhere in the loaded
-universe.
-
-Note this is **disjointness, not global uniqueness**. `(some (b bureau) …)`
-in two different transitions must stay legal; binders are scoped, and
-forcing `b1`, `b2`, `b3` through every model would be a cure worse than
-the disease. Rebinding the same name *within* an enclosing binder's scope
-stays an error — that is shadowing, which §7 already forbids.
-
-**(b) A binder name may not be ALL-CAPS.** A separate rule for a separate
-purpose: it keeps kernel binders and rule variables in disjoint
-spellings. (a) does not imply it, because a rule variable is not a global
-name. This is precisely what `rules.ml:70` already claims, so the cheapest
-honest fix is to make the claim true.
-
-(a) also completes §7. "There is no shadowing" is currently silent about
-the one thing in the language that binds a name locally.
-
-### Why it is not fixed yet
-
-(b) is small, self-contained, and worth doing on its own — it repairs a
-false premise in live code and needs none of the rest. (a) is best landed
-with the `law-as-guard` change that needs it, since on its own it only
-adds a static error nobody is currently hitting.
+- **ALL-CAPS binders in a model** are still accepted. In a `.rules` file the
+  spelling would also read as a rule variable, which is why
+  `Rules_guard.binder` rejects it; in a model it is merely unconventional,
+  and rejecting it would be a style rule wearing a conformance badge.
+- **`where` binders in a `.claims` file.** `Names.check` runs from
+  `Parser.collect_decls`; claims are parsed by `Claims_parser`, which has its
+  own unchecked `binder_of`. Same gap, different door, not yet closed.
+- **Enumerated values** are not in the namespace checked against, because a
+  value cannot be a chain root and so cannot today be shadowed by a binder.
+  That changes if `docs/law-as-guard.md`'s widening lands, which is where
+  that half belongs.

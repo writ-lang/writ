@@ -3,7 +3,7 @@
 *Status: proposal, nothing implemented. Blocked on the relational
 extension settling (see "Sequencing"). Supersedes the "unify `is` and
 `=`" sketch, which was wrong for the reason in "The correction" below.
-Open question 1 is resolved; 2–4 remain.*
+Open question 1 is resolved and half-implemented; 2–4 remain.*
 
 **The change in one line:** `equation` takes a **guard** instead of only
 `(= CHAIN CHAIN)`, and `=` leaves the kernel for the standard library.
@@ -238,23 +238,33 @@ compared. Universe-wide is simpler to state and implement; type-directed
 is more permissive but needs the type known at check time. Take
 universe-wide unless it proves too strict.
 
-**(b) is separable and worth doing first.** It repairs a false premise in
-live code — `core/data/rules.ml:69-71` justifies `lower`'s substitution
-safety on the claim that "an ALL-CAPS binder name is rejected at read
-time", which is not true. Filed as gap 7 in `docs/conformance-gaps.md`.
+**(b) is already in force where it matters.** `Rules_guard.binder` rejects
+an ALL-CAPS binder in a `.rules` file, which is what makes
+`core/data/rules.ml:69-71`'s substitution safe — every `Rules.gexp` reaching
+`lower` comes from that decoder. In a *model* the spelling is accepted and
+harmless, since model guards never pass through `lower`. So (b) needs no
+work; an earlier draft of this note claimed otherwise and was wrong.
+
+**(a) is done**, ahead of the rest of this note, because it closed a live
+§7 violation on its own: a binder could shadow an entity, and `Eval` resolves
+a chain root through the environment before the roster, so the binder won
+silently. `Names.binders` now rejects it. Recorded as gap 7 in
+`docs/conformance-gaps.md`. What remains for this proposal is only the
+*enumerated values* half — a value cannot be a chain root, so it can be
+shadowed only once a chain may appear on the right of `is`.
 
 ## Sequencing
 
-0. **Reject ALL-CAPS binder names** — rule (b) above. Separable, small,
-   and worth landing on its own whether or not the rest of this note ever
-   happens, because it repairs a false premise in live code (gap 7).
+0. ~~Reject ALL-CAPS binder names~~ — **not needed**; already enforced
+   where it matters, in `Rules_guard.binder`. Rule (a)'s global-name half is
+   **done** (gap 7); only its enumerated-values half waits on step 2.
 1. **Wait for the relational extension to settle.** This changes
    `Model.Is`, which `core/data/rules.ml` lowers into, and that module is
    under active construction.
-2. Widen `is`, and land the binder-disjointness rule (a) with it — the
-   widening is what creates the ambiguity that (a) resolves, so they
-   belong in one commit. Existing models are otherwise unaffected,
-   because nothing yet puts a chain on the right.
+2. Widen `is`, and extend rule (a) to enumerated values in the same commit —
+   the widening is what makes a value shadowable, so they belong together.
+   Existing models are otherwise unaffected, because nothing yet puts a chain
+   on the right.
 3. Move `=` to stdlib and let `equation` take a guard, in **one** commit
    with the spec — §8.6, Appendix A's grammar, and Appendix B's keyword
    count all move together, and a kernel that disagrees with its own
