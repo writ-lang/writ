@@ -212,7 +212,7 @@ let () =
     "(relation p (Situation))\n(rule (p S) (situation S) (situation nabu))"
     ~line:2 ~col:38
     ~sub:
-      "is not a situation, which is what column 1 of built-in `situation` holds";
+      "is not a situation, which is what column 1 of built-in `situation` takes";
   rejected "a non-index constant in init's column" org
     "(relation p (Situation))\n(rule (p S) (situation S) (init nabu))" ~line:2
     ~col:33 ~sub:"is not a situation, which is what column 1 of built-in `init`";

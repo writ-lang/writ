@@ -152,7 +152,7 @@ let check_col m ~why i (t : Rules.term) (srt : Rules.sort option) =
   | Rules.Const (c, p), Some srt when not (const_ok m srt c) ->
       Errors.err ~pos:p
         ("`" ^ c ^ "` is not " ^ Rules_terms.sort_name srt ^ ", which is what "
-       ^ why i ^ " holds")
+       ^ why i ^ " takes")
   | (Rules.Const _ | Rules.Var _), _ -> Ok ()
 
 let check_args m sorts rel ts =
