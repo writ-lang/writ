@@ -2,7 +2,8 @@
 
 *Status: proposal, nothing implemented. Blocked on the relational
 extension settling (see "Sequencing"). Supersedes the "unify `is` and
-`=`" sketch, which was wrong for the reason in "The correction" below.*
+`=`" sketch, which was wrong for the reason in "The correction" below.
+Open question 1 is resolved; 2–4 remain.*
 
 **The change in one line:** `equation` takes a **guard** instead of only
 `(= CHAIN CHAIN)`, and `=` leaves the kernel for the standard library.
@@ -172,14 +173,8 @@ would be doing the same thing this note is undoing.
 ## Open questions to settle before implementing
 
 1. **Bare variables on the right of `is`.** With a chain allowed there,
-   what does `(is a.f x)` mean when `x` is a `some`-binder? Today it is
-   unambiguously a literal. Options: *dots means chain, otherwise
-   literal* (simple; bound variables stay uncomparable), or *resolve
-   binders first* (more useful, but needs a shadowing rule — §7's global
-   namespace covers types, entities, forms and equations, **not**
-   binders, so a binder may share a name with an entity). The rules
-   engine sidestepped this with an ALL-CAPS convention; the kernel has no
-   equivalent and should not grow one lightly.
+   what does `(is a.f x)` mean when `x` is a `some`-binder? **Resolved —
+   see "Open question 1, resolved" below.**
 2. **The common-root-type rule.** §8.6 constrains two chains to share a
    start type. Over an arbitrary guard this becomes "every type-rooted
    chain shares one root type" — worth stating explicitly as a static
@@ -192,12 +187,73 @@ would be doing the same thing this note is undoing.
 4. **`=` must leave `Forms.reserved`**, which currently lists it, or the
    stdlib form cannot be declared.
 
+## Open question 1, resolved: give binders a namespace
+
+The ambiguity in `(is a.f x)` exists for one reason — **a binder name may
+currently be anything at all.** `Grammar.binder_of` destructures
+`(VAR TYPE)` and checks nothing, so all three of these `lo`s coexist and
+the model builds:
+
+```lisp
+(schema s (type flag (lo hi)) (type box (arrow f (to flag))))
+(instance i (of s) (box lo) (f (lo hi)))       ; entity lo, value lo
+(transition t (when (some (lo box) (is lo.f hi))) (do (set lo.f lo)))
+```
+
+Remove the collision and the ambiguity goes with it. Two rules:
+
+**(a) A binder name must be disjoint from every name readable in its
+place** — §7's global names (types, entities, forms, equations) and
+enumerated values anywhere in the loaded universe.
+
+This is **disjointness, not global uniqueness**. `(some (b bureau) …)` in
+two different transitions stays legal, because binders are scoped;
+forcing `b1`, `b2`, `b3` through every model would be a cure worse than
+the disease. Rebinding a name inside an enclosing binder's scope stays an
+error — that is shadowing, which §7 already forbids.
+
+**(b) A binder name may not be ALL-CAPS**, matching extension §1's
+notation, so kernel binders and rule variables can never share a
+spelling. Independent of (a), since a rule variable is not a global name.
+
+With (a) in force, `(is a.f x)` has exactly one reading: if `x` is a
+binder in scope it is the binder, otherwise it is a literal. It cannot be
+both, because (a) forbids the collision.
+
+**Why this beats the alternatives.** No sigil, no ALL-CAPS convention
+leaking from the extension into the kernel, no shadowing rule, and no new
+keyword. It is less a new rule than the completion of one the spec
+already claims: §7 says "There is no shadowing", which is today vacuous
+for binders, the one thing in the language that binds a name locally.
+
+**Cost.** A model with a binder named after a value gets a new static
+error and renames the binder. Conventional style — single letters for
+binders, words for values — makes that rare, and the error names the
+binder and the thing it collides with. The same shape as the §7
+enforcement in gap 1 above, whose measured fallout was zero.
+
+**One sub-decision left:** whether (a) checks against *all* enumerated
+values universe-wide, or only those in the target type of the chain being
+compared. Universe-wide is simpler to state and implement; type-directed
+is more permissive but needs the type known at check time. Take
+universe-wide unless it proves too strict.
+
+**(b) is separable and worth doing first.** It repairs a false premise in
+live code — `core/data/rules.ml:69-71` justifies `lower`'s substitution
+safety on the claim that "an ALL-CAPS binder name is rejected at read
+time", which is not true. Filed as gap 7 in `docs/conformance-gaps.md`.
+
 ## Sequencing
 
+0. **Reject ALL-CAPS binder names** — rule (b) above. Separable, small,
+   and worth landing on its own whether or not the rest of this note ever
+   happens, because it repairs a false premise in live code (gap 7).
 1. **Wait for the relational extension to settle.** This changes
    `Model.Is`, which `core/data/rules.ml` lowers into, and that module is
    under active construction.
-2. Widen `is`; keep everything else. Existing models are unaffected
+2. Widen `is`, and land the binder-disjointness rule (a) with it — the
+   widening is what creates the ambiguity that (a) resolves, so they
+   belong in one commit. Existing models are otherwise unaffected,
    because nothing yet puts a chain on the right.
 3. Move `=` to stdlib and let `equation` take a guard, in **one** commit
    with the spec — §8.6, Appendix A's grammar, and Appendix B's keyword

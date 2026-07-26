@@ -982,3 +982,114 @@ states: 1   edges: 0        exit=0
 entity's arrow has **one** answer" — so the fix has to decide which section it
 is enforcing and where the rule is documented, and it belongs with (a) rather
 than bolted onto this run.
+
+---
+
+## 7. Binder names are unconstrained, and the rules engine's soundness argument assumes otherwise
+
+**Status:** open. Found 2026-07-26 while resolving open question 1 of
+`docs/law-as-guard.md` — what `(is a.f x)` should mean when `x` is a
+`some`-binder. The answer turned on what a binder name may be, and the
+answer is: anything at all.
+
+### What the code assumes
+
+`core/data/rules.ml:69-71`, justifying why `lower` may leave a `Some_`
+binder alone while substituting everything around it:
+
+> A `[Some_]` binder is a KERNEL variable, not a rule variable, and is
+> left alone: its name cannot collide with `[env]` because **an ALL-CAPS
+> binder name is rejected at read time**, and Pol has no shadowing
+> (kernel §7).
+
+Two premises, both load-bearing, and the first is false.
+
+### What actually happens
+
+`Grammar.binder_of` destructures `(VAR TYPE)` and checks nothing:
+
+```ocaml
+and binder_of (d : Reader.t) : (string * string, Errors.t) result =
+  match d with
+  | Reader.List ([ Reader.Atom (x, _); Reader.Atom (ty, _) ], _) -> Ok (x, ty)
+  | _ -> Reader.err_at d "expected a binder shaped (VAR TYPE)"
+```
+
+So an ALL-CAPS kernel binder is accepted:
+
+```lisp
+(transition t (when (some (X box) (is X.f lo))) (do (set b.f hi)))
+```
+
+```
+states: 2   edges: 1        exit=0
+```
+
+And a binder may be named after an entity *and* an enumerated value at
+once — all three `lo`s below are distinct things, and the model builds:
+
+```lisp
+(schema s (type flag (lo hi)) (type box (arrow f (to flag))))
+(instance i (of s) (box lo) (f (lo hi)))
+(use s)
+(initial i)
+(transition t (when (some (lo box) (is lo.f hi))) (do (set lo.f lo)))
+```
+
+```
+states: 2   edges: 1        exit=0
+```
+
+The second premise — "Pol has no shadowing (kernel §7)" — is true of the
+*sentence* in §7 but vacuous here, because §7's namespace lists types,
+entities, forms and equations, and **not binders**. Nothing makes a
+binder collide with anything, so nothing rejects it.
+
+### Why it matters
+
+**For the rules engine, now.** A rule body may contain kernel guards, and
+kernel guards include `some` (extension §1). So a `.rules` body can bind
+an ALL-CAPS kernel binder whose spelling is exactly the rules engine's
+variable notation (`Rules.is_var`: "a term is a VARIABLE iff it is
+ALL-CAPS"). `lower` then walks that body with the rule's `env` live:
+`Some_` is left alone, but `lower_path env p` substitutes the path's
+root and `subst env v` substitutes the `is` value. A kernel binder named
+`X` inside a rule that also binds `X` is substituted where it should have
+been left. The comment says this cannot arise; nothing stops it.
+
+**For the kernel, later.** `docs/law-as-guard.md` proposes allowing a
+chain on the right of `is`. That makes `(is a.f x)` ambiguous between the
+binder `x` and a literal named `x` — an ambiguity that exists *only*
+because binder names are unconstrained.
+
+### Where the fix goes
+
+`Grammar.binder_of`, which is the one constructor of a kernel binder, plus
+the equivalent in `Claims_parser.binder_of`. Two rules, serving two
+different purposes:
+
+**(a) A binder name must be disjoint from every name readable in its
+place** — §7's global names, and enumerated values anywhere in the loaded
+universe.
+
+Note this is **disjointness, not global uniqueness**. `(some (b bureau) …)`
+in two different transitions must stay legal; binders are scoped, and
+forcing `b1`, `b2`, `b3` through every model would be a cure worse than
+the disease. Rebinding the same name *within* an enclosing binder's scope
+stays an error — that is shadowing, which §7 already forbids.
+
+**(b) A binder name may not be ALL-CAPS.** A separate rule for a separate
+purpose: it keeps kernel binders and rule variables in disjoint
+spellings. (a) does not imply it, because a rule variable is not a global
+name. This is precisely what `rules.ml:70` already claims, so the cheapest
+honest fix is to make the claim true.
+
+(a) also completes §7. "There is no shadowing" is currently silent about
+the one thing in the language that binds a name locally.
+
+### Why it is not fixed yet
+
+(b) is small, self-contained, and worth doing on its own — it repairs a
+false premise in live code and needs none of the rest. (a) is best landed
+with the `law-as-guard` change that needs it, since on its own it only
+adds a static error nobody is currently hitting.
