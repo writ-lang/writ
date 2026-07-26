@@ -40,5 +40,11 @@ tool ships. A **domain** library — a vocabulary for one subject — is ordinar
 user code: `politics.lib.pol` now lives beside the models that load it, in
 `tests/models/`, leaving `core/stdlib/` the standard library alone.
 
+**One rename.** The standard library's many-to-many form is `span`, not
+`relation`. `relation` is how a `.rules` file declares a relation, and forms
+expand in every file type, so the form was quietly rewriting those declarations
+into junction types. A model of your own that calls `(relation R A B)` must
+call `(span R A B)` instead; nothing else about it changed.
+
 Not built yet: the §16.4 schema dictionaries (`functor`, `check … via`) and §17
 fiber reporting.

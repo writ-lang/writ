@@ -17,10 +17,13 @@
     (arrow src (to node) fixed)
     (arrow tgt (to node) fixed)))
 
-; 3. Relations as spans
+; 3. Spans
 ; A many-to-many relation between A and B is a junction type — the standard
-; span construction.
-(form (relation R A B)
+; span construction. It is named `span` and not `relation` because `relation`
+; is how a .rules file declares one (interrogator §1), and forms expand in
+; every file type: a .rules file that loaded this one would have its
+; declarations rewritten into types.
+(form (span R A B)
   => (type R
        (arrow left  (to A) fixed)
        (arrow right (to B) fixed)))

@@ -131,5 +131,57 @@ let () =
                     (String.length r >= 3 && String.sub r 0 3 = "n/a")
               | _ -> check "na: expected exactly one property" false)))
 
+(* The many-to-many form is `span`, and `relation` belongs to the .rules file
+   type. Both halves are checked against the REAL stdlib, expanded by the real
+   expander, because the collision they guard against was invisible to a test
+   that transcribed the form instead of loading it: one expander serves every
+   file type, so a stdlib form named `relation` rewrites a rules declaration. *)
+
+let rec sexp (d : Reader.t) =
+  match d with
+  | Reader.Atom (a, _) -> a
+  | Reader.List (xs, _) -> "(" ^ String.concat " " (List.map sexp xs) ^ ")"
+
+let () =
+  match Loader.load_library resolve "stdlib.pol" with
+  | Error e -> check ("stdlib for span: " ^ Errors.to_string e) false
+  | Ok lib ->
+      let expand src =
+        match Reader.read_string src with
+        | Error e -> failwith ("read: " ^ Errors.to_string e)
+        | Ok ds -> (
+            match Expander.expand (lib @ ds) with
+            | Error e -> failwith ("expand: " ^ Errors.to_string e)
+            | Ok out -> List.map sexp out)
+      in
+      check "span: expands to a junction type with two fixed arrows"
+        (List.mem
+           "(type link (arrow left (to a) fixed) (arrow right (to b) fixed))"
+           (expand "(span link a b)"));
+      check "relation: a rules declaration survives the stdlib untouched"
+        (List.mem "(relation subordinate 2)"
+           (expand "(relation subordinate 2)"))
+
+(* …and no library may take either word back by declaring a form of that name. *)
+let () =
+  List.iter
+    (fun w ->
+      let src = "(form (" ^ w ^ " X) => (type X))" in
+      match Reader.read_string src with
+      | Ok [ d ] -> (
+          match Forms.collect d ~earlier:[] with
+          | Ok _ -> check ("a form may not be named `" ^ w ^ "`") false
+          | Error e ->
+              check
+                ("a form named `" ^ w ^ "` is refused as reserved: "
+               ^ e.Errors.msg)
+                (String.length e.Errors.msg > 0
+                && e.Errors.pos <> None
+                && List.exists
+                     (fun s -> s = "reserved")
+                     (String.split_on_char ' ' e.Errors.msg)))
+      | _ -> check ("unreadable test source for `" ^ w ^ "`") false)
+    [ "relation"; "rule" ]
+
 let () =
   print_string ("data tests: " ^ string_of_int !passed ^ " checks passed\n")
