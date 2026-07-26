@@ -11,6 +11,23 @@
 ; 2. The quiver schema — dynamics as data
 ; `pol control MODEL.pol` exports a model's control quiver as an instance of
 ; this schema: one `edge` entity per transition.
+;
+; WHY IT EARNS ITS PLACE. A model's move structure becomes an ordinary
+; instance, so every verb that already works on instances works on behaviour
+; too — no second machinery. The payoff to point at is `pol solve
+; --simulation` (interrogator §3): "does A's behaviour embed in B's" is not a
+; bespoke algorithm, it is the ordinary map search run between two
+; quiver-instances. Comparison by move structure, discovered rather than
+; declared, for free.
+;
+; It is also the precedent for the pattern: writing a part of Pol in Pol so
+; that special tooling verbs collapse into general ones. The same move one
+; level up — a SCHEMA as an instance — is the `olog` schema in §6.
+;
+; The standing cost of both is the namespace: names are global across the
+; loaded universe and may not be redeclared (kernel §7), so every model that
+; loads this file gives up `node` and `edge` here, and `ob`, `hom`, `chain`
+; and `eqn` in §6.
 (schema quiver
   (type node)
   (type edge
@@ -43,3 +60,72 @@
 ; A model with modes declares an enumerated mode type, one mutable arrow to
 ; it, and conjoins each mode-restricted move's guard with the mode test.
 (form (phase-gated P V G) => (and (is P V) G))
+
+; 6. The olog schema — schemas as data
+; The sibling of §2 one level up: an instance of `olog` IS a schema — its
+; types, its arrows, its equations.
+;
+; WHY IT EARNS ITS PLACE. A dictionary between two schemas (kernel §16.4) is
+; checked three ways today, by code that exists for nothing else. Two of the
+; three stop being special once schemas are instances: totality is an
+; instance homomorphism being total on the roster, and shape — an arrow's
+; translation running between the translations of its endpoints — is
+; literally the naturality square for `dom` and `cod`, which `pol solve
+; --morphism` already searches for. Only equation preservation stays bespoke,
+; because §16.4 evaluates it semantically against the target's instance and
+; naturality does not reach that far. The same collapse would make `pol
+; compare` a query over two olog-instances, so its verdicts arrive with
+; witnesses rather than as a report format only the tool can print.
+;
+; STATUS: the encoding only. Nothing emits an olog-instance yet — a `pol
+; schema MODEL` verb is the natural producer, as `pol control` is for §2.
+; Until then this is written by hand and useful mainly as the target that
+; emitter must hit. The full argument, costs included, is
+; docs/schema-as-data.md.
+(schema olog
+
+  ; A schema's types. Enumerated or open is NOT recorded: that is a fact
+  ; about a type's members, and members are the instance layer — one level
+  ; below what this schema describes.
+  (type ob)
+
+  ; A schema's arrows, with their endpoints. Both `fixed`, because an arrow's
+  ; endpoints are wiring, not state: a schema does not change over world-time
+  ; (its changes are commits, §6.3), which is why an olog-instance has
+  ; exactly one situation.
+  (type hom
+    (arrow dom (to ob) fixed)
+    (arrow cod (to ob) fixed))
+
+  ; A chain (§8.5) as a linked list: `head` is the first arrow, `tail` the
+  ; rest, and a VACANT tail ends it.
+  ;
+  ; The one construction worth pausing on. Pol has no lists and no recursion,
+  ; deliberately — a chain is a literal finite word, which is what keeps a
+  ; model a finite presentation (Pivotal idea 3). Nothing here violates that:
+  ; the chains of a GIVEN schema are finite and known, so the recursion lives
+  ; in the roster, which is enumerated data, and never in the language, which
+  ; stays first-order. Absence as a first-class value (idea 1) is what closes
+  ; the list — the same `vacant` that makes Appendix C's eaten goat gone
+  ; rather than relocated.
+  (type chain
+    (arrow head (to hom) fixed)
+    (arrow tail (to chain) fixed vacatable))
+
+  ; Two chains that must agree (§8.6). Sharing a tail between the two sides
+  ; is normal, and is how a common suffix is written once:
+  ; `investigator ; independence` and `prosecutor ; independence` differ only
+  ; in their heads.
+  (type eqn
+    (arrow lhs (to chain) fixed)
+    (arrow rhs (to chain) fixed)))
+
+; THE ENCODING CLOSES. `olog` is expressible as an instance of itself —
+; ob = {ob, hom, chain, eqn}, hom = {dom, cod, head, tail, lhs, rhs} — and
+; that instance builds. Nothing a schema can contain needs a construct the
+; encoding cannot carry, and the demonstration is the schema describing its
+; own six arrows. It is the closest Pol comes to a metacircular definition,
+; and also the honest limit of the analogy: McCarthy's `eval` bought
+; universal computation, which Pol must refuse, since decidability by
+; exhaustion is the whole product. A description of itself, in itself, short
+; enough to read, is the half that transfers.
