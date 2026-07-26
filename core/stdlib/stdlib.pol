@@ -95,7 +95,7 @@
 ; witnesses rather than as a report format only the tool can print.
 ;
 ; STATUS: the encoding only. Nothing emits an olog-instance yet — a `pol
-; schema MODEL` verb is the natural producer, as `pol control` is for §2.
+; schema MODEL` verb is the natural producer, as `pol control` is for §3.
 ; Until then this is written by hand and useful mainly as the target that
 ; emitter must hit. The full argument, costs included, is
 ; docs/schema-as-data.md.
