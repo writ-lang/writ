@@ -68,7 +68,13 @@ let reserved =
 
 let is_reserved w = List.mem w reserved
 
-(* A slot is an ALL-CAPS atom: at least one A–Z, and no a–z. *)
+(* A slot is an ALL-CAPS atom: at least one A–Z, and no a–z.
+
+   [Rules.is_var] in the OPTIONAL interrogator extension spells the same test
+   for a different concept — a rule variable, not a form slot. The duplication
+   is deliberate: sharing one definition would point the kernel's form expander
+   at an extension a conforming processor need not implement. Change one and the
+   other stays as it is. *)
 let is_slot s =
   s <> ""
   && String.exists (fun c -> c >= 'A' && c <= 'Z') s

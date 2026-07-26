@@ -13,6 +13,7 @@
   test_core
   test_syntax
   test_data
+  test_rules
   test_engine
   test_control
   test_compare
