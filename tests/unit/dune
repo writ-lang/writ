@@ -22,6 +22,7 @@
   test_report_derive
   test_engine
   test_control
+  test_schema_data
   test_compare
   test_loadpath
   test_names

@@ -43,8 +43,8 @@
 ;
 ; The standing cost of both is the namespace: names are global across the
 ; loaded universe and may not be redeclared (kernel §7), so every model that
-; loads this file gives up `node` and `edge` here, and `ob`, `hom`, `chain`
-; and `eqn` in §7.
+; loads this file gives up `node` and `edge` here, and `ob`, `hom` and
+; `eqn` in §7.
 (schema quiver
   (type node)
   (type edge
@@ -94,10 +94,8 @@
 ; compare` a query over two olog-instances, so its verdicts arrive with
 ; witnesses rather than as a report format only the tool can print.
 ;
-; STATUS: the encoding only. Nothing emits an olog-instance yet — a `pol
-; schema MODEL` verb is the natural producer, as `pol control` is for §3.
-; Until then this is written by hand and useful mainly as the target that
-; emitter must hit. The full argument, costs included, is
+; `pol schema MODEL.pol` emits a model's schema as an instance of this, as
+; `pol control` does for §3. The full argument, costs included, is
 ; docs/schema-as-data.md.
 (schema olog
 
@@ -106,42 +104,37 @@
   ; below what this schema describes.
   (type ob)
 
-  ; A schema's arrows, with their endpoints. Both `fixed`, because an arrow's
-  ; endpoints are wiring, not state: a schema does not change over world-time
-  ; (its changes are commits, §6.3), which is why an olog-instance has
-  ; exactly one situation.
+  ; A schema's arrows, with their endpoints. An arrow name is scoped to its
+  ; dom (§7), so two types may each own a `status`; a hom entity therefore
+  ; carries a name the EMITTER makes unique, and the pairing that matters —
+  ; which type it runs between — is `dom` and `cod`, not the spelling.
+  ;
+  ; Both are `fixed`, because an arrow's endpoints are wiring, not state: a
+  ; schema does not change over world-time (its changes are commits, §6.3),
+  ; which is why an olog-instance has exactly one situation.
   (type hom
     (arrow dom (to ob) fixed)
     (arrow cod (to ob) fixed))
 
-  ; A chain (§8.5) as a linked list: `head` is the first arrow, `tail` the
-  ; rest, and a VACANT tail ends it.
+  ; A law, BY NAME ONLY. Its body is deliberately not encoded, and the reason
+  ; is worth stating rather than discovering: since §8.6 a law holds a GUARD,
+  ; not a pair of chains, and a guard is a tree — booleans, `some` binders,
+  ; n-ary operands. Encoding it would need a second linked-list construction
+  ; and buy nothing, because the two §16.4 checks this schema exists to
+  ; collapse — totality and shape — read only `dom` and `cod`, and the third,
+  ; equation preservation, is SEMANTIC: §16.4 evaluates it against the target's
+  ; instance and marks it so. No structural encoding would make it structural.
   ;
-  ; The one construction worth pausing on. Pol has no lists and no recursion,
-  ; deliberately — a chain is a literal finite word, which is what keeps a
-  ; model a finite presentation (Pivotal idea 3). Nothing here violates that:
-  ; the chains of a GIVEN schema are finite and known, so the recursion lives
-  ; in the roster, which is enumerated data, and never in the language, which
-  ; stays first-order. Absence as a first-class value (idea 1) is what closes
-  ; the list — the same `vacant` that makes Appendix C's eaten goat gone
-  ; rather than relocated.
-  (type chain
-    (arrow head (to hom) fixed)
-    (arrow tail (to chain) fixed vacatable))
-
-  ; Two chains that must agree (§8.6). Sharing a tail between the two sides
-  ; is normal, and is how a common suffix is written once:
-  ; `investigator ; independence` and `prosecutor ; independence` differ only
-  ; in their heads.
-  (type eqn
-    (arrow lhs (to chain) fixed)
-    (arrow rhs (to chain) fixed)))
+  ; A roster of law names is still worth having: it is what lets "which laws
+  ; survived this version" be a set difference over two olog-instances.
+  (type eqn))
 
 ; THE ENCODING CLOSES. `olog` is expressible as an instance of itself —
-; ob = {ob, hom, chain, eqn}, hom = {dom, cod, head, tail, lhs, rhs} — and
-; that instance builds. Nothing a schema can contain needs a construct the
-; encoding cannot carry, and the demonstration is the schema describing its
-; own six arrows. It is the closest Pol comes to a metacircular definition,
+; ob = {ob, hom, eqn}, hom = {dom, cod} — and that instance builds. Nothing a
+; schema contains needs a construct the encoding cannot carry EXCEPT a law's
+; body, which the `eqn` comment above declines on purpose; the demonstration
+; is the schema describing its own two arrows. It is the closest Pol comes to
+; a metacircular definition,
 ; and also the honest limit of the analogy: McCarthy's `eval` bought
 ; universal computation, which Pol must refuse, since decidability by
 ; exhaustion is the whole product. A description of itself, in itself, short

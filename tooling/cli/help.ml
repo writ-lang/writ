@@ -22,6 +22,7 @@ USAGE
   pol compare  OLD.pol NEW.pol [--map MAP.pol]
   pol compare  --git REV1 REV2 MODEL.pol [--map MAP.pol]
   pol control  MODEL.pol
+  pol schema   MODEL.pol
   pol derive   MODEL.pol RULES.rules RELATION | "(RELATION ARG…)"
   pol derive   MODEL.pol RULES.rules --why "(RELATION ARG…)"
   pol --help | -h
@@ -51,6 +52,11 @@ COMMANDS
 
   control  Emit the model's move list as an instance of the standard library's
            `quiver` schema — the dynamics as re-usable, checkable data.
+
+  schema   Emit the model's SCHEMA as an instance of the standard library's
+           `olog` schema — the map as data, the sibling of `control` one level
+           up. Types become `ob`, arrows `hom` with `dom`/`cod`, laws `eqn`
+           entities by name; a law's body is not encoded (kernel §17).
 
   derive   Answer a .rules file's relations over the model's enumerated
            universe (the relational extension, docs/interrogator.md). A bare
@@ -110,6 +116,7 @@ EXAMPLES
   pol compare old.pol new.pol
   pol compare --git HEAD~1 HEAD model.pol
   pol control model.pol
+  pol schema  model.pol
   pol derive  model.pol org.rules subordinate
   pol derive  model.pol org.rules "(subordinate nabu X)"
   pol derive  model.pol org.rules --why "(subordinate nabu cabinet)"

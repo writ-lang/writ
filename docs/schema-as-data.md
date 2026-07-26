@@ -1,7 +1,9 @@
 # Schemas as data — a design note
 
-*Status: the encoding is in `stdlib.pol` §7; no emitter exists. Depends on the relational
-extension landing first (see "Sequencing").*
+*Status: **implemented**. The encoding is `stdlib.pol` §7 and `pol schema
+MODEL` emits it (kernel §17). What changed since the note was written — laws
+became guards, so an equation is no longer a pair of chains — is recorded
+under "What the encoding lost, and why that is fine".*
 
 Pol already writes one part of itself in itself. `pol control MODEL`
 (kernel §17) emits a model's move list as an **instance of the standard
@@ -19,27 +21,18 @@ One schema, whose instances are schemas:
 
 ```lisp
 (schema olog
-  (type ob)                                   ; objects = types
-  (type hom                                   ; morphisms = arrows
+  (type ob)                          ; objects = types
+  (type hom                          ; morphisms = arrows
     (arrow dom (to ob) fixed)
     (arrow cod (to ob) fixed))
-  (type chain                                 ; a chain, as a linked list
-    (arrow head (to hom) fixed)
-    (arrow tail (to chain) fixed vacatable))  ; vacant tail = end of chain
-  (type eqn
-    (arrow lhs (to chain) fixed)
-    (arrow rhs (to chain) fixed)))
+  (type eqn))                        ; laws, by name only
 ```
 
-The only subtle part is `chain`, named for the kernel's own term. A chain
-is a sequence of arrows, and Pol has no lists and no recursion —
-deliberately (§8.5, Pivotal idea 3). But it does not need them: the chains
-of a *given* schema are finite and known, so one is rostered as a linked
-list, and the empty tail is a `vacant` slot. The recursion lives in the
-**data**, which is enumerated, never in the language, which stays
-first-order. This is the eaten goat of
-Appendix C wearing a different hat — absence as a first-class value
-(Pivotal idea 1) is what closes the list.
+Arrow names are scoped to their dom (§7), so two types may each own a
+`status`. Entity names in the emitted instance are not scoped, so the
+emitter gives each `hom` a name — `dom-arrow`, freshened until it collides
+with nothing. What identifies an arrow here is `dom` and `cod`, not its
+spelling.
 
 Everything is `fixed`, so a schema-as-instance has exactly one situation.
 That is the right answer: a schema does not change over world-time. Its
@@ -47,32 +40,39 @@ changes are commits (§6.3).
 
 ## It works, and it closes
 
-The kernel spec's own §4 running example, written as data — types,
-arrows, and the `same-agency` equation as two chains sharing a tail:
+The kernel spec's own §4 running example, as `pol schema` emits it —
+no longer hand-written:
 
 ```lisp
-(instance oversight-as-data (of olog)
-  (ob   indep-status stage-t person bureau case)
-  (hom  employer independence stage investigator prosecutor judge)
-  (chain p-inv p-pro p-ind)
-  (eqn  same-agency)
-  (dom  (employer person) (independence bureau) (stage case)
-        (investigator case) (prosecutor case) (judge case))
-  (cod  (employer bureau) (independence indep-status) (stage stage-t)
-        (investigator bureau) (prosecutor bureau) (judge person))
-  (head (p-inv investigator) (p-pro prosecutor) (p-ind independence))
-  (tail (p-inv p-ind) (p-pro p-ind) (p-ind vacant))
-  (lhs  (same-agency p-inv))
-  (rhs  (same-agency p-pro)))
+(instance oversight-schema (of olog)
+  (ob indep-status stage-t person bureau case)
+  (hom person-employer bureau-independence case-stage
+       case-investigator case-prosecutor case-judge)
+  (eqn same-agency)
+  (dom (person-employer person) (bureau-independence bureau) (case-stage case)
+       (case-investigator case) (case-prosecutor case) (case-judge case))
+  (cod (person-employer bureau) (bureau-independence indep-status)
+       (case-stage stage-t) (case-investigator bureau)
+       (case-prosecutor bureau) (case-judge person)))
 ```
 
-`pol check` reports `states: 1  edges: 0`.
+Re-checked, that reports `states: 1  edges: 0` — the right answer, since
+every arrow of `olog` is `fixed` and a schema does not change over
+world-time.
 
-And the encoding **closes on itself** — `olog` is expressible as an
-instance of `olog`, with `ob = {ob, hom, chain, eqn}` and
-`hom = {dom, cod, head, tail, lhs, rhs}`. That also builds. Nothing a
-schema contains needs a construct the encoding cannot carry, and the
-demonstration is the schema describing its own six arrows.
+And the encoding **closes on itself**. Point the emitter at a model whose
+schema is `olog` and it prints `olog`:
+
+```lisp
+(instance self-schema (of olog)
+  (ob ob hom eqn)
+  (hom hom-dom hom-cod)
+  (dom (hom-dom hom) (hom-cod hom))
+  (cod (hom-dom ob) (hom-cod ob)))
+```
+
+Machine-produced, not hand-written, which is the difference between a claim
+and a test — and it is one, in `test_schema_data.ml`.
 
 This is the closest thing Pol has to a metacircular definition, and it is
 the honest version of the "Maxwell's equations" analogy. McCarthy's
@@ -109,6 +109,26 @@ search once schemas are instances. Two verbs, one implementation.
 olog-instances; preserved / lost / gained is set difference over their
 rosters, which is a `.rules` query with a derivation tree for a witness —
 rather than a report format only the tool knows how to produce.
+
+## What the encoding lost, and why that is fine
+
+The note was written while an equation was `(= CHAIN CHAIN)`, and the first
+version of `olog` encoded exactly that: a `chain` type as a linked list, and
+an `eqn` with `lhs` and `rhs`. Then laws became guards (`docs/law-as-guard.md`)
+and that shape stopped describing the language it claims to describe.
+
+The encoding now carries laws **by name only**. Encoding a guard body would
+mean a second tree construction — booleans, `some` binders, n-ary operands —
+and it would buy nothing, because the two checks this export exists to
+collapse read only `dom` and `cod`, and the third is semantic however it is
+represented. The claim "the encoding closes" is therefore narrower than it
+was: everything a schema contains is representable **except a law's body**,
+which is declined on purpose rather than missed.
+
+The linked-list trick that made `chain` work is gone with it. It was the
+prettiest part of the note — recursion living in the roster while the language
+stays first-order — and it is worth recording that it was correct and is
+simply no longer needed.
 
 ## What it does not buy
 
@@ -162,9 +182,12 @@ to say the same thing.
    live. Note the price paid: `ob`, `hom`, `chain` and `eqn` are now
    reserved for every model that loads stdlib (§7), the same standing
    cost `quiver` already carries for `node` and `edge`.
-3. **Add the emitter** (`pol schema MODEL`), and check the round trip:
-   emit `olog` itself and confirm it matches the hand-written
-   `olog-as-data` above. That is the regression test for the whole idea.
+3. **~~Add the emitter~~ — done.** `pol schema MODEL` (kernel §17), with the
+   round trip as its test: emit `olog` itself and confirm it describes its own
+   two arrows. `test_schema_data.ml` also pins the §7 fresh-name discipline,
+   which is where this export can actually go wrong — two arrows sharing a
+   name collapsing onto one `hom` entity reads fine and is then refused by the
+   front end.
 4. **Re-express one existing verb** — `compare` is the best candidate —
    as a rules query over two olog-instances. If that reads well, migrate
    `--functor`. If it does not, stop: the encoding is still a useful

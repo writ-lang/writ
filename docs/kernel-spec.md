@@ -1094,6 +1094,21 @@ properties:  conviction-possible  preserved
   the standard library's `quiver` schema), so dynamics can be queried
   and mapped with the same machinery; a dictionary between two models'
   move lists is a simulation map.
+- **`pol schema MODEL`** — emits the model's **schema** as data (an
+  instance of the standard library's `olog` schema), the sibling of
+  `pol control` one level up: where that makes a model's dynamics
+  ordinary data, this makes its map ordinary data. Types become `ob`,
+  arrows become `hom` with `dom`/`cod`, laws appear as `eqn` entities
+  **by name**.
+
+  A law's *body* is not encoded, and deliberately: since §8.6 it holds a
+  guard rather than a pair of chains, and the two §16.4 dictionary checks
+  this export exists to collapse — totality, and shape, which is the
+  naturality square for `dom` and `cod` — read only the endpoints. The
+  third, equation preservation, is `semantic` and no structural encoding
+  would make it otherwise. Arrow names are scoped to their dom (§7), so a
+  `hom` entity takes a name the emitter makes unique.
+
 - **Fiber reporting** — a model gating its moves on a mode arrow can be
   interrogated per mode value:
 
@@ -1150,6 +1165,7 @@ pol query    MODEL.pol NAME [--at STATE]
 pol compare  OLD.pol NEW.pol [--map M.pol]
 pol compare  --git REV1 REV2 MODEL.pol [--map M.pol]
 pol control  MODEL.pol
+pol schema   MODEL.pol
 pol solve    --morphism SMALL.pol LARGE.pol
 pol migrate  --along F.pol MODEL.pol
 ```

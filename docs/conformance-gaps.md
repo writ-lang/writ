@@ -115,10 +115,10 @@ failure §7 exists to prevent, and it is worse than an error because it is
 invisible.
 
 **It makes the standard library's namespace cost unenforced but real.**
-`stdlib.pol` declares `node` and `edge` (§2) and `ob`, `hom`, `chain`,
-`eqn` (§6). Under §7 those six words are reserved for every model that
-loads it. Today nothing enforces that, so a model may declare its own
-`chain` and build. **The day this gap is closed, those models break.**
+`stdlib.pol` declares `node` and `edge` (§3) and `ob`, `hom` and `eqn`
+(§7). Under §7 those words are reserved for every model that loads it.
+At the time of writing nothing enforced that, so a model could declare its
+own `hom` and build. **The day this gap is closed, those models break.**
 Whoever fixes it should expect fallout proportional to how long the gap
 stayed open — which is the argument for fixing it sooner rather than
 later.
@@ -187,21 +187,23 @@ the hole.
 
 That is a fact about *this* repository at *this* size, not a general
 reassurance. The standing cost §7 imposes is now real and demonstrable:
-`stdlib.pol` declares `node` and `edge` (§2) plus `ob`, `hom`, `chain`
-and `eqn` (§6), and a model that loads it may no longer declare its own:
+`stdlib.pol` declares `node` and `edge` (§3) plus `ob`, `hom` and `eqn`
+(§7), and a model that loads it may no longer declare its own:
 
 ```lisp
 (load "stdlib.pol")
-(schema m (type chain (a b)))
+(schema m (type hom (a b)))
 ```
 
 ```
-2:17: type `chain` is already declared
+2:17: type `hom` is already declared
 ```
 
-Which is the point. Six words is a price the standard library now visibly
+Which is the point. Five words is a price the standard library now visibly
 charges, rather than one it charged silently by letting the lookup pick a
-winner.
+winner. (It was six until `olog` dropped `chain`, which it carried only to
+encode an equation as a pair of chains — a shape `docs/law-as-guard.md`
+retired.)
 
 ### Related: a reserved word reserves only against *form* names
 

@@ -20,6 +20,7 @@
   cmd_query
   cmd_compare
   cmd_control
+  cmd_schema
   cmd_derive
   help
   version)

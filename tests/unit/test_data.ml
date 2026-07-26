@@ -199,7 +199,7 @@ let contains_sub ~sub s =
 let () =
   let src =
     "(load \"stdlib.pol\")\n\
-     (schema m (type chain (a b)))\n\
+     (schema m (type hom (a b)))\n\
      (instance i (of m))\n\
      (use m)\n\
      (initial i)"
@@ -213,7 +213,7 @@ let () =
       check "a model may not redeclare a type the loaded stdlib declares" false
   | Error e ->
       check "a model may not redeclare a type the loaded stdlib declares"
-        (contains_sub ~sub:"`chain` is already declared" e.Errors.msg
+        (contains_sub ~sub:"`hom` is already declared" e.Errors.msg
         && e.Errors.pos <> None)
 
 let () =

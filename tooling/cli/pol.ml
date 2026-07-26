@@ -32,6 +32,7 @@ let usage =
       "  pol compare OLD NEW [--map M]";
       "  pol compare --git REV1 REV2 MODEL [--map M]";
       "  pol control MODEL";
+      "  pol schema  MODEL";
       "  pol derive  MODEL RULES [--why] RELATION | \"(RELATION ARG…)\"";
       "  pol --help | -h";
       "  pol --version | -V";
@@ -69,6 +70,7 @@ let () =
       | [ "--at"; s ] -> Cmd_query.run model name (Some s)
       | _ -> die 2 usage)
   | [ _; "control"; model ] -> Cmd_control.run model
+  | [ _; "schema"; model ] -> Cmd_schema.run model
   | _ :: "derive" :: model :: rules :: rest -> (
       match rest with
       | [ q ] -> Cmd_derive.run model rules ~why:false q
