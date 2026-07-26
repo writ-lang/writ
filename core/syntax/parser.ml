@@ -139,7 +139,31 @@ let check_transition_names (trs : Reader.t list) : (unit, Errors.t) result =
   in
   go [] trs
 
+(* §9.1: "**Constraints** — NAME fresh; SCHEMA declared." Like §10.1's transition
+   name and unlike §8.1's schema name, this does NOT cite §7, so the namespace is
+   the instances' own; whether §7 should also cover instances is a question for
+   the spec, and nothing here needs it answered. What "fresh" cannot mean is
+   *twice*: [(initial i)] resolves by [List.find_opt], so a second instance named
+   `i` was simply discarded, and a model naming one initial situation quietly got
+   the other author's. Blame the second — the first is the one already referred
+   to. *)
+let check_instance_names (datums : Reader.t list) : (unit, Errors.t) result =
+  let rec go seen = function
+    | [] -> Ok ()
+    | Reader.List (Reader.Atom ("instance", _) :: Reader.Atom (n, p) :: _, _)
+      :: rest ->
+        if List.mem n seen then
+          Errors.err ~pos:p
+            ("instance `" ^ n
+           ^ "` is already declared — §9.1 requires an instance name to be \
+              fresh")
+        else go (n :: seen) rest
+    | _ :: rest -> go seen rest
+  in
+  go [] datums
+
 let parse_model (datums : Reader.t list) : (Model.t, Errors.t) result =
+  let* () = check_instance_names datums in
   let* decls = collect_decls datums in
   let rec classify use_ init trs = function
     | [] -> Ok (use_, init, List.rev trs)

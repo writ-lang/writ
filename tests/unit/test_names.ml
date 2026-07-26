@@ -243,5 +243,43 @@ let () =
            (instance i (of m) (box p) (f (p a))) (use m) (initial i)\n\
            (transition emptyit (when (is p.f a)) (do (vacate p.f)))"))
 
+(* --- §9.1 and §8.3: the two the sweep found last ---------------------------- *)
+
+(* Both were silent overwrites rather than visible faults, which is why neither
+   showed up as a wrong answer: a lookup took the first match and the author's
+   second line did nothing. *)
+let () =
+  rejects_at "two instances may not share a name"
+    "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+     (instance i (of m) (box p) (f (p a)))\n\
+     (instance i (of m) (box q) (f (q b)))\n\
+     (use m) (initial i)"
+    ~line:3 ~col:11 ~sub:"instance `i` is already declared";
+  rejects_at "a cell may not be given two values, across clauses"
+    "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+     (instance i (of m) (box p) (f (p a)) (f (p b)))\n\
+     (use m) (initial i)"
+    ~line:2 ~col:41 ~sub:"`p.f` is already given a value";
+  (* …nor inside ONE clause, which a check written only against the accumulator
+     would have missed. *)
+  rejects_at "a cell may not be given two values, in one clause"
+    "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+     (instance i (of m) (box p) (f (p a) (p b)))\n\
+     (use m) (initial i)"
+    ~line:2 ~col:37 ~sub:"`p.f` is already given a value";
+  (* The controls: neither check may fire on the legitimate shapes they resemble
+     — several cells in one clause, and several instances with distinct names. *)
+  check "two entities valued in one clause still build"
+    (Result.is_ok
+       (decodes
+          "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+           (instance i (of m) (box p q) (f (p a) (q b))) (use m) (initial i)"));
+  check "two instances of different names still build"
+    (Result.is_ok
+       (decodes
+          "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
+           (instance i (of m) (box p) (f (p a)))\n\
+           (instance j (of m) (box q) (f (q b))) (use m) (initial i)"))
+
 let () =
   print_string ("name tests: " ^ string_of_int !passed ^ " checks passed\n")

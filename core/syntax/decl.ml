@@ -214,13 +214,32 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
             Errors.err ~pos:np
               ("instance refers to unknown schema `" ^ sname ^ "`")
       in
+      (* The pair's position travels with the cell so a SECOND answer for one
+         cell can be blamed where it is written. §8.3: "Each entity's arrow has
+         **one** answer — or none, if the arrow is vacatable." Two answers is not
+         a merge, it is a contradiction, and [State.build_ctx]'s lookup simply
+         took the first — so the model built and the second line the author wrote
+         did nothing, silently. *)
       let cell_of (arrow : string) (pair : Reader.t) =
         match pair with
-        | Reader.List ([ Reader.Atom (e, _); Reader.Atom ("vacant", _) ], _) ->
-            Ok ({ Instance.arrow; src = e }, Value.Vacant)
-        | Reader.List ([ Reader.Atom (e, _); Reader.Atom (v, _) ], _) ->
-            Ok ({ Instance.arrow; src = e }, Value.Filled v)
+        | Reader.List ([ Reader.Atom (e, _); Reader.Atom ("vacant", _) ], p) ->
+            Ok ({ Instance.arrow; src = e }, Value.Vacant, p)
+        | Reader.List ([ Reader.Atom (e, _); Reader.Atom (v, _) ], p) ->
+            Ok ({ Instance.arrow; src = e }, Value.Filled v, p)
         | _ -> Reader.err_at pair "expected a valuation (E V)"
+      in
+      let fresh_cell valu ((c : Instance.cellref), _, p) =
+        if
+          List.exists
+            (fun ((c0 : Instance.cellref), _) ->
+              c0.Instance.arrow = c.Instance.arrow && c0.Instance.src = c.src)
+            valu
+        then
+          Errors.err ~pos:p
+            ("`" ^ c.Instance.src ^ "." ^ c.Instance.arrow
+           ^ "` is already given a value — §8.3 gives each entity's arrow one \
+              answer")
+        else Ok ()
       in
       let rec go rosters valu = function
         | [] ->
@@ -255,7 +274,17 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
                         schema.Schema.arrows
                     then
                       let* pairs = map_r (cell_of h) tl in
-                      go rosters (List.rev_append pairs valu) rest
+                      (* Added one at a time so a repeat is caught inside a
+                         single clause — `(f (p a) (p b))` — as well as across
+                         two. *)
+                      let rec add valu = function
+                        | [] -> Ok valu
+                        | ((c, v, _) as pair) :: rest ->
+                            let* () = fresh_cell valu pair in
+                            add ((c, v) :: valu) rest
+                      in
+                      let* valu = add valu pairs in
+                      go rosters valu rest
                     else
                       Errors.err ~pos:hp
                         ("unknown instance clause `" ^ h

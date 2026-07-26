@@ -909,10 +909,38 @@ the code: **§5** (the value grammar), **§6** (`load`, once-per-file),
 exactly once" for `use` and `initial` was already enforced, and §9.2's "each
 entity belongs to exactly one type" falls out of gap 1.
 
-### Still open: two more silent winners in §9
+### Two more silent winners in §9 — also fixed
 
-Found by the sweep, **not fixed**, because both need a decision about §7's
-namespace that a bug-fixing run should not make on its own.
+Found by the sweep and initially deferred, on the grounds that both needed a
+decision about §7's namespace. On review that was the wrong call: the §7
+question is real but **neither fix depends on it**. §9.1 says "NAME fresh", and
+whatever namespace freshness is measured in, a second instance of the same name
+is not fresh in it — exactly the reasoning already applied to §10.1's transition
+names, which §7 also does not list. So both are closed the same way, in the
+narrower namespace, leaving §7's scope open as a spec question rather than a
+blocked fix:
+
+```
+3:11: instance `i` is already declared — §9.1 requires an instance name to be fresh
+2:41: `p.f` is already given a value — §8.3 gives each entity's arrow one answer
+```
+
+The cell check is applied one value at a time rather than against the finished
+list, so a repeat inside a **single** clause — `(f (p a) (p b))` — is caught as
+well as one across two, at `2:37`. Both have controls beside them pinning the
+legitimate shapes they resemble: several cells in one clause, and several
+instances with distinct names.
+
+What remains genuinely open is only the **question**, recorded here for the
+spec: §7 lists types, entities, forms and equations, while §8.1 cites §7 for
+schema names and §9.1 and §10.1 cite nothing. Either §7's list is incomplete or
+instances and transitions have namespaces of their own — and the answer decides
+whether an instance may be named after a type. Nothing in the implementation now
+waits on it.
+
+The original deferral is left below, because the reasoning is worth keeping
+visible: it is a good example of a defensible-sounding block that dissolved on a
+second look.
 
 **a. §9.1 "NAME fresh" — two instances may share a name.**
 
