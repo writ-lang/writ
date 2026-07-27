@@ -18,6 +18,15 @@ services:
     image: pol-prologue-tests
     command: ["island"]
 
+  # Eight queens. The models are GENERATED (one move per column/row pair), so
+  # they are large but ordinary — nothing here needs anything the other
+  # services do not already have, which is why the only thing that was ever
+  # missing is this stanza.
+  queens:
+    build: .
+    image: pol-prologue-tests
+    command: ["queens"]
+
   # Institutional architecture (§3/§4). Runs `pol check` AND, inside the
   # run-tests `oversight` function, `pol compare oversight.pol oversight-repeal.pol`
   # — both files ship in the image via `COPY tests/examples`.
@@ -42,8 +51,17 @@ services:
     image: pol-prologue-tests
     command: ["control"]
 
+
   # pol compare --git — compare two commits of one model (needs git, in the image).
   gitcompare:
     build: .
     image: pol-prologue-tests
     command: ["gitcompare"]
+
+  # The modality cross-check: every property in the repo re-asked of the rules
+  # engine (pol derive) and compared against `pol check`'s verdict. A scenario
+  # since the relational extension landed, but never a service.
+  crosscheck:
+    build: .
+    image: pol-prologue-tests
+    command: ["crosscheck"]
