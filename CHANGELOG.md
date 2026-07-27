@@ -7,11 +7,25 @@ Versions are the one in `dune-project`: what opam publishes, what `pol
 
 The first packaged version. What exists:
 
-**The language.** All twenty-eight kernel words: `schema` / `type` / `arrow`
-with the arrow qualifiers, `instance`, `initial`, `use`, `transition` with
-`when` / `do`, `equation`, `accept`, `gap`, `form`, `load`. Forms are hygienic
-one-shot macros — no recursion — which is what keeps expansion terminating and
-errors pointing at real source positions.
+**The language.** Twenty-seven kernel words: `schema` / `type` / `arrow` with
+the arrow qualifiers, `instance`, `initial`, `use`, `transition` with `when` /
+`do`, `equation`, `gap`, `form`, `load`. Forms are hygienic one-shot macros —
+no recursion — which is what keeps expansion terminating and errors pointing at
+real source positions.
+
+It was twenty-eight. A law now holds a **guard** rather than a pair of chains
+(§8.6), which made `=` expressible as an ordinary standard-library form —
+Kleene equality spelled out of strict primitives, so nothing it used to mean
+was lost. `differ` joined it there.
+
+Both sides of a comparison and both sides of an assignment may now be
+**chains**: `(is a.x b.y)` (§10.2) and `(set a.x b.y)` (§10.3). The second
+carries two decisions worth knowing. Every effect reads the situation the move
+STARTED from, so a `do` block is a simultaneous assignment and the order of
+effects is unobservable — `(do (set a.x b.y) (set b.y a.x))` is a swap. And a
+chain with no answer makes the move **absent**, not a no-op: a no-op would
+still be an edge, a self-loop, and a stuck situation would quietly stop
+reporting as a dead end.
 
 **The interrogator.** Enumerates the finite reachable state space and answers
 `.claims` questions by exhaustion: `never`, `possible` and `live`, each with a
@@ -42,23 +56,41 @@ writable over a model where two types share an arrow name and the root of a
 path therefore cannot be typed from the arrow. Sort inference,
 stratification, range restriction and path checking are all read-time
 rejections that blame a `line:col`. Every worked example carries a `.rules`
-file re-asking its `.claims` properties as derivations, and `make examples`
-cross-checks the two implementations against each other: all eleven properties
-across the five scenarios get the same verdict from `pol derive` as from
-`pol check`.
+file re-asking its `.claims` properties as derivations, and pol-problems'
+runner cross-checks the two implementations against each other: all sixteen
+properties get the same verdict from `pol derive` as from `pol check`.
 
-**Editor support.** A language server and a VS Code client — diagnostics from
-the real engine, completion, hover and an outline.
+**Editor support.** A language server, `pol-lsp` — diagnostics from the real
+engine, completion, hover and an outline, over `.pol`, `.claims` and `.rules`.
+The VS Code client is its own repository,
+[pol-vscode](https://github.com/sajonaro/pol-vscode); it finds `pol-lsp` on
+`PATH`, so it needs no checkout of this one.
 
-**Packaging.** An opam package installing `pol`, `pol-lsp` and the `.pol`
-standard library; a portable release tarball with a statically linked binary,
-verified on glibc (Debian 12) and musl (Alpine); and `make install-pol` for a
-plain copy into `~/.local`.
+**An MCP server.** `pol-mcp` exposes `pol_check`, `pol_query` and `pol_derive`
+over the same engine, so an assistant can model a problem and get an answer
+with a witness route rather than a plausible guess. A tool that fails answers
+with the engine's own `file:line:col` message rather than dying, which is
+usually enough for the caller to fix the file and retry. A Claude skill that
+knows when Pol is the right tool ships in `.claude/skills/pol/`.
+
+**Packaging.** An opam package installing `pol`, `pol-lsp`, `pol-mcp` and the
+`.pol` standard library; a portable release tarball with a statically linked
+binary, verified on glibc (Debian 12) and musl (Alpine); and `make install-pol`
+for a plain copy into `~/.local`. The Docker image carries the CLI and the
+standard library.
+
+**Three repositories.** This one is the language, the engine, the CLI and the
+servers. The worked scenarios moved to
+[pol-problems](https://github.com/sajonaro/pol-problems) and the editor client
+to [pol-vscode](https://github.com/sajonaro/pol-vscode); both need an installed
+`pol` rather than a checkout, which is what `make install-pol` and
+`opam install .` provide.
 
 The standard library is one file, `stdlib.pol`, and it is the only `.pol` the
 tool ships. A **domain** library — a vocabulary for one subject — is ordinary
-user code: `politics.lib.pol` now lives beside the models that load it, in
-`tests/models/`, leaving `core/stdlib/` the standard library alone.
+user code: `politics.lib.pol` lives beside the models that load it in
+`tests/models/`, and pol-problems keeps its own in `libraries/`, leaving
+`core/stdlib/` the standard library alone.
 
 **One rename.** The standard library's many-to-many form is `span`, not
 `relation`. `relation` is how a `.rules` file declares a relation, and forms
