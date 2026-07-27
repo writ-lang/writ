@@ -6,12 +6,22 @@ A **job shop** is a workshop. Several *jobs* are in progress at once, and each
 one needs to visit several *machines* — but each job visits them **in its own
 order**. A machine does one thing at a time.
 
-That last pair is the whole difficulty. If every job needed the machines in the
-same order there would be nothing to decide; because the orders differ, jobs
-compete for machines, and the shop needs a *schedule* saying who gets what
-when.
+That last pair is the whole difficulty — and it is worth seeing why, because
+the difficulty is *not* that machines are shared. It is that the **orders
+differ**.
 
-Three jobs and three machines, each job needing two of them:
+Here are two shops. Both have three jobs, both have the blocking rule below,
+both are otherwise the same file:
+
+**Shop A** — every job takes the machines in the same order:
+
+| job | first | then |
+| --- | --- | --- |
+| `a` | m1 | m2 |
+| `b` | m1 | m2 |
+| `c` | m1 | m2 |
+
+**Shop B** — each job has its own order:
 
 | job | first | then |
 | --- | --- | --- |
@@ -19,9 +29,35 @@ Three jobs and three machines, each job needing two of them:
 | `b` | m2 | m3 |
 | `c` | m3 | m1 |
 
-Read down the columns and you can see the trouble already: the three routings
-chase each other in a **cycle**. `a` wants what `c` starts on, `b` wants what
-`a` starts on, `c` wants what `b` starts on.
+In **Shop A** the jobs queue. They contend for m1, one wins, the others wait —
+but every job is trying to go the same way through the shop, so the one in
+front is always the one that can move. There is congestion and no dilemma.
+
+In **Shop B** read down the columns: the routings chase each other in a
+**cycle**. `a` wants what `c` starts on, `b` wants what `a` starts on, `c`
+wants what `b` starts on. Now who goes first is a real decision, and some
+answers are unrecoverable.
+
+That is not a claim you have to take on trust — both shops are in this
+directory, and `pol` answers them differently:
+
+```
+jobshop-samerouting.pol   holds  never-stuck     (exit 0)
+jobshop.pol               fails  never-stuck     (exit 1)
+```
+
+`diff` the two files and you get **exactly two lines**, both of them the
+routing table:
+
+```diff
+-  (first  (a m1) (b m2) (c m3))
+-  (second (a m2) (b m3) (c m1))
++  (first  (a m1) (b m1) (c m1))
++  (second (a m2) (b m2) (c m2))
+```
+
+Same blocking rule, same jobs, same machines — `m3` simply sits idle in Shop A —
+same forms, same questions. Take the cycle out and the deadlock goes with it.
 
 ## What "blocking" means, and why it is the interesting case
 
@@ -143,7 +179,11 @@ puzzle, which is the evidence that note asked for before recommending anything.
 
 ## Files
 
-- `jobshop.pol` — the shop. Three forms, one line per job.
+- `jobshop.pol` — the shop, with the cycle. Three forms, one line per job.
+- `jobshop-samerouting.pol` — the same file with every job routed m1→m2, so
+  there is no cycle to close. `never-stuck` holds. It differs from
+  `jobshop.pol` by two lines and exists to make the claim above checkable
+  rather than asserted; the test suite asserts both verdicts.
 - `jobshop.claims` — the two questions, kept next door (wish 12).
 - `jobshop.rules` — the same two, re-asked of the rules engine, so the
   cross-check oracle can compare two implementations of one question. Note the
