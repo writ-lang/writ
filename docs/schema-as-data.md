@@ -105,10 +105,10 @@ machinery that exists.
 schema-level search and the kernel's instance-level search are the same
 search once schemas are instances. Two verbs, one implementation.
 
-**`compare` becomes a query.** Two versions of a schema are two
-olog-instances; preserved / lost / gained is set difference over their
-rosters, which is a `.rules` query with a derivation tree for a witness —
-rather than a report format only the tool knows how to produce.
+**~~`compare` becomes a query.~~** It does not. This was the note's
+load-bearing claim and it is wrong; the experiment that disproves it is
+"Step 4, run" below. A *schema diff* does become a query, and reads well —
+but that is a different, smaller thing than `compare`.
 
 ## What the encoding lost, and why that is fine
 
@@ -188,11 +188,75 @@ to say the same thing.
    which is where this export can actually go wrong — two arrows sharing a
    name collapsing onto one `hom` entity reads fine and is then refused by the
    front end.
-4. **Re-express one existing verb** — `compare` is the best candidate —
-   as a rules query over two olog-instances. If that reads well, migrate
-   `--functor`. If it does not, stop: the encoding is still a useful
-   export format even if no verb collapses.
+4. **~~Re-express `compare` as a rules query~~ — run, and the answer is no.**
+   See "Step 4, run". The encoding remains a useful export; no verb
+   collapses into it. Migrating `--functor` is not attempted on the strength
+   of a disproven premise.
 
 **Do not delete the existing verbs.** Let the general path arrive first
 and the special ones become thin wrappers, the way `all` lives in stdlib
 while `some` stays in the kernel.
+
+## Step 4, run
+
+The note said `compare` becomes a query. It does not, and the reasons are
+worth more than the claim was.
+
+**The two versions cannot share a universe.** Emit both fixtures and
+concatenate them:
+
+```
+entity `mode-t` is already declared — §7 gives types, entities, forms and
+equations one namespace across the loaded universe
+```
+
+Which is not a bug to route around: two versions of a schema have the *same
+type names* — that is what makes them two versions of one thing. So a rules
+query cannot see both olog-instances at once. To compare them at all, every
+name must be carried as **data** (an entity of some `nom` type) rather than
+as an entity name, which means `pol schema`'s output is not what a
+comparison consumes. A second, comparison-shaped emitter would be needed.
+
+**And `compare`'s actual value is not structural.** Run against this
+repository's own fixtures, `compare` reports:
+
+```
+equations:   mode-tracks-shadow  preserved
+properties:  still-safe          LOST      witness: 1. break
+```
+
+Their schemas are **identical** — the amendment repealed a *transition*, so
+both emit byte-identical olog data. An olog-based compare would report
+"nothing changed" over precisely the change that matters. The `properties`
+row is a `live` question about the reachable space; no set difference over
+schema rosters reaches it, and no richer encoding would, because the
+question is semantic rather than structural — the same wall `equation
+preservation` already hits.
+
+**What the experiment did establish.** Set difference over names, given a
+version dimension, reads well and produces a better artifact than the
+current table:
+
+```lisp
+(rule (in-old N) (is E.nm N) (is E.v old))
+(rule (lost   N) (in-old N) (not (in-new N)))
+```
+
+```
+lost watchdog
+  in-old watchdog
+    is e3.nm watchdog
+    is e3.v old
+  not in-new watchdog
+```
+
+That derivation carries its negative premise, which a printed `LOST` does
+not. So there is a real thing here — a **schema diff**, reporting types and
+arrows added and removed — and it is something `compare` does *not*
+currently offer, rather than a reimplementation of something it does.
+
+**Verdict.** The homoiconicity work pays for export and for a schema diff it
+does not yet have; it does not subsume an existing verb. The note's ledger
+stands otherwise — no new worlds became modellable, and the cost was one
+emitter — but "several checkers become one" has not been demonstrated and
+should not be repeated until it is.
