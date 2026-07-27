@@ -18,7 +18,8 @@ is a tool operation.
 
 ## A taste
 
-The river crossing (`tests/examples/river/`): a farmer must ferry a wolf, a goat and a
+The river crossing (`river/` in [pol-problems](https://github.com/sajonaro/pol-problems)):
+a farmer must ferry a wolf, a goat and a
 cabbage across a river; left alone with its prey, the wolf eats the goat and the
 goat eats the cabbage. The questions live beside the model:
 
@@ -34,7 +35,7 @@ goat eats the cabbage. The questions live beside the model:
 ```
 
 ```console
-$ pol check tests/examples/river/river.pol --claims tests/examples/river/river.claims
+$ pol check river/river.pol --claims river/river.claims
 states: 36   edges: 76
 gaps: none
 dead ends: none
@@ -112,19 +113,26 @@ Remove a `make install-pol` with `make uninstall-pol`, an opam install with
 
 ## The examples
 
-`tests/examples/` solves real problems with `pol`, as a reproducible test stack — one
-service per problem:
+The worked scenarios live in **[pol-problems](https://github.com/sajonaro/pol-problems)**
+now — the models, their questions, and a runner that checks the answers. They
+need an installed `pol` rather than this checkout:
 
 ```sh
-docker compose up     # builds pol from source in a container, runs every scenario
-./tests/examples/run-tests.sh   # or run them against your installed pol
+make install-pol                       # pol, pol-lsp and pol-mcp onto PATH
+git clone https://github.com/sajonaro/pol-problems && cd pol-problems
+./run-tests.sh                         # 80 checks over every scenario
 ```
+
+What is there:
 
 - **river**, **island** (knights & knaves) — the spec's Prologue puzzles, each
   with its solution path shown.
 - **oversight**, **workflow**, **access** — the spec's §3 institutional
   scenarios, exercising `equation` laws, `accept` acknowledgments, `pol compare`,
   a declared `gap`, and a privilege **latch**.
+- **queens**, **jobshop-possible**, **jobshop-best** — eight queens in fifteen
+  lines over a domain library, and a blocking job shop asked twice: can every
+  job finish, and which schedule is shortest.
 - **control**, **gitcompare** — `pol control` and `pol compare --git`.
 - **crosscheck** — the modality cross-check. Each of the five scenarios above
   also carries a `.rules` file that re-asks its `.claims` properties as
@@ -136,16 +144,17 @@ docker compose up     # builds pol from source in a container, runs every scenar
 
 ## Editor support
 
-A VS Code extension — syntax highlighting, live diagnostics from the real engine,
-completion, hover and an outline, all served by the same code the CLI runs:
+A VS Code extension — syntax highlighting, live diagnostics from the real
+engine, completion, hover and an outline, all served by the same code the CLI
+runs. It lives in **[pol-vscode](https://github.com/sajonaro/pol-vscode)**:
 
 ```sh
-make extension        # builds the language server and installs the client
+make install-pol      # puts pol-lsp on PATH
+git clone https://github.com/sajonaro/pol-vscode && cd pol-vscode && ./install.sh
 ```
 
-With pol installed and no checkout, the extension finds `pol-lsp` on your
-`PATH` — nothing to configure. See
-[`tooling/vscode/README.md`](tooling/vscode/README.md).
+The server is `pol-lsp`, built here and installed alongside `pol`. The client
+finds it on `PATH` with nothing to configure.
 
 ## Use it from an AI assistant
 

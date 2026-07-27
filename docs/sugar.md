@@ -57,7 +57,7 @@ the seven `safeN` forms, and the comments. The other five hundred are
 ## Why there are sixty-four
 
 Not arithmetic, and not diagonals. Both of those were solved by making rows a
-ladder walked by `next`/`prev` (`tests/examples/queens/README.md`). What is
+ladder walked by `next`/`prev` (pol-problems, `queens/README.md`). What is
 left is one sentence of §10.3:
 
 > `(set CHAIN V)` — writes the slot named by the chain's last step … V in the

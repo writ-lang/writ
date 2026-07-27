@@ -5,10 +5,7 @@
 #   make test      # run the test suite
 #   make lint      # format check + warnings-as-errors typecheck
 #   make run FILE=tests/models/any_model.pol
-#   make examples             # run every worked example scenario
 #   make example T=river      # run one scenario by name …
-#   make example T=3          # … or by number (see: make examples-list)
-#   make extension            # install .pol language support into VS Code
 #
 # Three ways to get a `pol` you can run anywhere:
 #   make install-pol   # this checkout -> ~/.local (plain cp; no opam needed)
@@ -20,9 +17,9 @@
 
 DUNE = scripts/with-ocaml.sh dune
 
-.PHONY: build test lint fmt run examples example examples-list \
+.PHONY: build test lint fmt run \
         install-pol uninstall-pol opam-install opam-uninstall release \
-        extension clean
+        clean
 build:
 	$(DUNE) build
 
@@ -140,28 +137,15 @@ release:
 	      echo "    (dynamic: the target needs a glibc at least as new as this host's)"; \
 	 fi
 
-# Example scenario tests (tests/examples/run-tests.sh): solve the worked problems
-# with `pol` and check the answers. They use the freshly built binary by ABSOLUTE
-# path (so scenarios that cd into temp dirs — control, gitcompare — still find it),
-# and POL_LIB points at the repo stdlib so `(load "stdlib.pol")` resolves without
-# install.
-POLBIN = $(CURDIR)/_build/default/tooling/cli/pol.exe
-POLENV = POL=$(POLBIN) POL_LIB=$(CURDIR)/core/stdlib
-
-examples: build
-	$(POLENV) ./tests/examples/run-tests.sh all
-
-examples-list:
-	@./tests/examples/run-tests.sh list
-
-# Run ONE scenario by name or number:  make example T=river   |   make example T=3
-example: build
-	@test -n "$(T)" || { echo "usage: make example T=<name|number>  (see: make examples-list)"; exit 2; }
-	$(POLENV) ./tests/examples/run-tests.sh $(T)
-
-# Builds the server, installs the VS Code client, and verifies the two talk.
-extension:
-	./tooling/vscode/install.sh
+# The worked scenarios and the VS Code client used to live here, behind
+# `make examples` and `make extension`. Both are repositories of their own now:
+#
+#   github.com/sajonaro/pol-problems   the models, their questions, the runner
+#   github.com/sajonaro/pol-vscode     the editor client
+#
+# Each needs an installed pol rather than this checkout — `make install-pol`, or
+# `opam install .`, puts pol, pol-lsp and pol-mcp on PATH — so neither can be a
+# target here without this repository reaching into another one.
 
 clean:
 	$(DUNE) clean

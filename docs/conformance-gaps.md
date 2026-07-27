@@ -812,7 +812,7 @@ nested in a `(type …)` body and the other written at schema top level with an
 `(of TYPE)` domain naming the same owner. So it joined the `check_*` pass that
 already waits for the whole schema, keyed on the pair **(dom, name)** — never the
 name alone. §7 is explicit that `bureau` and `case` may each own a `status`, and
-`tests/examples/river` leans on it (`traveler.at`, `cargo.at`); a global check
+pol-problems' `river` leans on it (`traveler.at`, `cargo.at`); a global check
 would have passed every new test and broken the river. Two controls pin the
 scoping.
 

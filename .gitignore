@@ -41,7 +41,7 @@ bisect*.coverage
 # to some future subproject is that subproject's business.
 /dist/
 
-# ── VS Code extension (tooling/vscode) ───────────────────────
+# ── VS Code extension (now github.com/sajonaro/pol-vscode) ───
 # Fetched by `npm install`; never committed. The lockfile IS committed.
 node_modules/
 # Packaged extension bundles.
@@ -65,7 +65,7 @@ Thumbs.db
 *.swp
 *~
 .idea/
-# Personal editor settings at the ROOT only — tooling/vscode/ is the extension
+# Personal editor settings at the ROOT only — the extension is its own repo
 # source and has no leading dot, so it is untouched by this.
 /.vscode/
 

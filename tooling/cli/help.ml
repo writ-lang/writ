@@ -128,7 +128,7 @@ EXAMPLES
 
 The language is specified in docs/kernel-spec.md. Worked examples that solve real
 problems (the river crossing, knights & knaves, institutional scenarios) are
-under tests/examples/ — run the whole suite with `docker compose up`.
+in github.com/sajonaro/pol-problems — clone it and run ./run-tests.sh.
 
 Copyright (C) 2026 Alex Kunich.  License AGPL-3.0-or-later: GNU Affero GPL
 version 3 or later <https://gnu.org/licenses/agpl.html>.  This is free software:
