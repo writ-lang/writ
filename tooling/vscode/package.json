@@ -1,7 +1,7 @@
 {
   "name": "pol",
   "displayName": "Pol (Partial Olog)",
-  "description": "Authoring support for Pol \u2014 an abstract language for modelling real-world domains as partial Ologs \u2014 over .pol models and .claims question files: diagnostics, outline, hover and completion, served by the language's own OCaml server.",
+  "description": "Authoring support for Pol \u2014 an abstract language for modelling real-world domains as partial Ologs \u2014 over .pol models, .claims question files and .rules derivations: diagnostics, outline, hover and completion, served by the language's own OCaml server.",
   "version": "0.1.0",
   "publisher": "pol",
   "private": true,
@@ -44,12 +44,24 @@
         "pol.serverPath": {
           "type": "string",
           "default": "_build/default/tooling/lsp/bin/pol_lsp.exe",
-          "markdownDescription": "Path to the `pol_lsp` language server executable. A relative path is resolved against each open workspace folder, so the default finds the server built by `make build` in a checkout of this repository. Set an absolute path to use a server built elsewhere."
+          "markdownDescription": "Path to the `pol-lsp` language server executable.\n\nA **relative** path is resolved against each open workspace folder, so the default finds the server built by `make build` in a checkout of the pol repository. If no workspace folder has it, `pol-lsp` is looked up on `PATH` \u2014 which is what `opam install pol` and the release tarball provide, and is how this extension works without a checkout.\n\nAn **absolute** path is used exactly as given and nothing else is tried."
         }
       }
     }
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
-  }
+  },
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sajonaro/pol.git"
+  },
+  "keywords": [
+    "pol",
+    "olog",
+    "modelling",
+    "formal methods",
+    "state machine"
+  ]
 }

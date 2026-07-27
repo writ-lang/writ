@@ -76,14 +76,39 @@ function stampOf(p) {
   }
 }
 
-// A relative setting is resolved against the open workspace folders, so the
-// default `_build/default/tooling/lsp/bin/pol_lsp.exe` finds the server in a checkout of
-// this repository without anyone editing a setting. Returns every path tried,
-// so a failure can name them rather than say "not found".
+// The name `opam install pol` puts on PATH (tooling/lsp/bin/dune's
+// public_name). NOT the same as the in-checkout file name, which is
+// `pol_lsp.exe` under _build.
+const INSTALLED = "pol-lsp";
+
+function onPath(exe) {
+  const dirs = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
+  const names = process.platform === "win32" ? [exe + ".exe", exe] : [exe];
+  return dirs.flatMap((d) => names.map((n) => path.join(d, n)));
+}
+
+// Where to look for the server, in order. Returns every path tried, so a
+// failure can name them rather than say "not found".
+//
+// TWO AUDIENCES, and the order is which one gets served first. A CHECKOUT of
+// this repository builds its own server, and that one must win — the whole
+// point of an OCaml server is that the editor and the checker are the same
+// code, so a developer changing the language wants the build in front of them
+// and not whatever is installed. Everyone ELSE has run `opam install pol` (or
+// unpacked a release) and has no checkout at all; for them the relative default
+// resolves to nothing, and `pol-lsp` on PATH is the only server there is.
+//
+// Serving only the first audience is what this did until now, which meant the
+// extension could not be used with pol installed separately — the case
+// tooling/lsp/bin/dune installs `pol-lsp` for in the first place.
+//
+// An ABSOLUTE setting is taken literally and nothing is guessed after it: an
+// operator who names a server means that server.
 function candidates(configured) {
   if (path.isAbsolute(configured)) return [configured];
   const folders = vscode.workspace.workspaceFolders || [];
-  return folders.map((f) => path.join(f.uri.fsPath, configured));
+  const inWorkspace = folders.map((f) => path.join(f.uri.fsPath, configured));
+  return [...inWorkspace, ...onPath(INSTALLED)];
 }
 
 function activate(context) {
@@ -96,10 +121,20 @@ function activate(context) {
   if (!found) {
     // Silence here would look like a server that starts and answers nothing,
     // which is the same symptom as a broken server and much harder to chase.
+    //
+    // The PATH candidates are summarised rather than listed: naming forty
+    // directories buries the one thing worth reading, which is that `pol-lsp`
+    // was not in any of them.
+    const inWorkspace = tried.filter((p) => !onPath(INSTALLED).includes(p));
+    const where = inWorkspace.length
+      ? `not at ${inWorkspace.join(", ")}, and \`${INSTALLED}\` is not on PATH`
+      : `\`${INSTALLED}\` is not on PATH`;
     vscode.window.showErrorMessage(
-      `Pol: no language server at ${tried.join(", ") || configured}. ` +
-        "Run `make build` in the repository root to build it, or set " +
-        `\`${SETTING}\` to the pol_lsp executable you want to use.`
+      `Pol: no language server — ${where}. ` +
+        "In a checkout of the pol repository, run `make build`. Otherwise " +
+        "install pol (`opam install pol`, or a release tarball) so " +
+        `\`${INSTALLED}\` is on PATH — or set \`${SETTING}\` to an absolute ` +
+        "path to the server you want."
     );
     return;
   }
@@ -146,6 +181,9 @@ module.exports = { activate, deactivate };
 module.exports.__test = {
   watchServerBinary,
   stampOf,
+  candidates,
+  onPath,
+  INSTALLED,
   setClient: (c) => {
     client = c;
   },
