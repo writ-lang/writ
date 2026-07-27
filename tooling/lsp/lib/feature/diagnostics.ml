@@ -12,9 +12,10 @@
    FILE ROLE decides which entry runs (kernel §6.1, §16). A .pol buffer with a
    [(use …)] is a MODEL ([read_model]); without one it is a LIBRARY
    ([load_library], which does not demand a model's use/initial). A .claims
-   buffer is checked as CLAIMS against its sibling model; when that model is
-   absent or does not build, a structural read+expand of the buffer still
-   catches malformed datums and load cycles — but never emits a "needs (use)".
+   buffer is checked as CLAIMS against its sibling model, and a .rules buffer as
+   RULES against the same (extension §1); when that model is absent or does not
+   build, a structural read+expand of the buffer still catches malformed datums
+   and load cycles — but never emits a "needs (use)".
 
    HONEST LIMITATION: this yields ZERO or ONE diagnostic, never more. The front
    end is written with [Result.bind] and stops at the first problem by
@@ -89,6 +90,18 @@ let structural (resolve : Loader.resolve) (path : string) :
   let* _ = Expander.expand inlined in
   Ok ()
 
+(* A .rules buffer is checked against its sibling model, as a .claims buffer
+   is: the sorts, stratification and range restriction the extension demands
+   (§1, §4) are only decidable against the schema the relations range over.
+   Without this a .rules file fell through to [Library] and was silently
+   accepted — no false errors, but no true ones either, which is worse in an
+   editor whose whole promise is diagnostics from the real engine. *)
+let check_rules (resolve : Loader.resolve) ~(path : string) ~(sibling : string)
+    : (unit, Errors.t) result =
+  match Loader.read_model resolve sibling with
+  | Ok model -> Result.map (fun _ -> ()) (Loader.read_rules resolve model path)
+  | Error _ -> structural resolve path
+
 (* A .claims buffer is checked against its sibling model; if that model is
    absent or does not build, fall back to the structural check. *)
 let check_claims (resolve : Loader.resolve) ~(path : string) ~(sibling : string)
@@ -103,6 +116,7 @@ let check (t : Text.t) ~(resolve : Loader.resolve) ~(path : string) :
   | Role.Model -> Result.map (fun _ -> ()) (Loader.read_model resolve path)
   | Role.Library -> Result.map (fun _ -> ()) (Loader.load_library resolve path)
   | Role.Claims sibling -> check_claims resolve ~path ~sibling
+  | Role.Rules sibling -> check_rules resolve ~path ~sibling
 
 let of_text (t : Text.t) ~(resolve : Loader.resolve) ~(path : string) :
     Json.t list =

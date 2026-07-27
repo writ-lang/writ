@@ -1069,3 +1069,60 @@ disease. That control has its own test.
   value cannot be a chain root and so cannot today be shadowed by a binder.
   That changes if `docs/law-as-guard.md`'s widening lands, which is where
   that half belongs.
+
+---
+
+## 8. A `.rules` buffer gets no semantic diagnostics in the editor
+
+**Status:** partially closed 2026-07-27 — highlighting and file-role dispatch
+are in, semantic checking is wired but **not yet reaching the buffer**. The
+remaining half is diagnosed below but not fixed.
+
+### What was missing
+
+The relational extension shipped a third file type and nothing in the editor
+knew about it. Three separate gaps, all measured:
+
+| | before |
+| --- | --- |
+| `package.json` languages | `.pol` and `.claims` only — a `.rules` file got **no highlighting at all** |
+| `pol.tmLanguage.json` | **zero** occurrences of `relation` or `rule` |
+| `Role.of_path` | cases for `.claims` and `.pol`; `.rules` fell through to `Library` |
+
+The symptom was silence rather than noise, which is worse in an editor whose
+stated promise is "diagnostics from the real engine". Same file, two tools:
+
+```
+CLI:  broke.rules:3:1: `dangling` is not a declared relation; add (relation dangling 1)
+LSP:  0 diagnostics
+```
+
+### What is fixed
+
+Highlighting and dispatch. `.rules` joins the language's extensions,
+`relation` and `rule` join the keyword pattern beside `property`/`query`, and
+`Role` gained `Rules of string` — a `.rules` buffer is asked of its sibling
+model exactly as a `.claims` buffer is, with `Diagnostics.check_rules`
+running `Loader.read_rules` against it.
+
+### What is NOT fixed, and how far it was traced
+
+The semantic diagnostic still does not appear. It is not a resolver problem:
+
+- a **reader** error in a `.rules` buffer *is* reported
+  (`unbalanced parenthesis: list never closed`), so the pipeline runs;
+- a **semantic** error is not, so `check_rules` is falling back to
+  `structural`, which read+expands without a schema and cannot see it;
+- it is not the sibling model failing to load a library — a sibling with no
+  `(load …)` at all behaves identically;
+- the CLI reports the same file correctly from the same directory, so the
+  engine and the fixture are both fine.
+
+That leaves `Role.of_path` not returning `Rules`, or `check_rules` returning
+`Ok` where the CLI errors. Both are two-line checks for whoever picks this
+up; the fixture pair (`mini.pol` with no loads, `mini.rules` with an
+undeclared head) reproduces it in one `didOpen`.
+
+**No regression either way:** a `.rules` buffer behaved as `Library` before
+and produced no diagnostics; it now takes the `Rules` path and produces none.
+The highlighting is a straight gain.

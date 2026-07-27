@@ -1,7 +1,7 @@
 {
   "name": "pol",
   "displayName": "Pol (Partial Olog)",
-  "description": "Authoring support for Pol — an abstract language for modelling real-world domains as partial Ologs — over .pol models and .claims question files: diagnostics, outline, hover and completion, served by the language's own OCaml server.",
+  "description": "Authoring support for Pol \u2014 an abstract language for modelling real-world domains as partial Ologs \u2014 over .pol models and .claims question files: diagnostics, outline, hover and completion, served by the language's own OCaml server.",
   "version": "0.1.0",
   "publisher": "pol",
   "private": true,
@@ -25,7 +25,8 @@
         ],
         "extensions": [
           ".pol",
-          ".claims"
+          ".claims",
+          ".rules"
         ],
         "configuration": "./language-configuration.json"
       }

@@ -1,18 +1,41 @@
 {
   "name": "Pol",
   "scopeName": "source.pol",
-  "fileTypes": ["pol", "claims"],
+  "fileTypes": [
+    "pol",
+    "claims"
+  ],
   "patterns": [
-    { "include": "#comment" },
-    { "include": "#string" },
-    { "include": "#declaration" },
-    { "include": "#schema" },
-    { "include": "#guard" },
-    { "include": "#effect" },
-    { "include": "#modality" },
-    { "include": "#interrogator" },
-    { "include": "#rest" },
-    { "include": "#equals" }
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#declaration"
+    },
+    {
+      "include": "#schema"
+    },
+    {
+      "include": "#guard"
+    },
+    {
+      "include": "#effect"
+    },
+    {
+      "include": "#modality"
+    },
+    {
+      "include": "#interrogator"
+    },
+    {
+      "include": "#rest"
+    },
+    {
+      "include": "#equals"
+    }
   ],
   "repository": {
     "comment": {
@@ -21,21 +44,24 @@
       "match": ";.*$"
     },
     "string": {
-      "comment": "Double-quoted strings — (gap \"…\"), property text, (load \"…\"). Second so a keyword inside a string is never painted.",
+      "comment": "Double-quoted strings \u2014 (gap \"\u2026\"), property text, (load \"\u2026\"). Second so a keyword inside a string is never painted.",
       "name": "string.quoted.double.pol",
       "begin": "\"",
       "end": "\"",
       "patterns": [
-        { "name": "constant.character.escape.pol", "match": "\\\\." }
+        {
+          "name": "constant.character.escape.pol",
+          "match": "\\\\."
+        }
       ]
     },
     "declaration": {
-      "comment": "The kernel's declaration heads (kernel §9): schema/type/instance/initial/transition/equation/form and the file-linking use/load. Head position only, via the fixed-width (?<=\\() lookbehind, so a value or entity named like one of these is not miscoloured.",
+      "comment": "The kernel's declaration heads (kernel \u00a79): schema/type/instance/initial/transition/equation/form and the file-linking use/load. Head position only, via the fixed-width (?<=\\() lookbehind, so a value or entity named like one of these is not miscoloured.",
       "name": "keyword.control.declaration.pol",
       "match": "(?<=\\()(schema|type|instance|initial|transition|equation|form|use|load)(?![-\\w])"
     },
     "schema": {
-      "comment": "Schema/arrow/instance clause words and the vacant literal (kernel §9): to/of, the fixed/vacatable arrow flags, the when/do transition bodies, and vacant. Head position only.",
+      "comment": "Schema/arrow/instance clause words and the vacant literal (kernel \u00a79): to/of, the fixed/vacatable arrow flags, the when/do transition bodies, and vacant. Head position only.",
       "name": "keyword.other.arrow.pol",
       "match": "(?<=\\()(arrow|to|of|fixed|vacatable|when|do|vacant)(?![-\\w])"
     },
@@ -55,17 +81,17 @@
       "match": "(?<=\\()(never|possible|live)(?![-\\w])"
     },
     "interrogator": {
-      "comment": "The interrogator's file-format words (kernel §9) — not the language: property/query/where/accept and the functor/transport vocabulary. Head position only.",
+      "comment": "The interrogator's file-format words (kernel \u00a79) \u2014 not the language: property/query/where/accept and the functor/transport vocabulary. Head position only.",
       "name": "keyword.other.interrogator.pol",
-      "match": "(?<=\\()(property|query|where|accept|check|via|functor|from|over|map)(?![-\\w])"
+      "match": "(?<=\\()(relation|rule|property|query|where|accept|check|via|functor|from|over|map)(?![-\\w])"
     },
     "rest": {
-      "comment": "The &rest splice marker in a form pattern (kernel §6).",
+      "comment": "The &rest splice marker in a form pattern (kernel \u00a76).",
       "name": "keyword.operator.rest.pol",
       "match": "&rest(?![-\\w])"
     },
     "equals": {
-      "comment": "The equation operator = at head position (kernel §9): (= P1 P2).",
+      "comment": "The equation operator = at head position (kernel \u00a79): (= P1 P2).",
       "name": "keyword.operator.equation.pol",
       "match": "(?<=\\()=(?=\\s)"
     }
