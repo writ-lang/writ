@@ -41,9 +41,9 @@ And by file, non-comment non-blank lines:
 | `workflow/workflow.pol` | 44 |
 | everything else | 26–40 |
 
-*(Both queens figures are as measured. They are now 112, and the section
-"What the measurement got wrong" at the end says why — it was not the language
-that shrank them.)*
+*(Both queens figures are as measured here. `queens.pol` is now 83 lines with
+eight moves; the section "What the measurement got wrong" at the end says how,
+and which half of this note's diagnosis survived.)*
 
 Two things fall out immediately. **Transitions outnumber arrows four to one**,
 so sugar aimed at `arrow` is aimed at 36 datums out of 278. And **one file is
@@ -85,10 +85,11 @@ first two contradicted what reading the expander suggested.
 ### Wall 1 — `set` took a literal — **now removed**
 
 Above. It cost 64 transitions in queens and 9 in `jobshop-best`. §10.3 now
-takes a chain, so a value can be MOVED and a ladder is walked by one move;
-`jobshop-best`'s clock is one transition. The two semantic questions this
-raised — when the right-hand side is read, and what an unanswerable chain does
-— are decided and recorded in [`set-as-chain.md`](set-as-chain.md).
+takes a chain, so a value can be MOVED rather than only assigned by name.
+`jobshop-best`'s clock went to one transition; queens went to eight, though
+not in the way this note expected — see the end. The two semantic questions
+this raised — when the right-hand side is read, and what an unanswerable chain
+does — are decided and recorded in [`set-as-chain.md`](set-as-chain.md).
 
 ### Wall 2 — a form in expression position must yield exactly one datum
 
@@ -128,19 +129,18 @@ arrows across the examples and `tests/models/politics.lib.pol` now take it,
 including one inside another form's template (`headship` expands to `maybe`
 expands to `arrow`, which nests correctly).
 
-Its limit is worth stating in the same breath, because it is visible in
-`queens.pol`: `maybe` covers the **plain** vacatable arrow, and three arrows in
-the shipped models are `fixed vacatable`, which keeps the long form. So one
-type can read
+Its limit is worth stating in the same breath: `maybe` covers the **plain**
+vacatable arrow, and there is no spelling for `fixed vacatable` — never
+rewired, but may run off the end. One shipped arrow still wants it,
+`jobshop-best`'s tick ladder:
 
 ```lisp
-(arrow next (to row-t) fixed vacatable)   ; the board does not rewire
-(maybe row row-t)                         ; a queen may be unplaced
+(type tick (arrow next (to tick) fixed vacatable))
 ```
 
-— long form beside short. Covering that would need either a second name
-(`fixed-maybe` is worse than what it abbreviates) or flags as slots, which
-hands a form a keyword position for a saving that does not justify it.
+Covering that would need either a second name (`fixed-maybe` is worse than what
+it abbreviates) or flags as slots, which hands a form a keyword position for a
+saving that does not justify it.
 
 ### Wall 3 — template heads, which is not a wall
 
@@ -171,8 +171,8 @@ the count stays at twenty-seven. The two open questions were decided as
 [`set-as-chain.md`](set-as-chain.md) recommended — the right-hand side is read
 in the situation the move started from, and a chain with no answer makes the
 move absent rather than a no-op. `jobshop-best`'s clock went from eight
-transitions to one. Queens has not been rewritten yet; see the caveat below
-for why that is a smaller win than it sounds.
+transitions to one, and queens from sixty-four moves to eight — though not by
+the route this note assumed. See the end.
 
 **4. Wall 2 is worth a note of its own, eventually.** Splicing inside a list
 would let forms build instance data and type bodies, and it is the general
@@ -186,34 +186,38 @@ because it is the kind this whole note was written to avoid.
 
 The note said the 500 lines of `queens.pol` were forced by §10.3 — one move
 per (column, row), because `set` took a literal. §10.3 was then widened, and
-queens was rewritten. It is now **119 lines**, with the same 2057 situations
-and the same 92 boards.
+queens was rewritten twice. It is now **83 lines** with **eight** moves, the
+same 2057 situations and the same 92 boards.
 
-**It does not use the widening.** `(set Q.at S)` writes a literal, exactly as
-it always could. What shrank the file was giving squares a `da` and `db` arrow
-so a **diagonal is a named entity** rather than a ladder walked *d* times.
-That turned seven distance-indexed `safeN` forms into one quantified `free`,
-and a seven-conjunct guard into three. Better data, not a bigger language.
+It took two independent changes, and the note had only half of one.
 
-Two corrections follow.
+**Step 1 — name the diagonals. No language feature at all.** Give squares a
+`da` and `db` arrow, so a diagonal is a named entity rather than a ladder
+walked *d* times. Seven distance-indexed `safeN` forms become one quantified
+`free`; a seven-conjunct guard becomes three. 468 lines to 119, and `(set Q.at
+S)` still writes a literal exactly as it always could. **Better data, not a
+bigger language** — this would have worked before any of the work above.
 
-**Transitions were the bulk, but not for the reason given.** There are still
-sixty-four `(place …)` invocations — the count never moved. What moved is that
-each is now one line instead of seven. The floor on the *number* of moves is
-real and is set by something this note never named: Pol has no move that picks
-its destination nondeterministically, because a guard's binder is scoped to the
-guard and an effect cannot name it. `(some (s square) …)` cannot hand `s` to
-`(set q3.at s)`. **That** is what keeps queens generated, and it is a bigger
-gap than either wall above.
+**Step 2 — a cursor. This is the one that needs §10.3.** After step 1 there
+were still sixty-four moves, because a move had to say *which* queen it
+placed. A cursor says it instead: the moves index rows only, and each advances
+`cur` with `(set cur.q cur.q.next)` — a chain on the right — while
+`(set cur.q.at S)` writes the queen the cursor named when the move *began*,
+which needs simultaneity. 119 lines to 83, sixty-four moves to eight.
 
-**The widening was still right, just not here.** It made the job shop's clock
-one transition from eight, because a clock has one walker and a well-defined
-end. Applied to queens it measured *worse* — a walking queen passes through
-unsafe squares (7.6× the situations) and a finished board stops being a dead
-end, which is the nicest thing that example demonstrates. `tests/examples/
-queens/README.md` has both measurements.
+So the note's diagnosis was **right about the cause and wrong about the cure**.
+Transitions were the bulk; §10.3 was the constraint; but the fix was not the
+obvious one. The obvious one — let a queen *walk* — was built and measured and
+is worse: 7.6× the situations, and a finished board stops being a dead end,
+which is the nicest thing that example shows. What actually cashed the widening
+was moving a **cursor**, not moving the thing being placed.
 
-The transferable lesson: when a model is long, ask what its **data** cannot
-say before asking what the **language** cannot say. Here the language was
-widened, correctly, and the model got four times shorter for an unrelated
-reason.
+One thing this note never named, and should have: Pol has no move that picks
+its destination nondeterministically. A guard's binder is scoped to the guard,
+so `(some (s square) …)` cannot hand `s` to `(set q.at s)`. That is why the
+sixty-four could not simply be quantified away, and why the answer had to come
+from somewhere else entirely.
+
+The transferable lesson: when a model is long, ask what its **data** cannot say
+before asking what the **language** cannot say — and when the language *is* the
+answer, the useful move may not be the one the shortcoming suggests.

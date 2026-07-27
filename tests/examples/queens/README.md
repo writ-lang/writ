@@ -7,8 +7,10 @@ place the queens.
 
 This scenario is here for three reasons. It is the first puzzle Pol can state
 that it could not state before; it is the clearest measurement in the
-repository of *which* optimisation matters; and it is the clearest example of
-a model getting four times shorter without the language changing at all.
+repository of *which* optimisation matters; and it is where a 468-line model
+became an 83-line one in two steps — the first needing no language feature at
+all, the second needing a specific one, which is a distinction worth being
+able to point at.
 
 ## The whole model is one idea: name the diagonals
 
@@ -82,7 +84,7 @@ The ring closes the model neatly. After `q8` the cursor lands back on `q1`,
 which is already placed, so nothing is enabled — a finished board is a **dead
 end**, which is precisely what a finished board should be.
 
-### What this replaced, and what it did *not* need
+### What the two steps replaced
 
 The previous version walked. Rows were entities on a **ladder** — `next`
 climbed, `prev` descended — so the square a queen *d* columns away attacks was
