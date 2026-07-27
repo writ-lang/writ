@@ -106,7 +106,14 @@ The space is unchanged: still 1314 situations, still an optimum of five.
 
 ## Files
 
-- `jobshop-best.pol` — the shop plus a clock. Nine ticks available.
+- [`../scheduling.lib.pol`](../scheduling.lib.pol) — the **domain library**
+  both job shop scenarios load: the shop, the blocking rule, the turn
+  discipline, the tick ladder. No moves.
+- `jobshop-best.pol` — 20 lines: the same three moves as next door, each
+  spending the job's turn, plus one `tick-over`.
 - `jobshop-best.claims` — the two bounds that pin the optimum.
 - `jobshop-best.rules` — both, re-asked of the rules engine, so the cross-check
   oracle compares two implementations of one question.
+
+All three load the library, which is the point of it: a model, a question and
+a derivation can share one vocabulary without sharing a file.

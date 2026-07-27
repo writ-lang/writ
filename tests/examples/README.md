@@ -100,6 +100,14 @@ Neither answers that alone. See
 [`jobshop-possible/README.md`](jobshop-possible/README.md) and
 [`jobshop-best/README.md`](jobshop-best/README.md).
 
+Both are **19 and 20 lines**, because the shop itself is not in either of them:
+[`scheduling.lib.pol`](scheduling.lib.pol) is a **domain library** holding the
+machines, the routings, the blocking rule and a clock, and the two models load
+it and then differ only in their moves — which is the one thing a pair exists
+to compare. Their `.claims` and `.rules` files load it too, so a model, a
+question and a derivation share one vocabulary without sharing a file.
+[`queens/chess.lib.pol`](queens/chess.lib.pol) does the same for the board.
+
 ## The spec's §3 scenarios
 
 Three institutional models, each exercising machinery the Prologue puzzles do

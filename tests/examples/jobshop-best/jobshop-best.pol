@@ -1,88 +1,53 @@
-; jobshop-best.pol — the SAME shop as ../jobshop-possible/, with a clock.
+; jobshop-best.pol — WHICH schedule is shortest?
 ;
-; That model answers whether a schedule exists. This one answers which schedule
-; is best, and the difference is one idea: TIME AS A NAMED SCALE.
+; The same shop as ../jobshop-possible/, from the same ../scheduling.lib.pol:
+; three jobs, three machines, routings in a cycle, the blocking rule. That
+; model asks whether a schedule exists. This one asks how long the best one
+; takes, and the difference is one idea: TIME AS A NAMED SCALE.
 ;
-; Pol has no numbers, so a duration cannot be added up. But Appendix G's own
-; escape clause is "unless honestly reduced to small named scales", and a clock
-; is exactly that — a ladder of ticks t1 → t2 → …, walked by `next`, the same
-; construction the queens model uses for rows. An operation occupies one tick,
-; which is enforced by the `moved` flag: a job may make at most one move before
-; the clock advances, and `tick-N` resets every flag.
+; Pol has no numbers, so a duration cannot be added up. But Appendix G's escape
+; clause is "unless honestly reduced to small named scales", and a clock is
+; exactly that — a ladder of ticks walked by `next`, which the library already
+; declares. An operation occupies one tick, enforced by the TURN discipline:
+; `may-move`/`took-turn` let a job act at most once before the clock advances.
 ;
-; With that, "finishes within 5 ticks" is an ordinary `possible`, and the
-; smallest N for which it holds IS the optimal makespan — optimisation by
-; repeated feasibility, which is how you optimise with a decision procedure
+; The library offers all of that and imposes none of it; jobshop-possible loads
+; the same file and never touches the clock. What this model adds is three
+; guards, three effects and one `tick-over`.
+;
+; With time in the model, "finishes within 5 ticks" is an ordinary `possible`,
+; and the smallest N for which it holds IS the optimal makespan — optimisation
+; by repeated feasibility, which is how you optimise with a decision procedure
 ; rather than a cost function. The witness is the optimal schedule itself.
-;
-; The clock is ONE transition, because §10.3 lets `set` take a chain:
-; `(set clk.at clk.at.next)` walks the tick ladder, and the move is absent at
-; the top where `next` runs off the end. This model is what asked for that
-; change — see docs/set-as-chain.md, now done.
 
-(load "stdlib.pol")
-
-(schema shop
-  (type tick (arrow next (to tick) fixed vacatable))
-  (type clock-t (arrow at (to tick)))
-  (type yn (no yes))
-  (type machine (maybe held-by job))
-  (type stage-t (queued on-first on-second done))
-  (type job
-    (arrow stage  (to stage-t))
-    (arrow moved  (to yn))          ; already moved in the current tick?
-    (arrow first  (to machine) fixed)
-    (arrow second (to machine) fixed)))
-
-; The same three moves as the untimed shop, each now costing the job its turn
-; for this tick. The N slot carries the move's name so a witness stays readable.
-(form (enters J N)
-  => (transition N
-       (when (and (is J.stage queued) (is J.moved no)
-                  (not (defined J.first.held-by))))
-       (do (set J.first.held-by J) (set J.stage on-first) (set J.moved yes))))
-(form (advances J N)
-  => (transition N
-       (when (and (is J.stage on-first) (is J.moved no)
-                  (not (defined J.second.held-by))))
-       (do (set J.second.held-by J) (vacate J.first.held-by)
-           (set J.stage on-second) (set J.moved yes))))
-(form (leaves J N)
-  => (transition N
-       (when (and (is J.stage on-second) (is J.moved no)))
-       (do (vacate J.second.held-by) (set J.stage done) (set J.moved yes))))
-(form (job-of J E A L) => (enters J E) (advances J A) (leaves J L))
-
-(instance start (of shop)
-  (tick t1 t2 t3 t4 t5 t6 t7 t8 t9)
-  (clock-t clk)
-  (machine m1 m2 m3)
-  (job a b c)
-  (next (t1 t2) (t2 t3) (t3 t4) (t4 t5) (t5 t6) (t6 t7) (t7 t8) (t8 t9) (t9 vacant))
-  (at (clk t1))
-  (first  (a m1) (b m2) (c m3))     ; the same cycle as the untimed shop
-  (second (a m2) (b m3) (c m1))
-  (stage  (a queued) (b queued) (c queued))
-  (moved  (a no) (b no) (c no))
-  (held-by (m1 vacant) (m2 vacant) (m3 vacant)))
-
+(load "../scheduling.lib.pol")
 (use shop)
 (initial start)
+
+; The same three moves as the untimed shop, each now costing the job its turn.
+(form (enters J N)
+  => (transition N
+       (when (and (at-stage J queued) (may-move J) (idle J.first)))
+       (do (set J.first.held-by J) (set J.stage on-first) (took-turn J))))
+
+(form (advances J N)
+  => (transition N
+       (when (and (at-stage J on-first) (may-move J) (idle J.second)))
+       (hand-over J J.first J.second (set J.stage on-second) (took-turn J))))
+
+(form (leaves J N)
+  => (transition N
+       (when (and (at-stage J on-second) (may-move J)))
+       (do (vacate J.second.held-by) (set J.stage done) (took-turn J))))
+
+(form (job-of J E A L) => (enters J E) (advances J A) (leaves J L))
 
 (job-of a a-enters a-advances a-leaves)
 (job-of b b-enters b-advances b-leaves)
 (job-of c c-enters c-advances c-leaves)
 
-; The clock: ONE move, because §10.3 lets `set` take a chain. The clock walks
-; its own ladder — `clk.at.next` is the tick after this one — and the move is
-; simply ABSENT at t9, where `next` runs off the end. No guard is needed to
-; stop it and no transition is needed per tick.
-;
-; This file is what asked for that change. It used to be eight near-identical
-; transitions, twenty-seven lines; a form got the body down to one copy but
-; could not remove the eight invocations, because a form cannot map over its
-; `&rest` (§10.2, deliberately). Nothing but the language change could.
-(transition tick
-  (when (is clk.at clk.at))
-  (do (set clk.at clk.at.next)
-      (set a.moved no) (set b.moved no) (set c.moved no)))
+; The clock: ONE move, because §10.3 lets `set` take a chain, so the clock
+; walks its own ladder and is simply ABSENT at t9 where `next` runs off the
+; end. The resets are spliced in because the library cannot know which jobs
+; this shop has.
+(tick-over tick clk (set a.moved no) (set b.moved no) (set c.moved no))

@@ -11,7 +11,7 @@
 ;   can still finish" would read as the satisfying set and silently invert the
 ;   oracle — every live verdict backwards, the script still green.
 
-(load "stdlib.pol")
+(load "../scheduling.lib.pol")
 
 ; Reachability over real edges, reflexive at every situation.
 (relation reach 2)
@@ -24,13 +24,13 @@
 (rule (all-finish T)
   (init S)
   (reach S T)
-  (holds T (all (j job) (is j.stage done))))
+  (holds T (all-done j)))
 
 ; `live`: the counterexample set. `finished` is F; `can-still-finish` is EF F;
 ; `never-stuck` is the reachable schedules where EF F fails — the deadlocks.
 ; Non-empty ⟺ `fails never-stuck`.
 (relation finished 1)
-(rule (finished T) (situation T) (holds T (all (j job) (is j.stage done))))
+(rule (finished T) (situation T) (holds T (all-done j)))
 
 (relation can-still-finish 1)
 (rule (can-still-finish S) (reach S T) (finished T))

@@ -7,7 +7,7 @@
 ; counterexample-set encoding, and the trap of getting it backwards, is
 ; explained in ../river/river.rules; nothing here is a `live`.)
 
-(load "stdlib.pol")
+(load "../scheduling.lib.pol")
 
 (relation reach 2)
 (rule (reach S S) (situation S))
@@ -20,10 +20,10 @@
 (rule (done-by-4 T)
   (init S)
   (reach S T)
-  (holds T (and (all (j job) (is j.stage done)) (is clk.at t4))))
+  (holds T (and (all-done j) (is clk.at t4))))
 
 (relation done-by-5 1)
 (rule (done-by-5 T)
   (init S)
   (reach S T)
-  (holds T (and (all (j job) (is j.stage done)) (is clk.at t5))))
+  (holds T (and (all-done j) (is clk.at t5))))

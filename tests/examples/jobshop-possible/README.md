@@ -132,9 +132,16 @@ the way it does.
 
 ## Files
 
-- `jobshop.pol` — the shop. Three forms, one line per job.
-- `jobshop.claims` — the two questions, kept next door (wish 12).
-- `jobshop.rules` — the same two, re-asked of the rules engine, so the
+- [`../scheduling.lib.pol`](../scheduling.lib.pol) — the **domain library**
+  both job shop scenarios load: the shop, the blocking rule, the turn
+  discipline, a clock. No moves. It sits one level up because it serves two
+  folders; design D3 resolves `(load "../scheduling.lib.pol")` against this
+  file's own directory.
+- `jobshop-possible.pol` — 19 lines: three move forms and one line per job.
+  No clock — the library offers one and this model declines it.
+- `jobshop-possible.claims` — the two questions, kept next door (wish 12).
+  They load the library too, for `all-done`.
+- `jobshop-possible.rules` — the same two, re-asked of the rules engine, so the
   cross-check oracle can compare two implementations of one question. Note the
   polarity comment: `live` is encoded as its **counterexample set**, and
   writing it the other way round would invert the oracle silently.
