@@ -32,15 +32,35 @@ let read_file (path : string) : (string, string) result =
 
 (* The [(load "FILE")] resolver. The search ORDER is [Load_path] (design D3),
    shared with the LSP process so the editor and the command line can never
-   disagree about where a library lives; the reading is here, because I/O is. *)
+   disagree about where a library lives; the reading is here, because I/O is.
+
+   [POL_TRACE_LOADS] prints, per load, which candidate won and which were
+   skipped. It exists because D3's FIRST candidate is the including file's own
+   directory — deliberately, so a model's libraries sit beside it — and the
+   consequence is that a `stdlib.pol` lying next to a model SILENTLY replaces
+   the installed one. That is the intended rule, and it is also invisible:
+   there is no error, the wrong library simply loads, and the symptom is one
+   library form resolving while another does not. An env var rather than a flag
+   because it must work identically for every verb, and because [POL_LIB] has
+   already established that the search order is tuned from the environment. *)
+let trace_loads = Sys.getenv_opt "POL_TRACE_LOADS" <> None
+
 let make_resolve (base : string) : Loader.resolve =
  fun name ->
-  let rec try_ = function
+  let rec try_ skipped = function
     | [] -> Error (Load_path.not_found name)
     | p :: rest -> (
-        match read_file p with Ok s -> Ok s | Error _ -> try_ rest)
+        match read_file p with
+        | Ok s ->
+            if trace_loads then (
+              prerr_endline ("pol: resolved \"" ^ name ^ "\" -> " ^ p);
+              List.iter
+                (fun q -> prerr_endline ("pol:   (skipped " ^ q ^ ")"))
+                (List.rev skipped));
+            Ok s
+        | Error _ -> try_ (p :: skipped) rest)
   in
-  try_ (Load_path.candidates ~base name)
+  try_ [] (Load_path.candidates ~base name)
 
 (* Which file the coordinates index, said ONCE. An error that carries a file of
    its own names it and nothing else: that file may be a library this model

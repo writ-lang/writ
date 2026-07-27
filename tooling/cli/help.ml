@@ -103,6 +103,11 @@ FILES
   vocabulary for one subject — is not standard and is not shipped: keep it beside
   the models that load it, where the first rule of the search order finds it.
 
+  That first rule cuts both ways: a `stdlib.pol` lying beside a model REPLACES
+  the installed one, silently and by design. Set POL_TRACE_LOADS=1 to print
+  which file each load resolved to, and which candidates were skipped — the
+  question to ask whenever an edit to a library appears to have no effect.
+
 INSTALLING  (all three land bin/pol + share/pol/lib, which is what the resolver
              above expects — see the README)
   make install-pol    from a checkout, into ~/.local — plain cp, no opam
