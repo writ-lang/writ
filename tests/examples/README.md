@@ -89,10 +89,7 @@ and makespan are deliberately absent — those are arithmetic — but the classi
 hard question about a *blocking* shop is whether a schedule exists at all,
 which is pure reachability.
 
-It also pins down what sugar can and cannot do. Adding a fourth job is **one
-line**, because a job shop's moves vary by entity and a form can abstract that;
-queens' vary by (queen, row) and no form can, since `set` writes a literal. See
-[`jobshop/README.md`](jobshop/README.md).
+See [`jobshop/README.md`](jobshop/README.md).
 
 ## The spec's §3 scenarios
 

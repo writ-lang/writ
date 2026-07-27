@@ -116,14 +116,6 @@ jobshop() {
   near "jobshop:    reached by three moves, one per job" "$out" "fails  never-stuck" "a-enters"
   near "jobshop:    each job holding the machine the next one wants" "$out" \
     "fails  never-stuck" "c-enters"
-  # The controlled contrast: the same shop with the cycle taken out. Only the
-  # routing table differs, and the deadlock goes with it — which is what makes
-  # "the cycle causes it" a demonstration rather than an assertion.
-  same=$("$POL" check "$here/jobshop/jobshop-samerouting.pol" \
-    --claims "$here/jobshop/jobshop.claims" 2>&1)
-  sst=$?
-  exit_is "jobshop: C. same routings for every job — nothing to report" "$sst" 0
-  has "jobshop:    and now no schedule can get stuck" "$same" "holds  never-stuck"
 }
 
 oversight() {

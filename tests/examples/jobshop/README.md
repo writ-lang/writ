@@ -6,22 +6,14 @@ A **job shop** is a workshop. Several *jobs* are in progress at once, and each
 one needs to visit several *machines* — but each job visits them **in its own
 order**. A machine does one thing at a time.
 
-That last pair is the whole difficulty — and it is worth seeing why, because
-the difficulty is *not* that machines are shared. It is that the **orders
-differ**.
+That last pair is the whole difficulty, and it is worth being precise about
+why. Sharing machines on its own only causes **congestion**: if every job
+wanted the machines in the same order they would simply queue, and the one in
+front would always be the one able to move. It is the *differing orders* that
+create a **dilemma** — who goes first becomes a real decision, and some answers
+turn out to be unrecoverable.
 
-Here are two shops. Both have three jobs, both have the blocking rule below,
-both are otherwise the same file:
-
-**Shop A** — every job takes the machines in the same order:
-
-| job | first | then |
-| --- | --- | --- |
-| `a` | m1 | m2 |
-| `b` | m1 | m2 |
-| `c` | m1 | m2 |
-
-**Shop B** — each job has its own order:
+Three jobs and three machines, each job needing two of them:
 
 | job | first | then |
 | --- | --- | --- |
@@ -29,35 +21,9 @@ both are otherwise the same file:
 | `b` | m2 | m3 |
 | `c` | m3 | m1 |
 
-In **Shop A** the jobs queue. They contend for m1, one wins, the others wait —
-but every job is trying to go the same way through the shop, so the one in
-front is always the one that can move. There is congestion and no dilemma.
-
-In **Shop B** read down the columns: the routings chase each other in a
-**cycle**. `a` wants what `c` starts on, `b` wants what `a` starts on, `c`
-wants what `b` starts on. Now who goes first is a real decision, and some
-answers are unrecoverable.
-
-That is not a claim you have to take on trust — both shops are in this
-directory, and `pol` answers them differently:
-
-```
-jobshop-samerouting.pol   holds  never-stuck     (exit 0)
-jobshop.pol               fails  never-stuck     (exit 1)
-```
-
-`diff` the two files and you get **exactly two lines**, both of them the
-routing table:
-
-```diff
--  (first  (a m1) (b m2) (c m3))
--  (second (a m2) (b m3) (c m1))
-+  (first  (a m1) (b m1) (c m1))
-+  (second (a m2) (b m2) (c m2))
-```
-
-Same blocking rule, same jobs, same machines — `m3` simply sits idle in Shop A —
-same forms, same questions. Take the cycle out and the deadlock goes with it.
+Read down the columns and the trouble is already visible: the three routings
+chase each other in a **cycle**. `a` wants what `c` starts on, `b` wants what
+`a` starts on, `c` wants what `b` starts on.
 
 ## What "blocking" means, and why it is the interesting case
 
@@ -150,40 +116,20 @@ Appendix G draws the same line — "quantities and arithmetic … out of scope,
 unless honestly reduced to small named scales". A blocking shop's hardest
 question happens to fall on Pol's side of it.
 
-## What it taught us about the language
+## One thing worth copying from this model
 
-The models here and in `../queens/` are duplicated in different shapes, and the
-difference decides what sugar can do:
+A form-generated transition is **anonymous**, which is why each form here takes
+an `N` slot for the move's name. Without it the deadlock witness reads
+`#0 #3 #6` — a correct trace and an unreadable one, which is the worst
+combination for the single output a failing `live` exists to produce.
 
-| | duplicated over | can a form collapse it? |
-| --- | --- | --- |
-| queens | (queen, **row**) — 64 moves | **no** — `set` writes a literal, so each row needs its own move |
-| job shop | (job) — 3 moves each | **yes** — one `(job-of …)` line per job |
-
-Adding a fourth job here is **one line**. Adding a ninth row to queens is eight
-more transitions. Both are "the model is repetitive", and only one of them is a
-sugar problem.
-
-**A form-generated transition is anonymous**, which the `N` slot in each form
-exists to fix. Without it the deadlock witness reads `#0 #3 #6` — the trace is
-correct and unreadable, which is the worst combination for the one output a
-`live` failure exists to produce. Passing the move's name as a slot costs an
-argument per invocation and nobody would discover it unaided; it is the reason
-`(job-of a a-enters a-advances a-leaves)` looks the way it does.
-
-**At scale, this model wants what queens wants.** Two operations per job fit in
-named stages. A real routing is *n* operations, which wants a cursor walking the
-job's chain — `(set j.cursor j.cursor.next)` — and `set` takes a literal.
-That is `docs/set-as-chain.md`, arrived at here from a domain rather than from a
-puzzle, which is the evidence that note asked for before recommending anything.
+Passing the name costs an argument per invocation and nobody would think to do
+it unprompted; it is the reason `(job-of a a-enters a-advances a-leaves)` looks
+the way it does.
 
 ## Files
 
-- `jobshop.pol` — the shop, with the cycle. Three forms, one line per job.
-- `jobshop-samerouting.pol` — the same file with every job routed m1→m2, so
-  there is no cycle to close. `never-stuck` holds. It differs from
-  `jobshop.pol` by two lines and exists to make the claim above checkable
-  rather than asserted; the test suite asserts both verdicts.
+- `jobshop.pol` — the shop. Three forms, one line per job.
 - `jobshop.claims` — the two questions, kept next door (wish 12).
 - `jobshop.rules` — the same two, re-asked of the rules engine, so the
   cross-check oracle can compare two implementations of one question. Note the

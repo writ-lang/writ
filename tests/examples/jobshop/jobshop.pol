@@ -54,10 +54,7 @@
 (use shop)
 (initial start)
 
-; Adding a fourth job is ONE line. That is the difference between this and
-; tests/examples/queens: a job shop's moves vary by ENTITY, which a form can
-; abstract, while a queen's vary by (queen, ROW) and the row must be a literal
-; in the effect — so no form can collapse them.
+; Adding a fourth job is one line.
 (job-of a a-enters a-advances a-leaves)
 (job-of b b-enters b-advances b-leaves)
 (job-of c c-enters c-advances c-leaves)
