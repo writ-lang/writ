@@ -72,28 +72,22 @@
 (job-of b b-enters b-advances b-leaves)
 (job-of c c-enters c-advances c-leaves)
 
-; The clock. One transition per tick, for want of a chain on the right of `set`.
-(transition tick-1
-  (when (is clk.at t1))
-  (do (set clk.at t2) (set a.moved no) (set b.moved no) (set c.moved no)))
-(transition tick-2
-  (when (is clk.at t2))
-  (do (set clk.at t3) (set a.moved no) (set b.moved no) (set c.moved no)))
-(transition tick-3
-  (when (is clk.at t3))
-  (do (set clk.at t4) (set a.moved no) (set b.moved no) (set c.moved no)))
-(transition tick-4
-  (when (is clk.at t4))
-  (do (set clk.at t5) (set a.moved no) (set b.moved no) (set c.moved no)))
-(transition tick-5
-  (when (is clk.at t5))
-  (do (set clk.at t6) (set a.moved no) (set b.moved no) (set c.moved no)))
-(transition tick-6
-  (when (is clk.at t6))
-  (do (set clk.at t7) (set a.moved no) (set b.moved no) (set c.moved no)))
-(transition tick-7
-  (when (is clk.at t7))
-  (do (set clk.at t8) (set a.moved no) (set b.moved no) (set c.moved no)))
-(transition tick-8
-  (when (is clk.at t8))
-  (do (set clk.at t9) (set a.moved no) (set b.moved no) (set c.moved no)))
+; The clock. One transition per tick, for want of a chain on the right of
+; `set` — but the BODY is written once. `(tick N FROM TO)` is the same
+; name-carrying shape as the three move forms above, so a witness still reads
+; `tick-1` rather than an anonymous move, and the roster of jobs to un-flag
+; appears in ONE place: a fourth job is one edit here, not eight.
+;
+; What no form can do is generate the eight invocations, because a form cannot
+; map over its `&rest` (§10.2, and deliberately — the same power would let a
+; form rewrite `or`). So the ladder is still walked by hand. Eight lines of
+; hand-walking is the honest floor until `set` takes a chain.
+(form (tick N FROM TO)
+  => (transition N
+       (when (is clk.at FROM))
+       (do (set clk.at TO)
+           (set a.moved no) (set b.moved no) (set c.moved no))))
+
+(tick tick-1 t1 t2)  (tick tick-2 t2 t3)  (tick tick-3 t3 t4)
+(tick tick-4 t4 t5)  (tick tick-5 t5 t6)  (tick tick-6 t6 t7)
+(tick tick-7 t7 t8)  (tick tick-8 t8 t9)

@@ -3,7 +3,8 @@
   "scopeName": "source.pol",
   "fileTypes": [
     "pol",
-    "claims"
+    "claims",
+    "rules"
   ],
   "patterns": [
     {
@@ -31,10 +32,16 @@
       "include": "#interrogator"
     },
     {
+      "include": "#rules-builtin"
+    },
+    {
       "include": "#rest"
     },
     {
       "include": "#equals"
+    },
+    {
+      "include": "#variable"
     }
   ],
   "repository": {
@@ -94,6 +101,16 @@
       "comment": "The equation operator = at head position (kernel \u00a79): (= P1 P2).",
       "name": "keyword.operator.equation.pol",
       "match": "(?<=\\()=(?=\\s)"
+    },
+    "rules-builtin": {
+      "comment": "The extension's five BUILT-IN relations (core/syntax/rules_parser.ml, `builtins`): situation/init/edge/gap-edge/holds. Their arities and sorts are fixed, so a literal headed by one of these is never a user relation \u2014 which is exactly why they read as vocabulary and not as a name. Head position only. Kept as whole ( | ) alternatives for .afk-flow/check-grammar.py.",
+      "name": "support.function.rules-builtin.pol",
+      "match": "(?<=\\()(situation|init|edge|gap-edge|holds)(?![-\\w])"
+    },
+    "variable": {
+      "comment": "A rule VARIABLE (core/data/rules.ml, `is_var`) and a form SLOT (core/syntax/forms.ml, `is_slot`) are the same lexical class \u2014 at least one A-Z and no a-z \u2014 so one pattern paints both, and a .rules file stops being a wall of unpainted S and T. Last, so a reserved word never loses to it. The lookbehind keeps it off the tail of a dotted chain (SUBJECT.headed-by paints the root only) and off mid-token positions.",
+      "name": "variable.parameter.pol",
+      "match": "(?<![A-Za-z0-9_.&-])(?![A-Za-z0-9_-]*[a-z])[A-Z][A-Za-z0-9_-]*(?![A-Za-z0-9_-])"
     }
   }
 }
