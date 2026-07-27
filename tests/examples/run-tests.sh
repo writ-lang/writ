@@ -99,6 +99,25 @@ island() {
   has "island:    cal could be nothing at all" "$out" "fails  cal-can-be-knight"
 }
 
+jobshop() {
+  echo "== A blocking job shop =="
+  echo "   Q: three jobs, three machines, no buffers — can every schedule still"
+  echo "      finish, or can the shop walk into a deadlock?"
+  out=$("$POL" check "$here/jobshop/jobshop.pol" --claims "$here/jobshop/jobshop.claims" 2>&1)
+  st=$?
+  printf '%s\n' "$out" | sed 's/^/     | /'
+  exit_is "jobshop: check reports findings" "$st" 1
+  has "jobshop: 51 reachable schedules" "$out" "states: 51"
+  has "jobshop: A. some schedule finishes every job" "$out" "holds  all-finish"
+  near "jobshop:    and pol shows one" "$out" "holds  all-finish" "witness:"
+  has "jobshop: B. but not EVERY schedule can still finish" "$out" "fails  never-stuck"
+  has "jobshop:    the deadlock is named in full" "$out" \
+    "m1.held-by=a m2.held-by=b m3.held-by=c"
+  near "jobshop:    reached by three moves, one per job" "$out" "fails  never-stuck" "a-enters"
+  near "jobshop:    each job holding the machine the next one wants" "$out" \
+    "fails  never-stuck" "c-enters"
+}
+
 oversight() {
   echo "== Institutional architecture (kernel-spec §3, §4 running example) =="
   echo "   Q: can one lawful move permanently destroy accountability, and what"
@@ -227,7 +246,7 @@ crosscheck() {
 
 # The scenarios, in order — the single source of truth for `all`, numbering
 # (1-based, as `list` prints), and name lookup. Each is a function above.
-scenarios="river island queens oversight workflow access control gitcompare crosscheck"
+scenarios="river island queens jobshop oversight workflow access control gitcompare crosscheck"
 
 list_scenarios() {
   echo "tests (run one by name or number, e.g. '$0 3' or '$0 river'):"

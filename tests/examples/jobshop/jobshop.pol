@@ -1,0 +1,63 @@
+; jobshop.pol — a BLOCKING job shop, and the question that matters about one.
+;
+; Three jobs, three machines, routed in a cycle: a goes m1→m2, b goes m2→m3,
+; c goes m3→m1. Blocking means no buffers — a job holds the machine it is on
+; until it has ACQUIRED the next one. That hold-and-wait is the whole point:
+; without it a job shop cannot deadlock, and with it this one can.
+;
+; What is NOT modelled: durations, and therefore makespan. Those are arithmetic
+; and Pol has none (Pivotal idea 3). The interesting question about a blocking
+; shop is not how long a schedule takes but whether one exists at all — which is
+; a `live` question, and exactly what the Prologue's wish 8 asks for.
+
+(load "stdlib.pol")
+
+(schema shop
+  (type machine (arrow held-by (to job) vacatable))
+  (type stage-t (queued on-first on-second done))
+  (type job
+    (arrow stage  (to stage-t))
+    (arrow first  (to machine) fixed)
+    (arrow second (to machine) fixed)))
+
+; One job's whole life, named once and instantiated per job. The N slot carries
+; the MOVE'S NAME: a form-generated transition is otherwise anonymous, and a
+; witness then reads `#0 #3 #6` instead of naming the moves that deadlocked.
+(form (enters J N)
+  => (transition N
+       (when (and (is J.stage queued) (not (defined J.first.held-by))))
+       (do (set J.first.held-by J) (set J.stage on-first))))
+
+; The hold-and-wait, in one move: acquire the second machine, and only THEN
+; release the first. Swap those two effects and the shop cannot deadlock.
+(form (advances J N)
+  => (transition N
+       (when (and (is J.stage on-first) (not (defined J.second.held-by))))
+       (do (set J.second.held-by J) (vacate J.first.held-by)
+           (set J.stage on-second))))
+
+(form (leaves J N)
+  => (transition N
+       (when (is J.stage on-second))
+       (do (vacate J.second.held-by) (set J.stage done))))
+
+(form (job-of J E A L) => (enters J E) (advances J A) (leaves J L))
+
+(instance start (of shop)
+  (machine m1 m2 m3)
+  (job a b c)
+  (first  (a m1) (b m2) (c m3))     ; a cycle: the routings chase each other
+  (second (a m2) (b m3) (c m1))
+  (stage  (a queued) (b queued) (c queued))
+  (held-by (m1 vacant) (m2 vacant) (m3 vacant)))
+
+(use shop)
+(initial start)
+
+; Adding a fourth job is ONE line. That is the difference between this and
+; tests/examples/queens: a job shop's moves vary by ENTITY, which a form can
+; abstract, while a queen's vary by (queen, ROW) and the row must be a literal
+; in the effect — so no form can collapse them.
+(job-of a a-enters a-advances a-leaves)
+(job-of b b-enters b-advances b-leaves)
+(job-of c c-enters c-advances c-leaves)

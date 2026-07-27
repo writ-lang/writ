@@ -8,7 +8,9 @@ compare`) and asserts the verdicts.
 
 The first batch is puzzles: the two from the spec's **Prologue** (Appendices C
 and D), faithful to the spec, plus **eight queens**, which is not from the spec
-but is the first thing the language could state once `differ` existed. Each
+but is the first thing the language could state once `differ` existed, and a
+**blocking job shop**, whose deadlock is the trap detector at work on a real
+scheduling question. Each
 move is given a name so `pol` prints a legible solution path (see *Notes on the
 solution path* below). The second batch is the three **§3 scenarios** — institutional architecture, a regulated
 workflow, and access & privilege — which exercise `equation` laws, `accept`
@@ -71,13 +73,34 @@ Twenty literal conjuncts per move became nine that read. The models are still
 generated, there being one move per (column, row), but that is the move set's
 doing rather than the arithmetic's.
 
+### 4. A blocking job shop — `jobshop/`
+Three jobs, three machines, routed in a cycle, with no buffers: a job holds the
+machine it is on until it has *acquired* the next one.
+
+`pol check` answers **`holds all-finish`** — some schedule finishes every job —
+and then **`fails never-stuck`**, naming a three-move circular deadlock in
+full: `a-enters, b-enters, c-enters`, after which each job holds the machine
+the next one is waiting for.
+
+The pair is the lesson. A `possible` that holds says a good schedule exists and
+says nothing about the bad ones you can walk into first; `live` is the
+Prologue's wish 8, and it is the question a scheduler actually needs. Durations
+and makespan are deliberately absent — those are arithmetic — but the classical
+hard question about a *blocking* shop is whether a schedule exists at all,
+which is pure reachability.
+
+It also pins down what sugar can and cannot do. Adding a fourth job is **one
+line**, because a job shop's moves vary by entity and a form can abstract that;
+queens' vary by (queen, row) and no form can, since `set` writes a literal. See
+[`jobshop/README.md`](jobshop/README.md).
+
 ## The spec's §3 scenarios
 
 Three institutional models, each exercising machinery the Prologue puzzles do
 not: **`equation` laws + `accept` acknowledgments** (§8.6, §15, §16.3) and
 **`pol compare`** (§17).
 
-### 4. Institutional architecture (§3 / §4 running example) — `oversight/`
+### 5. Institutional architecture (§3 / §4 running example) — `oversight/`
 The kernel-spec's own running example: two oversight agencies, one case
 (`docket`), a possibly-vacant judge, and the structural law `same-agency` (the
 investigating and prosecuting agencies must stand on equal footing). Schema,
@@ -118,7 +141,7 @@ never conclude from that situation. `same-agency` and `conviction-possible` stay
 > (the bureau the capture power actually targets). That is the only departure
 > from §4; capturing the prosecutor instead would add two more breakers.
 
-### 5. Regulated workflow — KYC / claims (§3) — `workflow/`
+### 6. Regulated workflow — KYC / claims (§3) — `workflow/`
 A case wired (fixed) to a reviewing officer and its unit of record, a mutable
 approving `officer`, and a vacatable `assignee` slot. The law `officer-in-unit`
 (`(= case.officer.unit case.unit)`) demands the approving officer belong to the
@@ -135,7 +158,7 @@ unit of record.
   stuck**. Even in the escalation state (no assignee) the case can be assigned
   and then settled, so a settled situation stays reachable from everywhere.
 
-### 6. Access & privilege (§3) — `access/`
+### 7. Access & privilege (§3) — `access/`
 Accounts with a `role` (user | admin), a `sponsor` (who vouches for them), and a
 fixed `source` of authority. The law `traces-to-root`
 (`(= account.sponsor.source account.source)`) demands each account inherit its
@@ -160,14 +183,14 @@ authority from its sponsor — the chain back to the security root.
 Two thin tests that exercise the last of the §17 command line on the models
 above (no new model files).
 
-### 7. `pol control` — dynamics as data — `control`
+### 8. `pol control` — dynamics as data — `control`
 `pol control oversight.pol` emits the model's **move list** as an instance of the
 standard library's `quiver` schema: one `node`, one `edge` per transition. The
 test asserts it is a `(of quiver)` instance and then **wraps and re-checks it**,
 proving the export is real Pol data that builds with the same machinery — the
 seam toward simulation maps between two models' move lists.
 
-### 8. `pol compare --git` — an amendment across commits — `gitcompare`
+### 9. `pol compare --git` — an amendment across commits — `gitcompare`
 The `oversight` repeal, but as *history* rather than two files. The test spins up
 a throwaway git repo, commits the law, then commits the repeal to the same path,
 and runs `pol compare --git HEAD~1 HEAD law.pol` — reporting `accountability

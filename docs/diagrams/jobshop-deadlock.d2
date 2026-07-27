@@ -1,0 +1,27 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 200
+  }
+}
+direction: right
+
+classes: {
+  held: {style: {stroke-width: 3}}
+  wanted: {style: {stroke-dash: 4}}
+}
+
+a: "job a" {shape: circle}
+b: "job b" {shape: circle}
+c: "job c" {shape: circle}
+m1
+m2
+m3
+
+a -> m1: holds {class: held}
+b -> m2: holds {class: held}
+c -> m3: holds {class: held}
+
+m2 -> a: wanted by {class: wanted}
+m3 -> b: wanted by {class: wanted}
+m1 -> c: wanted by {class: wanted}
