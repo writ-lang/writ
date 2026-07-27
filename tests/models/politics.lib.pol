@@ -71,7 +71,7 @@
        (do (set SUBJECT.independence independent))))
 
 ; A headship, and its dismissal:
-(form (headship) => (arrow headed-by (to person) vacatable))
+(form (headship) => (maybe headed-by person))
 (form (dismissed-by SUBJECT HOLDER)
   => (transition (when (defined SUBJECT.headed-by))
        (do (vacate SUBJECT.headed-by))))

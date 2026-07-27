@@ -1,0 +1,13 @@
+; Extension §4: a negated literal is never a generator, so `X` is used by
+; `(not (q X))` with nothing before it able to bind it. Rejected at the variable
+; — the alternative would be closed-world over a guessed sort.
+;
+; Both columns are declared so the file fails range restriction and nothing
+; else: an untyped `q` would fail sort inference first and prove the wrong
+; thing.
+
+(relation r (person))
+(relation q (person))
+
+(rule (r X)
+  (not (q X)))

@@ -15,6 +15,13 @@ type t = {
   edges : edge list;
   initial : State.t;
   dist : int State.M.t;
+  (* The BFS tree: the state a state was first reached FROM, and the move that
+     did it. Recorded during the search because that is when it is known for
+     free — the alternative is [shortest_path] rediscovering it afterwards by
+     scanning every edge for a predecessor at distance d-1, which is
+     O(edges) per step of every route and was, measured, the dominant cost of
+     `pol check` on a large space. *)
+  parent : (State.t * string) State.M.t;
   transitions : Model.transition list;
 }
 
@@ -36,7 +43,11 @@ let build (m : Model.t) : (t, string) result =
       let count = ref 0 in
       let overflow = ref false in
       let queue = Queue.create () in
-      let add_state s d =
+      let parent = ref State.M.empty in
+      let add_state ?from s d =
+        (match from with
+        | Some (src, via) -> parent := State.M.add s (src, via) !parent
+        | None -> ());
         index := State.M.add s !count !index;
         dist := State.M.add s d !dist;
         states := s :: !states;
@@ -54,12 +65,17 @@ let build (m : Model.t) : (t, string) result =
                 match tr.name with Some n -> n | None -> "#" ^ string_of_int i
               in
               match Eval.apply ctx s tr.effects with
+              (* A move whose chain-valued [set] has no answer here is NOT
+                 available (§10.3). No edge of any kind — an edge to this same
+                 situation would be a self-loop, and [dead_ends] below would
+                 then never report the situation as stuck. *)
+              | `Blocked -> ()
               | `Gap msg -> edges := { src = s; via; dst = `Gap msg } :: !edges
               | `Next s' ->
                   edges := { src = s; via; dst = `To s' } :: !edges;
                   if not (State.M.mem s' !index) then
                     if !count >= cap then overflow := true
-                    else add_state s' (d + 1)
+                    else add_state ~from:(s, via) s' (d + 1)
             end)
           m.transitions
       done;
@@ -73,33 +89,22 @@ let build (m : Model.t) : (t, string) result =
             edges = List.rev !edges;
             initial = init;
             dist = !dist;
+            parent = !parent;
             transitions = m.transitions;
           }
 
 let same (a : State.t) (b : State.t) : bool = Value.compare_cells a b = 0
 
-(* A fewest-moves path from the initial state to [target], as [via] labels. Walk
-   backward: from a state at distance [d] pick any real in-edge from a state at
-   distance [d-1], until the initial state (distance 0) is reached. *)
+(* A fewest-moves path from the initial state to [target], as [via] labels.
+   The BFS tree is already the answer: every state records the state it was
+   first reached from, and BFS reaches a state first at its shortest distance,
+   so walking parents up to the initial state IS the shortest route. Linear in
+   the route's length, and independent of the number of edges. *)
 let shortest_path (t : t) (target : State.t) : string list =
   let rec go cur acc =
-    match State.M.find_opt cur t.dist with
-    | Some 0 | None -> acc
-    | Some d -> (
-        let pred =
-          List.find_opt
-            (fun e ->
-              match e.dst with
-              | `To s' -> (
-                  same s' cur
-                  &&
-                  match State.M.find_opt e.src t.dist with
-                  | Some ds -> ds = d - 1
-                  | None -> false)
-              | `Gap _ -> false)
-            t.edges
-        in
-        match pred with Some e -> go e.src (e.via :: acc) | None -> acc)
+    match State.M.find_opt cur t.parent with
+    | None -> acc (* the initial state has no parent — the walk is done *)
+    | Some (src, via) -> go src (via :: acc)
   in
   go target []
 
@@ -153,8 +158,18 @@ let enabled_of (t : t) (s : State.t) : edge list =
    ([enabled_of s = []] — no real move AND no gap edge). Each is paired with its
    shortest route in (empty for the initial situation). BFS order. *)
 let dead_ends (t : t) : (State.t * string list) list =
+  (* ONE pass over the edges marks every state that has an outgoing one; a dead
+     end is a state the pass never marked. The obvious spelling — [enabled_of]
+     per state — rescans the whole edge list for each, which is O(states ×
+     edges) and measured as 28 of the 31 seconds `pol check` spent on a
+     16 870-state space. The search that built that space took 2. *)
+  let has_out =
+    List.fold_left
+      (fun acc e -> State.M.add e.src true acc)
+      State.M.empty t.edges
+  in
   Array.to_list t.states
-  |> List.filter (fun s -> enabled_of t s = [])
+  |> List.filter (fun s -> not (State.M.mem s has_out))
   |> List.map (fun s -> (s, shortest_path t s))
 
 (* The reachable gaps, DEDUPED by gap site — a site being the identity of the

@@ -63,6 +63,25 @@ A rules file is a third file type alongside `.pol`
   (subordinate Z Y))              ; exclude; the tool is where it belongs
 ```
 
+- A **declaration** is `(relation NAME ARITY)` — as above, and the common
+  case — or `(relation NAME (T1 … Tn))`, which gives a **sort per column**:
+  `Situation`, `Edge`, or a schema type name. Arity is then the list's length.
+  The untyped form stays legal and needs no annotation wherever the columns
+  can be typed from use; the typed form **seeds** each column's sort directly,
+  and is required where nothing else can supply one. It is not optional
+  sugar: arrow names are scoped to the type that owns them
+  ([§7](kernel-spec.md#7-names)), so one name may be shared by several types,
+  and a variable rooted in a shared arrow name — `X.at`, where both
+  `traveler` and `cargo` own `at` — cannot be typed from the arrow. No
+  built-in supplies an entity sort either, so without the annotation such a
+  rule is unwritable. A typed column is checked like any other: a term
+  resolving to a different sort is a conflict at that term.
+
+  ```lisp
+  (relation subordinate (person person))   ; the declaration above, typed
+  (relation across (Situation cargo))      ; sorts may be mixed
+  ```
+
 - A **head** is a declared relation applied to variables or constants.
 - A **body** is a conjunction of literals: kernel guards over paths
   (`is`, `defined`, and their boolean combinations —
@@ -73,8 +92,29 @@ A rules file is a third file type alongside `.pol`
   in an entity position of type T ranges over T's roster; in a situation
   position, over reachable situations; in an edge position, over
   transitions). A variable whose type cannot be inferred is an error at the
-  variable.
+  variable. "First use" is resolved by a **program-wide least fixpoint** over
+  `(relation, column) → sort`, not by a left-to-right pass: in the transitive
+  closure above, `Y` occurs only in the head and in a sort-transparent
+  relation literal, so nothing in that rule types it — it is typed by
+  `subordinate`'s second column, learned from the other rule. A left-to-right
+  reading would reject this section's own example. Constants never seed a
+  sort; a constant in a sorted column is checked against it.
 - Semantics: least fixpoint, computed bottom-up (semi-naïve), per stratum.
+
+**`is` differs here from the kernel's, deliberately.** §10.2 lets the right of
+`is` be a second *chain*, so a model can guard on `(is c.approver c.preparer)`.
+In a rule body the right of `is` is a **term** — a variable or a constant — and
+a dotted atom written there is a constant, rejected by the sort checker as a
+value outside the arrow's codomain. Nothing is lost: equality between two
+chains is what a **shared variable** already expresses, and expresses better,
+since the join also *binds*:
+
+```lisp
+(rule (conflict C) (is C.approver P) (is C.preparer P))
+```
+
+The kernel needs the chain form because it has no variables to join on; the
+engine has them, so it does not.
 
 ## 2. Built-in relations — the derived category as data
 
@@ -87,8 +127,26 @@ relations below are named for it.
 | `(situation S)`      | S is a reachable situation                              |
 | `(init S)`           | S is the initial situation                              |
 | `(edge E S1 S2)`     | transition named E maps situation S1 to situation S2    |
-| `(holds S G)`        | guard G is true in S (G a closed guard datum)           |
+| `(holds S G)`        | guard G is true in S (G a guard datum, not a variable)  |
 | `(gap-edge E S)`     | transition E fires at S with no successor               |
+
+`(holds S G)`'s second argument is the one position in the language that
+is **not a term**: G is a guard datum, never a variable, never sorted,
+never unified. It is not, however, required to be *closed*. Its free
+variables are the surrounding rule's variables, bound exactly as they
+would be in a bare guard literal — so `(holds S (is X.a Y))` with `S` and
+`X` already bound derives a `Y` for each situation, over a **mutable**
+cell. That is the only way to ask "in situation S, where does this
+arrow point", which is what §2's title claims; the fixed-arrow
+restriction of a bare guard applies only where there is no situation to
+read the cell in.
+
+*This paragraph replaces the word "closed", which earlier editions used
+here. It was too strong: read strictly it forbade the binding above and
+left no way to express it, while both consequences spelled out below —
+the modality encodings and backward analysis — work either way. The
+narrower claim, that G is a datum rather than a term, is what the rest of
+this document actually relies on.*
 
 Two consequences worth spelling out:
 

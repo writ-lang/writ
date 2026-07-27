@@ -86,8 +86,14 @@ let decode_accepts (d : Reader.t) : (Claims.accept list, Errors.t) result =
 (* [inst] is unused: property formulas are no longer path-checked here (their
    entity env belonged to that check), and query guards carry their own binder
    env. The parameter stays for the loader's fixed call shape. *)
-let parse (schema : Schema.t) (_inst : Instance.t) (datums : Reader.t list) :
+let parse (schema : Schema.t) (inst : Instance.t) (datums : Reader.t list) :
     (Claims.t, Errors.t) result =
+  (* §7 has no shadowing, and a [where] or [some] binder here can shadow a name
+     from the model just as one in a transition can — the guards are the same
+     guards (§16.1, §16.2). The model is already built by the time a .claims
+     file is parsed, so the names come off it rather than from a second scan;
+     [Names] states the rule for both. *)
+  let* () = Names.check_binders (Names.taken_in schema inst) datums in
   let rec go props queries accepts = function
     | [] ->
         Ok

@@ -87,8 +87,8 @@ let () =
             match (t.Model.when_, t.Model.effects) with
             | ( Model.Is
                   ( { Value.root = "watchdog"; steps = [ "independence" ] },
-                    "independent" ),
-                [ Model.Set (_, "captured") ] ) ->
+                    Model.Lit "independent" ),
+                [ Model.Set (_, Model.Lit "captured") ] ) ->
                 true
             | _ -> false)
           m.Model.transitions
@@ -130,6 +130,91 @@ let () =
                   check "na: the report prints the n/a token"
                     (String.length r >= 3 && String.sub r 0 3 = "n/a")
               | _ -> check "na: expected exactly one property" false)))
+
+(* The many-to-many form is `span`, and `relation` belongs to the .rules file
+   type. Both halves are checked against the REAL stdlib, expanded by the real
+   expander, because the collision they guard against was invisible to a test
+   that transcribed the form instead of loading it: one expander serves every
+   file type, so a stdlib form named `relation` rewrites a rules declaration. *)
+
+let rec sexp (d : Reader.t) =
+  match d with
+  | Reader.Atom (a, _) -> a
+  | Reader.List (xs, _) -> "(" ^ String.concat " " (List.map sexp xs) ^ ")"
+
+let () =
+  match Loader.load_library resolve "stdlib.pol" with
+  | Error e -> check ("stdlib for span: " ^ Errors.to_string e) false
+  | Ok lib ->
+      let expand src =
+        match Reader.read_string src with
+        | Error e -> failwith ("read: " ^ Errors.to_string e)
+        | Ok ds -> (
+            match Expander.expand (lib @ ds) with
+            | Error e -> failwith ("expand: " ^ Errors.to_string e)
+            | Ok out -> List.map sexp out)
+      in
+      check "span: expands to a junction type with two fixed arrows"
+        (List.mem
+           "(type link (arrow left (to a) fixed) (arrow right (to b) fixed))"
+           (expand "(span link a b)"));
+      check "relation: a rules declaration survives the stdlib untouched"
+        (List.mem "(relation subordinate 2)"
+           (expand "(relation subordinate 2)"))
+
+(* …and no library may take either word back by declaring a form of that name. *)
+let () =
+  List.iter
+    (fun w ->
+      let src = "(form (" ^ w ^ " X) => (type X))" in
+      match Reader.read_string src with
+      | Ok [ d ] -> (
+          match Forms.collect d ~earlier:[] with
+          | Ok _ -> check ("a form may not be named `" ^ w ^ "`") false
+          | Error e ->
+              check
+                ("a form named `" ^ w ^ "` is refused as reserved: "
+               ^ e.Errors.msg)
+                (String.length e.Errors.msg > 0
+                && e.Errors.pos <> None
+                && List.exists
+                     (fun s -> s = "reserved")
+                     (String.split_on_char ' ' e.Errors.msg)))
+      | _ -> check ("unreadable test source for `" ^ w ^ "`") false)
+    [ "relation"; "rule" ]
+
+let contains_sub ~sub s =
+  let ls = String.length s and lsub = String.length sub in
+  let rec go i =
+    if i + lsub > ls then false
+    else if String.sub s i lsub = sub then true
+    else go (i + 1)
+  in
+  go 0
+
+(* Cross-FILE is the case that bites in practice: neither file holds a duplicate
+   on its own, so the check has to run over the loaded universe (§6.2), after
+   inlining — which is why it lives in [Parser.collect_decls] and not in [Decl].
+   Uses the real loader and the real stdlib rather than a hand-built pair. *)
+let () =
+  let src =
+    "(load \"stdlib.pol\")\n\
+     (schema m (type hom (a b)))\n\
+     (instance i (of m))\n\
+     (use m)\n\
+     (initial i)"
+  in
+  let files = [ ("dup.pol", src) ] in
+  let resolve name =
+    match List.assoc_opt name files with Some s -> Ok s | None -> resolve name
+  in
+  match Loader.read_model resolve "dup.pol" with
+  | Ok _ ->
+      check "a model may not redeclare a type the loaded stdlib declares" false
+  | Error e ->
+      check "a model may not redeclare a type the loaded stdlib declares"
+        (contains_sub ~sub:"`hom` is already declared" e.Errors.msg
+        && e.Errors.pos <> None)
 
 let () =
   print_string ("data tests: " ^ string_of_int !passed ^ " checks passed\n")

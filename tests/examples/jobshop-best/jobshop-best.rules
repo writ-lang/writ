@@ -1,0 +1,29 @@
+; The makespan bounds, re-asked as derivations (extension §2), so the
+; cross-check oracle can compare two implementations of one question.
+;
+; POLARITY. Both properties here are `possible`, so both are encoded
+; POSITIVELY: the relation holds the reachable situations satisfying the
+; formula, and NON-EMPTY means the property holds. (`live`'s
+; counterexample-set encoding, and the trap of getting it backwards, is
+; explained in ../river/river.rules; nothing here is a `live`.)
+
+(load "../libraries/scheduling.lib.pol")
+
+(relation reach 2)
+(rule (reach S S) (situation S))
+(rule (reach S T) (edge E S M) (reach M T))
+
+; Finished, with the clock reading exactly tK. Non-empty ⟺ the property holds,
+; so `done-by-4` empty and `done-by-5` non-empty is the optimum pinned from
+; both sides.
+(relation done-by-4 1)
+(rule (done-by-4 T)
+  (init S)
+  (reach S T)
+  (holds T (and (all-done j) (is clk.at t4))))
+
+(relation done-by-5 1)
+(rule (done-by-5 T)
+  (init S)
+  (reach S T)
+  (holds T (and (all-done j) (is clk.at t5))))

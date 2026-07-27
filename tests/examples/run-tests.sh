@@ -55,6 +55,34 @@ river() {
   near "river:    stranding prey with its predator is the mistake" "$out" "fails  no-blunders" "stuck at:"
 }
 
+queens() {
+  echo "== Eight queens =="
+  echo "   Q: can eight queens stand on a board with none attacking another?"
+  out=$("$POL" check "$here/queens/queens.pol" --claims "$here/queens/queens.claims" 2>&1)
+  st=$?
+  printf '%s\n' "$out" | sed 's/^/     | /' | head -14
+  exit_is "queens: check exits clean — nothing is wrong with the board" "$st" 0
+  has "queens: 2057 situations, the column-ordered search tree" "$out" "states: 2057"
+  has "queens: A. eight queens CAN be placed" "$out" "holds  solvable"
+  near "queens:    and pol shows where they go" "$out" "holds  solvable" "witness:"
+  near "queens:    starting from a first-column placement" "$out" "holds  solvable" "1. place-"
+  # `near` looks six lines past its anchor and the witness is eight moves, so
+  # the last one is asserted on the numbered line it prints as — a spelling
+  # that occurs nowhere else, since dead ends are listed as "reached by:".
+  has "queens:    through to the eighth column" "$out" "8. place-"
+  # A complete board is a dead end reached in EIGHT moves — one per column,
+  # since the cursor advances exactly once per placement. The other dead ends
+  # are stuck prefixes, whose routes are shorter, which is why this counts
+  # route length rather than dead ends.
+  n=$(printf '%s\n' "$out" | grep 'reached by:' \
+      | awk -F'reached by:' '{ if (split($2, a, ",") == 8) c++ } END { print c+0 }')
+  if [ "$n" -eq 92 ]; then
+    ok "queens: B. all 92 complete boards are found (each a dead end)"
+  else
+    bad "queens: B. expected 92 complete boards, found $n"
+  fi
+}
+
 island() {
   echo "== Knights & knaves (kernel-spec Appendix D) =="
   echo "   Q: can every native be classified, and who could be a knight?"
@@ -71,6 +99,48 @@ island() {
   near "island:    and pol shows the reading that makes it so" "$out" "holds  abe-can-be-knight" "abe-is-knight"
   has "island:    bea could be a knight" "$out" "holds  bea-can-be-knight"
   has "island:    cal could be nothing at all" "$out" "fails  cal-can-be-knight"
+}
+
+jobshop_possible() {
+  echo "== A blocking job shop =="
+  echo "   Q: three jobs, three machines, no buffers — can every schedule still"
+  echo "      finish, or can the shop walk into a deadlock?"
+  out=$("$POL" check "$here/jobshop-possible/jobshop-possible.pol" --claims "$here/jobshop-possible/jobshop-possible.claims" 2>&1)
+  st=$?
+  printf '%s\n' "$out" | sed 's/^/     | /'
+  exit_is "jobshop-possible: check reports findings" "$st" 1
+  has "jobshop-possible: 51 reachable schedules" "$out" "states: 51"
+  has "jobshop-possible: A. some schedule finishes every job" "$out" "holds  all-finish"
+  near "jobshop-possible:    and pol shows one" "$out" "holds  all-finish" "witness:"
+  has "jobshop-possible: B. but not EVERY schedule can still finish" "$out" "fails  never-stuck"
+  has "jobshop-possible:    the deadlock is named in full" "$out" \
+    "m1.held-by=a m2.held-by=b m3.held-by=c"
+  near "jobshop-possible:    reached by three moves, one per job" "$out" "fails  never-stuck" "a-enters"
+  near "jobshop-possible:    each job holding the machine the next one wants" "$out" \
+    "fails  never-stuck" "c-enters"
+}
+
+jobshop_best() {
+  echo "== The same job shop, with a clock =="
+  echo "   Q: what is the SHORTEST schedule, and what does it look like?"
+  out=$("$POL" check "$here/jobshop-best/jobshop-best.pol" \
+    --claims "$here/jobshop-best/jobshop-best.claims" 2>&1)
+  st=$?
+  printf '%s\n' "$out" | sed 's/^/     | /'
+  exit_is "jobshop-best: check reports a finding (the too-tight bound)" "$st" 1
+  has "jobshop-best: 1314 situations — the shop times the clock" "$out" "states: 1314"
+  has "jobshop-best: A. four ticks is NOT enough" "$out" "fails  done-by-4"
+  has "jobshop-best: B. five ticks is — the optimum, pinned from both sides" "$out" \
+    "holds  done-by-5"
+  near "jobshop-best:    and pol prints the optimal schedule" "$out" \
+    "holds  done-by-5" "witness:"
+  # The optimum overlaps a and b while holding c back — which is exactly what
+  # jobshop-possible proved was necessary, since all three in the shop at once
+  # is the deadlock.
+  near "jobshop-best:    it starts two jobs in the first tick" "$out" \
+    "holds  done-by-5" "b-enters"
+  near "jobshop-best:    and only then advances the clock" "$out" \
+    "holds  done-by-5" "3. tick"
 }
 
 oversight() {
@@ -175,9 +245,33 @@ gitcompare() {
   rm -rf "$tmp"
 }
 
+crosscheck() {
+  echo "== The modality cross-check — two implementations of one question =="
+  echo "   Q: does the rules engine, asked the SAME properties over the SAME"
+  echo "      space, reach the same verdicts as \`pol check\`?"
+  out=$(POL="$POL" sh "$here/modality-cross-check.sh" 2>&1)
+  st=$?
+  printf '%s\n' "$out" | sed 's/^/     | /'
+  exit_is "cross-check: the two implementations agree everywhere" "$st" 0
+  # The property total is counted from the claims files rather than written
+  # down, so adding a property to any scenario obliges the oracle to cover it
+  # instead of quietly shrinking the cross-check.
+  want=$(cat "$here"/*/*.claims | grep -c '^(property')
+  has "cross-check: all $want properties in the repo were considered" "$out" \
+    "considered $want properties"
+  has "cross-check: A. a possible is its satisfying set — non-empty holds" \
+    "$out" "river/solvable  possible: satisfying set of"
+  has "cross-check: B. a live is its COUNTEREXAMPLE set — empty holds" \
+    "$out" "workflow/settle-able  live: counterexample set of 0"
+  has "cross-check:    and a failing live names its witnesses" \
+    "$out" "access/revocation-possible  live: counterexample set of 4"
+  has "cross-check: C. the unexercised never branch says so" "$out" \
+    "never: 0 properties — branch unexercised"
+}
+
 # The scenarios, in order — the single source of truth for `all`, numbering
 # (1-based, as `list` prints), and name lookup. Each is a function above.
-scenarios="river island oversight workflow access control gitcompare"
+scenarios="river island queens jobshop_possible jobshop_best oversight workflow access control gitcompare crosscheck"
 
 list_scenarios() {
   echo "tests (run one by name or number, e.g. '$0 3' or '$0 river'):"

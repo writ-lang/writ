@@ -1,0 +1,38 @@
+; The census questions, re-asked as derivations (extension §2), so that
+; `modality-cross-check.sh` can hold the rules engine and `pol check` up against
+; each other on island.claims's four properties.
+;
+; POLARITY. All four are `possible`, which is the one modality with a POSITIVE
+; encoding: the relation is the set of reachable situations satisfying F, and
+; NON-EMPTY means the property holds. (The `live`/`never` encodings are the
+; opposite — counterexample sets, empty when the property holds. See
+; river.rules, which has one of each, for why.)
+;
+; Two of these four are expected to derive NOTHING, and an empty answer set is
+; the answer, not a failure: cal said "I am a knave", which no kind makes
+; consistent, so the move that would read him is the declared gap.
+
+(relation reach 2)
+(rule (reach S S) (situation S))
+(rule (reach S T) (edge E S M) (reach M T))
+
+; Every native classified at once. Empty ⟺ `fails census-completable`.
+(relation census-completable 1)
+(rule (census-completable T)
+  (init S)
+  (reach S T)
+  (holds T (and (defined abe.kind) (defined bea.kind) (defined cal.kind))))
+
+; "Which natives could be knights?", asked once per native — the readings under
+; which each is a knight. Non-empty ⟺ that native can be one.
+(relation abe-can-be-knight 1)
+(rule (abe-can-be-knight T)
+  (init S) (reach S T) (holds T (is abe.kind knight)))
+
+(relation bea-can-be-knight 1)
+(rule (bea-can-be-knight T)
+  (init S) (reach S T) (holds T (is bea.kind knight)))
+
+(relation cal-can-be-knight 1)
+(rule (cal-can-be-knight T)
+  (init S) (reach S T) (holds T (is cal.kind knight)))

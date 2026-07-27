@@ -38,7 +38,9 @@ let rec map_guard (mp : (string * string) list) (g : Model.guard) : Model.guard
   | Model.And gs -> Model.And (List.map (map_guard mp) gs)
   | Model.Or gs -> Model.Or (List.map (map_guard mp) gs)
   | Model.Not g -> Model.Not (map_guard mp g)
-  | Model.Is (p, v) -> Model.Is (rename_path mp p, v)
+  | Model.Is (p, Model.Chain q) ->
+      Model.Is (rename_path mp p, Model.Chain (rename_path mp q))
+  | Model.Is (p, (Model.Lit _ as v)) -> Model.Is (rename_path mp p, v)
   | Model.Defined p -> Model.Defined (rename_path mp p)
   | Model.Some_ (x, ty, g) -> Model.Some_ (x, rename_atom mp ty, map_guard mp g)
 
@@ -55,8 +57,7 @@ let equation_rows (mp : (string * string) list) (old_sp : Space.t)
     (new_sp : Space.t) : row list =
   let old_eqs = eqs_of old_sp and new_eqs = eqs_of new_sp in
   let same_meaning (oe : Schema.equation) (ne : Schema.equation) : bool =
-    Value.compare_path (rename_path mp oe.lhs) ne.lhs = 0
-    && Value.compare_path (rename_path mp oe.rhs) ne.rhs = 0
+    Guard.equal (map_guard mp oe.Schema.body) ne.Schema.body
   in
   let preserved_or_lost (oe : Schema.equation) : row =
     match

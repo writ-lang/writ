@@ -1,0 +1,10 @@
+; Extension §1/§3: `X` occurs only in sort-transparent columns — an arity-only
+; declaration propagates a sort but never supplies one — so the fixpoint reaches
+; a least solution in which `X` has none. An error at the variable, with the fix
+; named: give a column a sort.
+
+(relation p 1)
+(relation q 1)
+
+(rule (p X)
+  (q X))

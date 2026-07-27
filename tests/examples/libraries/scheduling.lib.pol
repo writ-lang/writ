@@ -1,0 +1,104 @@
+; scheduling.lib.pol — a DOMAIN library: the vocabulary of a blocking job shop.
+;
+; The sibling of chess.lib.pol beside it, and the same split: a library says what
+; EXISTS, a model says what may HAPPEN. Both job shop scenarios load this one
+; and then differ only in their moves, which is exactly the thing they are a
+; pair in order to compare.
+;
+; WHERE IT LIVES. Beside chess.lib.pol in `libraries/`, loaded by name and
+; relative path: `(load "../libraries/scheduling.lib.pol")`. Design D3 resolves
+; that against the including file's own directory, so no POL_LIB and no install
+; step are needed. Both job shop folders load this one file; ../libraries/README.md
+; says why the libraries are grouped rather than each sitting beside its models.
+;
+; It pays the namespace, as any library does (§7): every model loading it gives
+; up `shop`, `job`, `machine`, `tick`, `idle`, `hand-over` and the rest. That
+; cost is why this is a DOMAIN library and not an addition to stdlib — a
+; standard library may not spend the shared namespace on a worldly concept.
+
+(load "stdlib.pol")
+
+(schema shop
+
+  ; TIME as a small named scale (Appendix G). A ladder of ticks, walked by
+  ; `next`, running off the end into `vacant` — which is what stops a clock
+  ; rather than a guard, since a move whose chain has no answer is absent.
+  (type tick    (arrow next (to tick) fixed vacatable))
+  (type clock-t (arrow at (to tick)))
+
+  (type yn      (no yes))
+
+  ; A MACHINE is a resource at most one job holds. `held-by` vacant is idle;
+  ; that the arrow is vacatable at all is what lets a shop be empty.
+  (type machine (maybe held-by job))
+
+  (type stage-t (queued on-first on-second done))
+
+  ; A JOB is a routing plus where it has got to. `first` and `second` are
+  ; `fixed` — a routing is wiring, decided before the shop opens, not state.
+  (type job
+    (arrow stage  (to stage-t))
+    (arrow moved  (to yn))            ; has it already acted this tick?
+    (arrow first  (to machine) fixed)
+    (arrow second (to machine) fixed)))
+
+; ── the shop, said in its own words ──────────────────────────────────────────
+
+(form (idle M)       => (not (defined M.held-by)))
+(form (at-stage J S) => (is J.stage S))
+
+; Every job finished. B names the binder, because a form template's list head
+; must be a slot. Used by the models AND by both .claims files — a question is
+; a document of its own (wish 12), but it may share a vocabulary.
+(form (all-done B)   => (all (B job) (is B.stage done)))
+
+; ── the BLOCKING discipline, which is the whole subject ──────────────────────
+;
+; A job seizes the next machine BEFORE releasing the one it is on. That single
+; rule is what makes a job shop a job shop, and it is what makes it deadlock:
+; three jobs each holding one machine and waiting for the next cannot move, and
+; none of them has done anything wrong.
+;
+; Naming it is worth more than the two lines it saves. `@E` splices whatever
+; else the move does, so a timed shop can add its own effects without the rule
+; being written twice — the effect list is one datum, which is what lets a form
+; produce it (§10.2: splicing inside a list is only `@SLOT` on a `&rest`).
+(form (hand-over J FROM TO &rest E)
+  => (do (set TO.held-by J) (vacate FROM.held-by) @E))
+
+; ── the TURN discipline: a job acts at most once per tick ────────────────────
+;
+; A matched guard/effect pair, deliberately named together so a reader meets
+; the rule rather than an ad-hoc flag. A shop with no clock simply never uses
+; them, and pays nothing for that: a cell that is never written is the same
+; cell in every situation.
+(form (may-move J)  => (is J.moved no))
+(form (took-turn J) => (set J.moved yes))
+
+; The clock advances and every job's turn comes back. `@R` is the resets,
+; because the library cannot know which jobs a shop has — and the moment `set`
+; took a chain (§10.3), this stopped needing one transition per tick.
+(form (tick-over N C &rest R)
+  => (transition N (when (is C.at C.at)) (do (set C.at C.at.next) @R)))
+
+; ── the shop floor ───────────────────────────────────────────────────────────
+;
+; Three jobs, three machines, and routings that CHASE EACH OTHER: a needs m1
+; then m2, b needs m2 then m3, c needs m3 then m1. That cycle is not decoration
+; — it is the smallest arrangement in which the blocking rule above can trap
+; every job at once, which is what `jobshop-possible` goes on to find.
+;
+; Nine ticks are available. Whether anything ever moves the clock is the
+; model's business, not this file's.
+(instance start (of shop)
+  (tick t1 t2 t3 t4 t5 t6 t7 t8 t9)
+  (clock-t clk)
+  (machine m1 m2 m3)
+  (job a b c)
+  (next (t1 t2) (t2 t3) (t3 t4) (t4 t5) (t5 t6) (t6 t7) (t7 t8) (t8 t9) (t9 vacant))
+  (at (clk t1))
+  (first  (a m1) (b m2) (c m3))
+  (second (a m2) (b m3) (c m1))
+  (stage  (a queued) (b queued) (c queued))
+  (moved  (a no) (b no) (c no))
+  (held-by (m1 vacant) (m2 vacant) (m3 vacant)))

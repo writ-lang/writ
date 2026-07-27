@@ -18,9 +18,16 @@ type form_def = {
 let ( let* ) = Result.bind
 
 (* The 28 reserved words, plus the interrogator's file-format words (so a claims
-   library's forms may head their templates with [property]/[query]/…). A form
-   may not be named a reserved word, a slot may not collide with one, and these
-   are exactly the callable heads a template may legally mention. *)
+   library's forms may head their templates with [property]/[query]/…, and a
+   rules library's with [relation]/[rule]). A form may not be named a reserved
+   word, a slot may not collide with one, and these are exactly the callable
+   heads a template may legally mention.
+
+   Reserving a word has a price, paid once per entry: [allowed_head] below lets
+   a template mention it freely, so a template naming a form that does not exist
+   yet stops being an error the moment that name joins this list. There is no
+   way to charge it per file type — one expander serves all three, and a form's
+   legality must not depend on which file happens to load it. *)
 let reserved =
   [
     "use";
@@ -33,7 +40,6 @@ let reserved =
     "fixed";
     "vacatable";
     "equation";
-    "=";
     "instance";
     "initial";
     "vacant";
@@ -64,11 +70,19 @@ let reserved =
     "from";
     "over";
     "map";
+    "relation";
+    "rule";
   ]
 
 let is_reserved w = List.mem w reserved
 
-(* A slot is an ALL-CAPS atom: at least one A–Z, and no a–z. *)
+(* A slot is an ALL-CAPS atom: at least one A–Z, and no a–z.
+
+   [Rules.is_var] in the OPTIONAL interrogator extension spells the same test
+   for a different concept — a rule variable, not a form slot. The duplication
+   is deliberate: sharing one definition would point the kernel's form expander
+   at an extension a conforming processor need not implement. Change one and the
+   other stays as it is. *)
 let is_slot s =
   s <> ""
   && String.exists (fun c -> c >= 'A' && c <= 'Z') s

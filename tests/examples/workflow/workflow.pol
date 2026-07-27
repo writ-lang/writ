@@ -8,6 +8,8 @@
 ; process settles a case that has an assignee; where there is no assignee it
 ; ends at an escalation `gap` — the boundary where a human takes over.
 
+(load "stdlib.pol")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
+
 (schema workflow
   (type unit-t  (kyc fraud))
   (type stage-t (screening settled))
@@ -18,7 +20,7 @@
     (arrow reviewer (to agent)  fixed)    ; the wired reviewing officer
     (arrow officer  (to agent))           ; the approving officer (reassignable)
     (arrow stage    (to stage-t))
-    (arrow assignee (to agent)  vacatable)) ; may be empty
+    (maybe assignee agent))                 ; may be empty
   ; the approving officer must belong to the case's unit of record:
   (equation officer-in-unit
     (= case.officer.unit case.unit)))

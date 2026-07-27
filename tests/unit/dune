@@ -13,12 +13,26 @@
   test_core
   test_syntax
   test_data
+  test_rules
+  test_rules_parser
+  test_rules_sorts
+  test_rules_check
+  test_rules_fixtures
+  test_derive
+  test_report_derive
   test_engine
   test_control
+  test_schema_data
   test_compare
-  test_loadpath)
+  test_loadpath
+  test_names
+  test_binders
+  test_forms_position
+  test_set_as_chain
+  test_law_as_guard
+  test_facts)
  (deps
-  (glob_files fixtures/*.{pol,claims})
+  (glob_files fixtures/*.{pol,claims,rules})
   (glob_files %{workspace_root}/tests/models/*.{pol,claims})
   (glob_files %{workspace_root}/core/stdlib/*.pol))
  (libraries pol_data pol_syntax pol_runtime pol_loadpath))
@@ -30,3 +44,11 @@
 (test
  (name test_lsp)
  (libraries pol_data pol_syntax pol_runtime pol_lsp))
+
+; The MCP server tests, likewise: [Server.handle] is pure (JSON in, JSON out),
+; so they link [pol_mcp] and drive the whole protocol with no process and no
+; pipe. The resolver serves fixture text from an in-memory map.
+
+(test
+ (name test_mcp)
+ (libraries pol_data pol_syntax pol_runtime pol_mcp pol_json))

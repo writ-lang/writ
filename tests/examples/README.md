@@ -6,10 +6,13 @@ problems** and check the answers. Each problem is written as a Pol model
 prescribes; the test runner calls `pol check` (and, for `oversight`, `pol
 compare`) and asserts the verdicts.
 
-The first batch is the two puzzles from the spec's **Prologue** (Appendices C
-and D) — faithful to the spec, with each move given a name so `pol` prints a
-legible solution path (see *Notes on the solution path* below). The second batch
-is the three **§3 scenarios** — institutional architecture, a regulated
+The first batch is puzzles: the two from the spec's **Prologue** (Appendices C
+and D), faithful to the spec, plus **eight queens**, which is not from the spec
+but is the first thing the language could state once `differ` existed, and a
+**blocking job shop**, whose deadlock is the trap detector at work on a real
+scheduling question. Each
+move is given a name so `pol` prints a legible solution path (see *Notes on the
+solution path* below). The second batch is the three **§3 scenarios** — institutional architecture, a regulated
 workflow, and access & privilege — which exercise `equation` laws, `accept`
 acknowledgments and `pol compare`.
 
@@ -45,13 +48,76 @@ Each `pol check` **exits 1** — not because anything is broken, but because it
 *has a finding to report* (a possible blunder; an unclassifiable native). The
 tests assert exit 1 as the correct outcome.
 
+### 3. Eight queens — `queens/`
+Eight queens on a board, none attacking another.
+
+`pol check` answers **`holds solvable`**, and the witness *is* a solution —
+the eight moves that place the queens. All 92 complete boards appear as dead
+ends, a full board having no move left.
+
+It earns its place for two reasons beyond the puzzle. It is the first thing
+Pol can state that it could not before: a row clash is
+`(differ q1.row q2.row)`, which had no spelling until §8.6 let a law hold a
+guard and `differ` joined the standard library. And it carries the clearest
+measurement here of *which* optimisation matters — the same puzzle without
+one ordering conjunct has 118 969 situations instead of 2 057 and does not
+finish in ten minutes, while an engine-level change that looked obviously
+right measured to nothing. Both are written up in
+[`queens/README.md`](queens/README.md).
+
+Diagonals cannot be computed — `|Δrow| = |Δcol|` is arithmetic and Pol has
+none — but they need not be enumerated either: rows are **entities on a
+ladder** with `next`/`prev`, so the square a queen *d* columns away attacks
+is `R.next` walked *d* times, and a form names that test once per distance.
+Twenty literal conjuncts per move became nine that read. The models are still
+generated, there being one move per (column, row), but that is the move set's
+doing rather than the arithmetic's.
+
+### 4. A blocking job shop, asked twice — `jobshop-possible/`, `jobshop-best/`
+Three jobs, three machines, routed in a cycle, with no buffers: a job holds the
+machine it is on until it has *acquired* the next one.
+
+A shop has two different questions, and they need two different models.
+
+**`jobshop-possible/` — does a schedule exist?** `pol check` answers **`holds
+all-finish`**, then **`fails never-stuck`**, naming a three-move circular
+deadlock in full: `a-enters, b-enters, c-enters`, after which each job holds
+the machine the next one waits for. No time in this model at all — and it does
+not need any, because the shop seizes on the *shape* of the routings and would
+seize identically whether an operation took a minute or a week. 51 situations.
+
+**`jobshop-best/` — which schedule is shortest?** The same shop with a clock:
+ticks as a **small named scale** (Appendix G's own escape clause), a ladder of
+entities walked by `next`, so "finishes within 5 ticks" is an ordinary
+`possible`. `done-by-4` **fails** and `done-by-5` **holds**, which pins the
+optimum from both sides, and the witness is the optimal schedule. Optimisation
+by repeated feasibility rather than a cost function. 1314 situations — time is
+expensive, which is why the untimed model stays.
+
+The pair is the lesson. The optimum overlaps two jobs and holds the third back,
+and the *other* model is what proves it must: full utilisation is the deadlock.
+Neither answers that alone. See
+[`jobshop-possible/README.md`](jobshop-possible/README.md) and
+[`jobshop-best/README.md`](jobshop-best/README.md).
+
+Both are **19 and 20 lines**, because the shop itself is not in either of them:
+[`libraries/scheduling.lib.pol`](libraries/scheduling.lib.pol) is a **domain
+library** holding the
+machines, the routings, the blocking rule and a clock, and the two models load
+it and then differ only in their moves — which is the one thing a pair exists
+to compare. Their `.claims` and `.rules` files load it too, so a model, a
+question and a derivation share one vocabulary without sharing a file.
+[`libraries/chess.lib.pol`](libraries/chess.lib.pol) does the same for the
+board. Both live in [`libraries/`](libraries/README.md), which explains what
+makes a file a library and what grouping them cost.
+
 ## The spec's §3 scenarios
 
 Three institutional models, each exercising machinery the Prologue puzzles do
 not: **`equation` laws + `accept` acknowledgments** (§8.6, §15, §16.3) and
 **`pol compare`** (§17).
 
-### 3. Institutional architecture (§3 / §4 running example) — `oversight/`
+### 5. Institutional architecture (§3 / §4 running example) — `oversight/`
 The kernel-spec's own running example: two oversight agencies, one case
 (`docket`), a possibly-vacant judge, and the structural law `same-agency` (the
 investigating and prosecuting agencies must stand on equal footing). Schema,
@@ -92,7 +158,7 @@ never conclude from that situation. `same-agency` and `conviction-possible` stay
 > (the bureau the capture power actually targets). That is the only departure
 > from §4; capturing the prosecutor instead would add two more breakers.
 
-### 4. Regulated workflow — KYC / claims (§3) — `workflow/`
+### 6. Regulated workflow — KYC / claims (§3) — `workflow/`
 A case wired (fixed) to a reviewing officer and its unit of record, a mutable
 approving `officer`, and a vacatable `assignee` slot. The law `officer-in-unit`
 (`(= case.officer.unit case.unit)`) demands the approving officer belong to the
@@ -109,7 +175,7 @@ unit of record.
   stuck**. Even in the escalation state (no assignee) the case can be assigned
   and then settled, so a settled situation stays reachable from everywhere.
 
-### 5. Access & privilege (§3) — `access/`
+### 7. Access & privilege (§3) — `access/`
 Accounts with a `role` (user | admin), a `sponsor` (who vouches for them), and a
 fixed `source` of authority. The law `traces-to-root`
 (`(= account.sponsor.source account.source)`) demands each account inherit its
@@ -134,14 +200,14 @@ authority from its sponsor — the chain back to the security root.
 Two thin tests that exercise the last of the §17 command line on the models
 above (no new model files).
 
-### 6. `pol control` — dynamics as data — `control`
+### 8. `pol control` — dynamics as data — `control`
 `pol control oversight.pol` emits the model's **move list** as an instance of the
 standard library's `quiver` schema: one `node`, one `edge` per transition. The
 test asserts it is a `(of quiver)` instance and then **wraps and re-checks it**,
 proving the export is real Pol data that builds with the same machinery — the
 seam toward simulation maps between two models' move lists.
 
-### 7. `pol compare --git` — an amendment across commits — `gitcompare`
+### 9. `pol compare --git` — an amendment across commits — `gitcompare`
 The `oversight` repeal, but as *history* rather than two files. The test spins up
 a throwaway git repo, commits the law, then commits the repeal to the same path,
 and runs `pol compare --git HEAD~1 HEAD law.pol` — reporting `accountability

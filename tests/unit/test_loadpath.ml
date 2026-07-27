@@ -80,7 +80,7 @@ let () =
       check "loader: names the unresolvable file"
         (contains_sub ~sub:"missing.pol" e.Errors.msg);
       check "loader: blames the load datum, not the first line"
-        (e.Errors.pos = Some { Errors.line = 2; col = 1 })
+        (e.Errors.pos = Some { Errors.file = Some "a.pol"; line = 2; col = 1 })
 
 (* An error raised *inside* a loaded library keeps its own position; filling in
    the load site must not clobber one that is already there. *)
@@ -96,10 +96,98 @@ let () =
       check "loader: (use …) inside a loaded library must be rejected" false
   | Error e ->
       (* The load site is line 1 of a.pol; this error came from line 2 of
-         b.pol. Asserting the line alone is what matters — that filling in the
-         load site did not clobber a position the loaded file already gave. *)
+         b.pol. Both halves matter — that filling in the load site did not
+         clobber a position the loaded file already gave, and that the position
+         still says which file that was. *)
       check "loader: keeps a position the loaded file already supplied"
-        (match e.Errors.pos with Some q -> q.Errors.line = 2 | None -> false)
+        (match e.Errors.pos with
+        | Some q -> q.Errors.line = 2 && q.Errors.file = Some "b.pol"
+        | None -> false)
+
+(* --- which file the coordinates index (conformance gap 3) ------------------ *)
+
+(* [inline] splices a loaded library's datums into the loading file's list, so
+   once it has run the position is the only thing that still knows which file its
+   line and column belong to. While the file was supplied by whoever PRINTED the
+   error instead, that was the path on the command line, and the two combined
+   into a coordinate no file fits: the position below is column 55 of an 84-column
+   line in the library, reported against a loading file whose line 1 has 16
+   columns. That is why a wrong filename is worse than none — an absent one sends
+   the reader looking, a wrong one sends them somewhere definite and sounds sure. *)
+let () =
+  let lib =
+    "(schema lib (type v (a b)) (type box (arrow f (to v)) (equation e (= \
+     box.f box.f))))"
+  in
+  let model =
+    String.concat "\n"
+      [
+        "(load \"lib.pol\")";
+        "(schema mine (type w (c d)))";
+        "(instance i (of mine))";
+        "(use mine)";
+        "(initial i)";
+      ]
+  in
+  let files = [ ("m.pol", model); ("lib.pol", lib) ] in
+  match Loader.read_model (resolve_of files) "m.pol" with
+  | Ok _ ->
+      check "loader: an (equation …) inside a (type …) body must be rejected"
+        false
+  | Error e -> (
+      match e.Errors.pos with
+      | None ->
+          check "loader: a fault inside a loaded library must be positioned"
+            false
+      | Some p ->
+          check "loader: a fault inside a loaded library names that library"
+            (p.Errors.file = Some "lib.pol");
+          check "loader: the position indexes the library, at the bad datum"
+            (p.Errors.line = 1 && p.Errors.col = 55
+            && String.sub lib (p.Errors.col - 1) 9 = "(equation");
+          check "loader: the loading file could not hold that coordinate"
+            (String.length (List.hd (String.split_on_char '\n' model))
+            < p.Errors.col);
+          check "loader: the rendered diagnostic names the library"
+            (contains_sub ~sub:"lib.pol:1:55: " (Errors.to_string e)))
+
+(* The common case must be no worse. A fault in the file the caller asked about
+   names that file under the name the CALLER used — [resolve] is handed a bare
+   basename (design D3), but a path is what the reader of the message can act
+   on, so the two are not the same string and the position carries the useful
+   one. *)
+let () =
+  let model =
+    String.concat "\n"
+      [
+        "(schema mine (type v (a b)) (type box (arrow f (to v)) (equation e (= \
+         box.f box.f))))";
+        "(instance i (of mine))";
+        "(use mine)";
+        "(initial i)";
+      ]
+  in
+  match Loader.read_model (resolve_of [ ("m.pol", model) ]) "sub/m.pol" with
+  | Ok _ -> check "loader: the same-file fault must be rejected" false
+  | Error e ->
+      check "loader: a same-file fault names the path the caller gave"
+        (match e.Errors.pos with
+        | Some p -> p.Errors.file = Some "sub/m.pol" && p.Errors.line = 1
+        | None -> false)
+
+(* Text read with no file is not a degraded reading: a query typed on a command
+   line and an unnamed buffer have real positions and no name. [file = None] has
+   to keep meaning "unnamed" rather than "unpositioned", or something downstream
+   prints a filename it was never given. *)
+let () =
+  match Reader.read_string "(schema s (type v (a b))" with
+  | Ok _ -> check "reader: an unclosed list must be rejected" false
+  | Error e ->
+      check "reader: text read without a name has a position and no file"
+        (e.Errors.pos = Some { Errors.file = None; line = 1; col = 1 });
+      check "reader: an unnamed position renders as a bare line:col"
+        (contains_sub ~sub:"1:1: " (Errors.to_string e)
+        && not (contains_sub ~sub:".pol" (Errors.to_string e)))
 
 let () =
   print_string ("loadpath tests: " ^ string_of_int !passed ^ " checks passed\n")

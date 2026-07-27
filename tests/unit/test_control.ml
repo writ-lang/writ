@@ -1,7 +1,8 @@
 (* [pol control] unit tests (TD). Stdlib only: [Control.quiver] on small in-code
    [Model.t] values, asserting the §17 quiver shape (one edge per transition,
    self-loops on one node), the §7 fresh-name discipline, and that the emitted
-   library re-parses through the real reader. *)
+   library re-parses — through §7 as well as the reader, for the round-trip a
+   model read from source has to survive. *)
 
 open Pol_data
 open Pol_syntax
@@ -27,8 +28,8 @@ let contains ~sub s =
 (* --- construction helpers (a one-switch world) ------------------------------ *)
 
 let path root steps : Value.path = { root; steps }
-let is e a v = Model.Is (path e [ a ], v)
-let set e a v = Model.Set (path e [ a ], v)
+let is e a v = Model.Is (path e [ a ], Model.Lit v)
+let set e a v = Model.Set (path e [ a ], Model.Lit v)
 
 let named n g effs : Model.transition =
   { name = Some n; when_ = g; effects = effs }
@@ -63,6 +64,15 @@ let mk trs : Model.t = { schema; initial = instance; transitions = trs }
 
 let reparses s =
   match Reader.read_string s with Ok _ -> true | Error _ -> false
+
+(* Re-reading the emitted quiver through §7 as well as the reader. Reading alone
+   only proves the parentheses balance: a quiver whose edge roster names one
+   entity twice reads fine and is then refused by the front end, which is the
+   failure mode the round-trip exists to rule out. *)
+let reparses_with_fresh_names s =
+  match Reader.read_string s with
+  | Error _ -> false
+  | Ok ds -> Result.is_ok (Names.check ds)
 
 (* --- the quiver shape: one edge per transition, self-loops on one node ------- *)
 
@@ -114,6 +124,55 @@ let () =
   check "control: zero transitions emits an empty edge roster"
     (contains ~sub:"(edge)" out && contains ~sub:"(src)" out
    && contains ~sub:"(tgt))" out && reparses out)
+
+(* --- the source → control → source round-trip (gap 6, §10.1 NAME fresh) ------ *)
+
+(* The standing gate `control-emits-reparseable-quiver` uses a fixture whose
+   transitions are uniquely named, so it cannot see the case that broke: two
+   transitions of one name gave one `edge` entity per transition and therefore a
+   roster naming `dup` twice, which §7 refuses —
+
+     pol: q.pol:5:13: entity `dup` is already declared
+
+   so [pol control]'s own output stopped re-parsing. The fix is upstream, in
+   §10.1's freshness rule, so this pins both ends of the chain: the model can no
+   longer be read, and what control emits from a model that CAN be read survives
+   §7 and not merely the reader. *)
+let parses src =
+  match Reader.read_string src with
+  | Error e -> Error e
+  | Ok ds -> Parser.parse_model ds
+
+let () =
+  let src names =
+    "(schema tg (type pos-t (down up)) (type sw (arrow pos (to pos-t))))\n\
+     (instance i (of tg) (sw s) (pos (s down)))\n\
+     (use tg) (initial i)\n"
+    ^ String.concat "\n"
+        (List.map
+           (fun (n, from_, to_) ->
+             "(transition " ^ n ^ " (when (is s.pos " ^ from_
+             ^ ")) (do (set s.pos " ^ to_ ^ ")))")
+           names)
+  in
+  (match parses (src [ ("raise", "down", "up"); ("lower", "up", "down") ]) with
+  | Error _ -> check "control round-trip: the two-move model parses" false
+  | Ok m ->
+      let out = Control.quiver "roundtrip" m in
+      check
+        "control round-trip: the emitted quiver survives §7, not just the \
+         reader"
+        (reparses_with_fresh_names out));
+  (* The other end: a duplicate never reaches control at all, and is blamed at
+     the second transition's own name. *)
+  match parses (src [ ("dup", "down", "up"); ("dup", "up", "down") ]) with
+  | Ok _ ->
+      check "control round-trip: a duplicate transition name is refused" false
+  | Error e ->
+      check
+        "control round-trip: a duplicate transition name is refused at the \
+         second one"
+        (e.Errors.pos = Some { Errors.file = None; line = 5; col = 13 })
 
 let () =
   print_string ("control tests: " ^ string_of_int !passed ^ " checks passed\n")

@@ -1,0 +1,53 @@
+; jobshop-best.pol — WHICH schedule is shortest?
+;
+; The same shop as ../jobshop-possible/, from the same ../scheduling.lib.pol:
+; three jobs, three machines, routings in a cycle, the blocking rule. That
+; model asks whether a schedule exists. This one asks how long the best one
+; takes, and the difference is one idea: TIME AS A NAMED SCALE.
+;
+; Pol has no numbers, so a duration cannot be added up. But Appendix G's escape
+; clause is "unless honestly reduced to small named scales", and a clock is
+; exactly that — a ladder of ticks walked by `next`, which the library already
+; declares. An operation occupies one tick, enforced by the TURN discipline:
+; `may-move`/`took-turn` let a job act at most once before the clock advances.
+;
+; The library offers all of that and imposes none of it; jobshop-possible loads
+; the same file and never touches the clock. What this model adds is three
+; guards, three effects and one `tick-over`.
+;
+; With time in the model, "finishes within 5 ticks" is an ordinary `possible`,
+; and the smallest N for which it holds IS the optimal makespan — optimisation
+; by repeated feasibility, which is how you optimise with a decision procedure
+; rather than a cost function. The witness is the optimal schedule itself.
+
+(load "../libraries/scheduling.lib.pol")
+(use shop)
+(initial start)
+
+; The same three moves as the untimed shop, each now costing the job its turn.
+(form (enters J N)
+  => (transition N
+       (when (and (at-stage J queued) (may-move J) (idle J.first)))
+       (do (set J.first.held-by J) (set J.stage on-first) (took-turn J))))
+
+(form (advances J N)
+  => (transition N
+       (when (and (at-stage J on-first) (may-move J) (idle J.second)))
+       (hand-over J J.first J.second (set J.stage on-second) (took-turn J))))
+
+(form (leaves J N)
+  => (transition N
+       (when (and (at-stage J on-second) (may-move J)))
+       (do (vacate J.second.held-by) (set J.stage done) (took-turn J))))
+
+(form (job-of J E A L) => (enters J E) (advances J A) (leaves J L))
+
+(job-of a a-enters a-advances a-leaves)
+(job-of b b-enters b-advances b-leaves)
+(job-of c c-enters c-advances c-leaves)
+
+; The clock: ONE move, because §10.3 lets `set` take a chain, so the clock
+; walks its own ladder and is simply ABSENT at t9 where `next` runs off the
+; end. The resets are spliced in because the library cannot know which jobs
+; this shop has.
+(tick-over tick clk (set a.moved no) (set b.moved no) (set c.moved no))

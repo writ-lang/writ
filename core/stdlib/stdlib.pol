@@ -8,24 +8,61 @@
 ; Universal roster quantification, from the kernel's `some`.
 (form (all (X T) G) => (not (some (X T) (not G))))
 
-; 2. The quiver schema — dynamics as data
+; 2. Equality and difference
+; `=` was a kernel word until laws became guards (§8.6). It is a form now, and
+; nothing was lost: this IS its old meaning, spelled out of strict primitives.
+;
+; KLEENE equality — vacuously satisfied where either side has no answer, which
+; is what makes an unstaffed office break no seconding rule. Every law written
+; before `=` moved here reads exactly as it did.
+(form (= A B) => (not (and (defined A) (defined B) (not (is A B)))))
+
+; Strict difference. NOTE the asymmetry with `=` above, which is real and not
+; an oversight: `is` is strict, so an undefined side makes `differ` TRUE — a
+; vacant approver differs from every preparer. For "both filled, and different"
+; write (and (defined A) (defined B) (differ A B)); the kernel will not guess
+; which of the two you meant, and a library that hid the difference would be
+; re-introducing exactly the confusion moving `=` out of the kernel removed.
+(form (differ A B) => (not (is A B)))
+
+; 3. The quiver schema — dynamics as data
 ; `pol control MODEL.pol` exports a model's control quiver as an instance of
 ; this schema: one `edge` entity per transition.
+;
+; WHY IT EARNS ITS PLACE. A model's move structure becomes an ordinary
+; instance, so every verb that already works on instances works on behaviour
+; too — no second machinery. The payoff to point at is `pol solve
+; --simulation` (interrogator §3): "does A's behaviour embed in B's" is not a
+; bespoke algorithm, it is the ordinary map search run between two
+; quiver-instances. Comparison by move structure, discovered rather than
+; declared, for free.
+;
+; It is also the precedent for the pattern: writing a part of Pol in Pol so
+; that special tooling verbs collapse into general ones. The same move one
+; level up — a SCHEMA as an instance — is the `olog` schema in §7.
+;
+; The standing cost of both is the namespace: names are global across the
+; loaded universe and may not be redeclared (kernel §7), so every model that
+; loads this file gives up `node` and `edge` here, and `ob`, `hom` and
+; `eqn` in §7.
 (schema quiver
   (type node)
   (type edge
     (arrow src (to node) fixed)
     (arrow tgt (to node) fixed)))
 
-; 3. Relations as spans
+; 4. Spans
 ; A many-to-many relation between A and B is a junction type — the standard
-; span construction.
-(form (relation R A B)
+; span construction. It is named `span` and not `relation` because `relation`
+; is how a .rules file declares one (interrogator §1), and forms expand in
+; every file type: a .rules file that loaded this one would have its
+; declarations rewritten into types.
+(form (span R A B)
   => (type R
        (arrow left  (to A) fixed)
        (arrow right (to B) fixed)))
 
-; 4. Behaviour templates
+; 5. Behaviour templates
 ; A two-state flip on path P between values A and B — two guarded moves,
 ; never a fake self-loop.
 (form (toggle P A B)
@@ -36,7 +73,102 @@
 (form (latch P A B)
   => (transition (when (is P A)) (do (set P B))))
 
-; 5. The phase idiom
+; 6. The phase idiom
 ; A model with modes declares an enumerated mode type, one mutable arrow to
 ; it, and conjoins each mode-restricted move's guard with the mode test.
 (form (phase-gated P V G) => (and (is P V) G))
+
+; 7. The olog schema — schemas as data
+; The sibling of §3 one level up: an instance of `olog` IS a schema — its
+; types, its arrows, its equations.
+;
+; WHY IT EARNS ITS PLACE. A dictionary between two schemas (kernel §16.4) is
+; checked three ways today, by code that exists for nothing else. Two of the
+; three stop being special once schemas are instances: totality is an
+; instance homomorphism being total on the roster, and shape — an arrow's
+; translation running between the translations of its endpoints — is
+; literally the naturality square for `dom` and `cod`, which `pol solve
+; --morphism` already searches for. Only equation preservation stays bespoke,
+; because §16.4 evaluates it semantically against the target's instance and
+; naturality does not reach that far. The same collapse would make `pol
+; compare` a query over two olog-instances, so its verdicts arrive with
+; witnesses rather than as a report format only the tool can print.
+;
+; `pol schema MODEL.pol` emits a model's schema as an instance of this, as
+; `pol control` does for §3. The full argument, costs included, is
+; docs/schema-as-data.md.
+(schema olog
+
+  ; A schema's types. Enumerated or open is NOT recorded: that is a fact
+  ; about a type's members, and members are the instance layer — one level
+  ; below what this schema describes.
+  (type ob)
+
+  ; A schema's arrows, with their endpoints. An arrow name is scoped to its
+  ; dom (§7), so two types may each own a `status`; a hom entity therefore
+  ; carries a name the EMITTER makes unique, and the pairing that matters —
+  ; which type it runs between — is `dom` and `cod`, not the spelling.
+  ;
+  ; Both are `fixed`, because an arrow's endpoints are wiring, not state: a
+  ; schema does not change over world-time (its changes are commits, §6.3),
+  ; which is why an olog-instance has exactly one situation.
+  (type hom
+    (arrow dom (to ob) fixed)
+    (arrow cod (to ob) fixed))
+
+  ; A law, BY NAME ONLY. Its body is deliberately not encoded, and the reason
+  ; is worth stating rather than discovering: since §8.6 a law holds a GUARD,
+  ; not a pair of chains, and a guard is a tree — booleans, `some` binders,
+  ; n-ary operands. Encoding it would need a second linked-list construction
+  ; and buy nothing, because the two §16.4 checks this schema exists to
+  ; collapse — totality and shape — read only `dom` and `cod`, and the third,
+  ; equation preservation, is SEMANTIC: §16.4 evaluates it against the target's
+  ; instance and marks it so. No structural encoding would make it structural.
+  ;
+  ; A roster of law names is still worth having: it is what lets "which laws
+  ; survived this version" be a set difference over two olog-instances.
+  (type eqn))
+
+; THE ENCODING CLOSES. `olog` is expressible as an instance of itself —
+; ob = {ob, hom, eqn}, hom = {dom, cod} — and that instance builds. Nothing a
+; schema contains needs a construct the encoding cannot carry EXCEPT a law's
+; body, which the `eqn` comment above declines on purpose; the demonstration
+; is the schema describing its own two arrows. It is the closest Pol comes to
+; a metacircular definition,
+; and also the honest limit of the analogy: McCarthy's `eval` bought
+; universal computation, which Pol must refuse, since decidability by
+; exhaustion is the whole product. A description of itself, in itself, short
+; enough to read, is the half that transfers.
+
+; 8. Optional arrows
+; `(maybe A T)` declares a vacatable arrow: exactly `(arrow A (to T)
+; vacatable)`, which is far and away the most-written arrow shape in every
+; model here.
+;
+; WHY IT EARNS ITS PLACE, and why it is spelled this way. The instinct is to
+; sugar the *inside* of the declaration — `(arrow held-by *(to job))`, some
+; sigil meaning "vacatable". That cannot be a form: a form invoked inside a
+; list must expand to exactly ONE datum (`Expander.expr`), so a template of
+; `(to T) vacatable` is refused, and the sigil would have to be a reader
+; change — the first punctuation in the language after `.` and `"`. It would
+; then apply to every file whether or not anyone wanted it, and buy one
+; keyword in one position. Wrapping the WHOLE datum is one datum, so it is an
+; ordinary form, it is three tokens instead of five, and a reader can expand
+; it by hand and see the kernel underneath. Pivotal idea 7 intact.
+;
+; Cost: the name `maybe`, and no more. `fixed` gets no partner — an arrow is
+; total by default, so the short spelling is already the kernel's.
+;
+; ITS LIMIT, worth not hiding: `maybe` covers the PLAIN vacatable arrow, and
+; there is no spelling here for `fixed vacatable` — an arrow that never rewires
+; but may run off the end. jobshop-best's tick ladder is the one place that
+; still wants it:
+;
+;   (type tick (arrow next (to tick) fixed vacatable))
+;
+; Eight arrows across the shipped models take `maybe`; that one does not.
+; Covering it means either a second name — and `fixed-maybe` is a worse name
+; than the thing it abbreviates — or flags as slots, which hands a form a
+; keyword position and is a bigger change than the saving is worth. Two shapes,
+; one abbreviated, is the honest state.
+(form (maybe A T) => (arrow A (to T) vacatable))

@@ -12,6 +12,8 @@
 ; `shadow` is a second, never-written arrow so the schema carries a real
 ; `mode-tracks-shadow` equation; identical in old and new, it reports preserved.
 
+(load "stdlib.pol")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
+
 (schema sys
   (type mode-t (working broken safe))
   (type machine

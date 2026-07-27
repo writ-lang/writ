@@ -114,9 +114,15 @@ let build_ctx (schema : Schema.t) (inst : Instance.t) : (ctx * t, string) result
         }
       in
       let init = Array.of_list (List.map (fun (_, _, v) -> v) cells) in
-      let fixed_list = !fixeds in
+      (* Hashed, not an assoc list, and for a measured reason. Every step of a
+         chain through a FIXED arrow lands here, and a model that walks fixed
+         arrows to say what it means — a row ladder's [R.next.next], say —
+         reads this once per step, per conjunct, per guard, per situation. The
+         scan it replaces was O(fixed cells) each time. *)
+      let fixed_tbl = Hashtbl.create (List.length !fixeds * 2) in
+      List.iter (fun (cr, v) -> Hashtbl.replace fixed_tbl cr v) !fixeds;
       let fixed cr =
-        match List.assoc_opt cr fixed_list with
+        match Hashtbl.find_opt fixed_tbl cr with
         | Some v -> v
         | None -> Value.Vacant
       in

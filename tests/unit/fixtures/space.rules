@@ -1,0 +1,9 @@
+; Extension §2's own reach relation, over the derived category of
+; rules_base.pol: reflexivity from `situation`, one step from `edge`. It is the
+; recursion that makes the modalities two-line derivations, and it is the file
+; that proves a situation is a bare non-negative index in and out (§9) — no
+; entity name appears in either column.
+
+(relation reach 2)
+(rule (reach S S) (situation S))
+(rule (reach S T) (edge E S M) (reach M T))

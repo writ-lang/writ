@@ -11,6 +11,8 @@
 ; Everything below is identical to oversight.pol except the restore-watchdog
 ; transition is gone.
 
+(load "stdlib.pol")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
+
 (schema oversight
   (type indep-status (independent captured))
   (type stage-t (open concluded))
@@ -22,7 +24,7 @@
     (arrow stage        (to stage-t))
     (arrow investigator (to bureau) fixed)
     (arrow prosecutor   (to bureau) fixed)
-    (arrow judge        (to person) vacatable))
+    (maybe judge        person))
   (equation same-agency
     (= case.investigator.independence case.prosecutor.independence)))
 

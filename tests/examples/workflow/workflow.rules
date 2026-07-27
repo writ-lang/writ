@@ -1,0 +1,47 @@
+; The regulated workflow's two properties, re-asked as derivations (extension
+; §2) for `modality-cross-check.sh`. Both are `live`, so BOTH relations below
+; are COUNTEREXAMPLE SETS and both are expected to be EMPTY.
+;
+; Why counterexamples. `live F` is AG EF F — a statement about every reachable
+; situation. Stratified Datalog cannot assert a universal positively without a
+; nullary relation, which extension §3 rejects outright, so the question is
+; asked in its refutable form instead: derive the situations that WITNESS a
+; failure. Empty answer set ⟺ the property holds. The refutable form is also
+; the useful one — a failure hands `pol derive --why` a concrete stranded
+; situation to explain, where a yes/no flag would hand it nothing.
+;
+; A green cross-check on this file therefore means "no case is ever stranded"
+; and "the assignee slot can always be refilled". These two, with
+; oversight/accountability, are also the repo's inversion detectors: they are
+; the `live` properties that HOLD, so their counterexample set is empty while
+; their satisfying set is not, and re-pointing `settle-able` at
+; `can-still-settle` flips the derived verdict to `fails` against a `pol check`
+; that says `holds`. (Where a `live` property fails — river/no-blunders,
+; access/revocation-possible — both sets are non-empty and an inversion there
+; is invisible to the oracle. Hence these comments.)
+
+(relation reach 2)
+(rule (reach S S) (situation S))
+(rule (reach S T) (edge E S M) (reach M T))
+
+; Can a case get stuck? The escalation gap is a non-F terminal for both
+; implementations: a gap edge has no successor, so neither `edge` nor
+; `Space.bwd_reach` traverses it.
+(relation settled 1)
+(rule (settled T) (situation T) (holds T (is claim-1.stage settled)))
+
+(relation can-still-settle 1)
+(rule (can-still-settle S) (reach S T) (settled T))
+
+(relation settle-able 1)
+(rule (settle-able S) (situation S) (not (can-still-settle S)))
+
+; May the vacatable assignee slot always be refilled?
+(relation assigned 1)
+(rule (assigned T) (situation T) (holds T (defined claim-1.assignee)))
+
+(relation can-still-assign 1)
+(rule (can-still-assign S) (reach S T) (assigned T))
+
+(relation assignee-fillable 1)
+(rule (assignee-fillable S) (situation S) (not (can-still-assign S)))

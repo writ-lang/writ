@@ -1,0 +1,22 @@
+; cycle.pol — the smallest model whose derived category has a CYCLE: two
+; situations, and a move each way.
+;
+; rules_base.pol's four situations form a DAG, and a DAG cannot distinguish a
+; derivation graph that is acyclic by construction from one that merely has not
+; been given the chance to loop. Here it has: `reach` derives every pair, so a
+; fact recorded with any derivation other than its FIRST would name a premise
+; that names it back.
+
+(schema toggle
+  (type flag (lo hi))
+  (type box (arrow f (to flag))))
+
+(instance i (of toggle)
+  (box b)
+  (f (b lo)))
+
+(use toggle)
+(initial i)
+
+(transition up   (when (is b.f lo)) (do (set b.f hi)))
+(transition down (when (is b.f hi)) (do (set b.f lo)))

@@ -12,7 +12,11 @@ type arrow = {
 }
 
 type ty = { name : string; flavor : flavor; arrows : arrow list }
-type equation = { name : string; lhs : Value.path; rhs : Value.path }
+
+(* A law is a guard (§8.6), not a pair of chains. It ranges over one type — its
+   guard's single free root, the subject the implicit quantification is about —
+   which [Decl] checks at declaration and [Eval] binds at evaluation. *)
+type equation = { name : string; body : Guard.t }
 
 type t = {
   name : string;

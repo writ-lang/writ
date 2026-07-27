@@ -12,10 +12,19 @@ type resolve = string -> (string, Errors.t) result
 
 let ( let* ) = Result.bind
 
-let read_datums (resolve : resolve) (name : string) :
+(* Every file is read under a name, and that name goes onto the positions of its
+   datums — which is the whole reason a diagnostic from a loaded library can still
+   say so after [inline] has spliced it into the loading file's datum list.
+   [?file] exists because the two names differ for the file the caller asked
+   about: [name] is what [resolve] searches for (a basename, see design D3),
+   while the path the caller typed is what it can act on, so the entry points
+   below pass that as the label. A [(load …)] target has no such path — the load
+   datum named it, and the load path is how the reader finds it again — so its
+   own name is both. *)
+let read_datums (resolve : resolve) ?file (name : string) :
     (Reader.t list, Errors.t) result =
   let* src = resolve name in
-  Reader.read_string src
+  Reader.read_string ~file:(Option.value file ~default:name) src
 
 let load_name = function
   | Reader.List ([ Reader.Atom ("load", _); Reader.Atom (f, _) ], p) ->
@@ -78,20 +87,31 @@ let inline (resolve : resolve) (datums : Reader.t list) :
 
 let read_model (resolve : resolve) (path : string) : (Model.t, Errors.t) result
     =
-  let* datums = read_datums resolve (Filename.basename path) in
+  let* datums = read_datums resolve ~file:path (Filename.basename path) in
   let* inlined = inline resolve datums in
   let* expanded = Expander.expand inlined in
   Parser.parse_model expanded
 
 let load_library (resolve : resolve) (name : string) :
     (Reader.t list, Errors.t) result =
-  let* datums = read_datums resolve (Filename.basename name) in
+  let* datums = read_datums resolve ~file:name (Filename.basename name) in
   let* () = ensure_library datums in
   inline resolve datums
 
 let read_claims (resolve : resolve) (m : Model.t) (path : string) :
     (Claims.t, Errors.t) result =
-  let* datums = read_datums resolve (Filename.basename path) in
+  let* datums = read_datums resolve ~file:path (Filename.basename path) in
   let* inlined = inline resolve datums in
   let* expanded = Expander.expand inlined in
   Claims_parser.parse m.Model.schema m.Model.initial expanded
+
+(* A .rules file is the third file type (extension §1) and reads like the other
+   two: its own [(load …)] libraries inlined, its forms expanded, then parsed.
+   The schema is passed for one narrow purpose — a typed column may name a
+   schema type, and the sort words must not be shadowed by one. *)
+let read_rules (resolve : resolve) (m : Model.t) (path : string) :
+    (Rules_parser.t, Errors.t) result =
+  let* datums = read_datums resolve ~file:path (Filename.basename path) in
+  let* inlined = inline resolve datums in
+  let* expanded = Expander.expand inlined in
+  Rules_parser.parse m.Model.schema expanded

@@ -221,7 +221,7 @@ let () =
           (match t1.Model.when_ with
           | Model.Is
               ( { Value.root = "watchdog"; steps = [ "independence" ] },
-                "independent" ) ->
+                Model.Lit "independent" ) ->
               check "parse: guard is (is watchdog.independence independent)"
                 true
           | _ -> check "parse: guard shape" false);
@@ -229,7 +229,7 @@ let () =
           | [
            Model.Set
              ( { Value.root = "watchdog"; steps = [ "independence" ] },
-               "captured" );
+               Model.Lit "captured" );
           ] ->
               check "parse: effect is (set watchdog.independence captured)" true
           | _ -> check "parse: effect shape" false)

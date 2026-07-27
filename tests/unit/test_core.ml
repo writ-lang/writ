@@ -51,8 +51,20 @@ let schema : Schema.t =
       [
         {
           name = "same-agency";
-          lhs = path "case" [ "investigator"; "independence" ];
-          rhs = path "case" [ "investigator"; "independence" ];
+          body =
+            Guard.Not
+              (Guard.And
+                 [
+                   Guard.Defined
+                     (path "case" [ "investigator"; "independence" ]);
+                   Guard.Defined
+                     (path "case" [ "investigator"; "independence" ]);
+                   Guard.Not
+                     (Guard.Is
+                        ( path "case" [ "investigator"; "independence" ],
+                          Guard.Chain
+                            (path "case" [ "investigator"; "independence" ]) ));
+                 ]);
         };
       ];
   }

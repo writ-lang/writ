@@ -9,7 +9,11 @@
         property / query / accept symbols with range ⊇ selectionRange;
      2. a LIBRARY .pol buffer (no [use]) publishes NO "needs (use)" diagnostic;
      3. a .claims buffer with a genuine (query path) error publishes exactly ONE
-        diagnostic carrying a line:col range. *)
+        diagnostic carrying a line:col range.
+   Plus two about WHERE a squiggle may be drawn: on the [(load …)] that failed to
+   resolve, and — for a fault inside the library that load pulled in — nowhere in
+   particular, because a coordinate into another file cannot honestly be drawn on
+   this one. *)
 
 open Pol_data
 open Pol_lsp
@@ -21,6 +25,15 @@ let check name cond =
   else (
     print_string ("FAIL: " ^ name ^ "\n");
     exit 1)
+
+let contains_sub ~sub s =
+  let ls = String.length s and lsub = String.length sub in
+  let rec go i =
+    if i + lsub > ls then false
+    else if String.sub s i lsub = sub then true
+    else go (i + 1)
+  in
+  go 0
 
 (* --- fixtures, served in memory ------------------------------------------- *)
 
@@ -54,8 +67,20 @@ let library_src =
   "(form (all (X T) G) => (not (some (X T) (not G))))\n\
    (schema quiver (type node))\n"
 
+(* A library with a fault of its own, on one long line: the [(equation …)] sits
+   inside a [(type …)] body, at column 55 of 84. Loaded by a buffer whose lines
+   are all far shorter, so the position it carries indexes nothing here. *)
+let flawed_library_src =
+  "(schema lib (type v (a b)) (type box (arrow f (to v)) (equation e (= box.f \
+   box.f))))\n"
+
 let files =
-  [ ("mini.pol", model_src); ("bad.pol", model_src); ("kit.pol", library_src) ]
+  [
+    ("mini.pol", model_src);
+    ("bad.pol", model_src);
+    ("kit.pol", library_src);
+    ("flaw.pol", flawed_library_src);
+  ]
 
 let resolve _uri name : (string, Errors.t) result =
   match List.assoc_opt name files with
@@ -205,6 +230,61 @@ let () =
   | ds ->
       check
         ("bad load: expected one diagnostic, got "
+        ^ string_of_int (List.length ds))
+        false
+
+(* 5. a fault INSIDE a loaded library. The loader inlines that library's datums
+   into this buffer's, so the error arrives carrying column 55 of a file the
+   editor is not showing — and this buffer's longest line is 28 columns. Drawing
+   it here would underline whatever text happens to sit nearby with complete
+   confidence, which is the wrong-file coordinate this guards against. So the
+   range falls back to line 1 exactly as a positionless error does, and the
+   message carries the location that is actually true. *)
+let () =
+  let src =
+    "(load \"flaw.pol\")\n\
+     (schema mine (type w (c d)))\n\
+     (instance i (of mine))\n\
+     (use mine)\n\
+     (initial i)\n"
+  in
+  let st = Server.create ~resolve in
+  let out = Server.handle st (did_open "file:///w/loader.pol" src) in
+  match diagnostics_of out with
+  | [ d ] ->
+      check "cross-file: the diagnostic is not pinned to a line of this buffer"
+        (match Json.member "range" d with
+        | Some r ->
+            range_of r = ((0, 0), (0, String.length "(load \"flaw.pol\")"))
+        | None -> false);
+      check "cross-file: the message names the library and its own line:col"
+        (match Json.member "message" d with
+        | Some (Json.String m) -> contains_sub ~sub:"flaw.pol:1:55: " m
+        | _ -> false)
+  | ds ->
+      check
+        ("cross-file: expected one diagnostic, got "
+        ^ string_of_int (List.length ds))
+        false
+
+(* 5. a .rules buffer is checked as RULES against its sibling model, not waved
+   through as a library. The failure this pins is silence: before the Rules
+   role existed the buffer fell to [Library], which read+expanded it happily,
+   so an undeclared relation head produced no diagnostic at all while the CLI
+   reported it. *)
+let () =
+  let st = Server.create ~resolve in
+  let src = "(relation declared 1)\n(rule (undeclared X) (situation X))\n" in
+  let out = Server.handle st (did_open "file:///w/mini.rules" src) in
+  match diagnostics_of out with
+  | [ d ] ->
+      check "bad .rules: the undeclared head is reported"
+        (match Json.member "message" d with
+        | Some (Json.String m) -> contains_sub ~sub:"undeclared" m
+        | _ -> false)
+  | ds ->
+      check
+        ("bad .rules: expected one diagnostic, got "
         ^ string_of_int (List.length ds))
         false
 

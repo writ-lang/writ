@@ -1,0 +1,47 @@
+; The shop's two claims, re-asked as derivations (extension §2). Checked AGAINST
+; jobshop.claims by modality-cross-check.sh, never instead of it: two
+; implementations of one question, and a disagreement is a bug in one of them.
+;
+; POLARITY — the same rule river.rules spells out, and the same trap.
+;   `possible F` is POSITIVE: the relation holds the reachable situations that
+;   satisfy F, so NON-EMPTY means the property holds.
+;   `live F` is AG EF F, which no stratified relation can say positively, so it
+;   is the COUNTEREXAMPLE SET: the reachable situations from which no F is
+;   reachable. EMPTY means the property holds. Writing it as "the schedules that
+;   can still finish" would read as the satisfying set and silently invert the
+;   oracle — every live verdict backwards, the script still green.
+
+(load "../libraries/scheduling.lib.pol")
+
+; Reachability over real edges, reflexive at every situation.
+(relation reach 2)
+(rule (reach S S) (situation S))
+(rule (reach S T) (edge E S M) (reach M T))
+
+; `possible`: the schedules, reachable from the empty shop, in which every job
+; is done. Non-empty ⟺ `holds all-finish`.
+(relation all-finish 1)
+(rule (all-finish T)
+  (init S)
+  (reach S T)
+  (holds T (all-done j)))
+
+; `live`: the counterexample set. `finished` is F; `can-still-finish` is EF F;
+; `never-stuck` is the reachable schedules where EF F fails — the deadlocks.
+; Non-empty ⟺ `fails never-stuck`.
+(relation finished 1)
+(rule (finished T) (situation T) (holds T (all-done j)))
+
+(relation can-still-finish 1)
+(rule (can-still-finish S) (reach S T) (finished T))
+
+(relation never-stuck 1)
+(rule (never-stuck S) (situation S) (not (can-still-finish S)))
+
+; The per-machine view the conjunctions above cannot give: who holds what, in a
+; given situation. `pol derive jobshop.pol jobshop.rules "(holds-machine S M J)"`
+; reads a deadlock off the space. The typed declaration is required, not
+; decorative: `M` and `J` occur only in sort-transparent positions here, so
+; nothing else in the rule could seed them.
+(relation holds-machine (Situation machine job))
+(rule (holds-machine S M J) (situation S) (holds S (is M.held-by J)))

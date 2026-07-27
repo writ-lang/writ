@@ -1,0 +1,13 @@
+; The makespan question, asked as a ladder of feasibility checks.
+;
+; Each property asks "can every job be finished by tick K". The SMALLEST K that
+; holds is the optimal makespan, and its witness is the schedule that achieves
+; it. Two are asked here rather than the whole range: the largest K that fails
+; and the smallest that holds, which together pin the optimum from both sides.
+(load "../libraries/scheduling.lib.pol")
+
+(property done-by-4 "every job finished by tick 4 — the bound that is too tight"
+  (possible (and (all-done j) (is clk.at t4))))
+
+(property done-by-5 "every job finished by tick 5 — the optimum"
+  (possible (and (all-done j) (is clk.at t5))))

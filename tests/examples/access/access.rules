@@ -1,0 +1,36 @@
+; The revocation question, re-asked as a derivation (extension §2) for
+; `modality-cross-check.sh`.
+;
+; `revocation-possible` is `live`, so this relation is the COUNTEREXAMPLE SET —
+; the reachable situations from which "nobody is admin" can no longer be
+; reached — and it is NON-EMPTY, because `pol check` reports this property as
+; failing. That is the designed latch: grant-breakglass-admin has no inverse,
+; so once it fires mallory is admin forever.
+;
+; Empty ⟺ the property holds. Note what that means for THIS file specifically:
+; an inversion here — re-pointing `revocation-possible` at `can-still-revoke` —
+; would NOT be caught by the cross-check, because both sets are non-empty in
+; this scenario and both therefore read as `fails`. The `live` properties that
+; catch an inversion are the ones that HOLD (oversight/accountability and both
+; of workflow's), where the counterexample set is empty and the satisfying set
+; is not. So the polarity of this file rests on the comment, not on the oracle.
+; Do not "simplify" it into `can-still-revoke`.
+;
+; The `some` binder is the KERNEL's quantifier, evaluated by `Eval` inside the
+; guard datum; `a` is lower-case on purpose, since an ALL-CAPS binder would read
+; as a rule variable and be rejected (extension §4).
+
+(relation reach 2)
+(rule (reach S S) (situation S))
+(rule (reach S T) (edge E S M) (reach M T))
+
+(relation no-admin 1)
+(rule (no-admin T)
+  (situation T)
+  (holds T (not (some (a account) (is a.role admin)))))
+
+(relation can-still-revoke 1)
+(rule (can-still-revoke S) (reach S T) (no-admin T))
+
+(relation revocation-possible 1)
+(rule (revocation-possible S) (situation S) (not (can-still-revoke S)))

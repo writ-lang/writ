@@ -1,8 +1,10 @@
 ; The command line — the only module tree with I/O besides the LSP process. It
 ; links all three engine libraries: the data model, the front end (to read
 ; models), and the interrogator (to answer questions about them). The exe main
-; module is [Pol]; [Help] is its sibling holding the `--help` text, and
-; [Version] is generated below.
+; module is [Pol], which is only the argument dispatch: one [Cmd_*] sibling per
+; verb, [Cli_io] for the filesystem they share, [Help] for the `--help` text,
+; and [Version] generated below. One module per verb so that adding a verb adds
+; a file rather than growing the one everything already lives in.
 
 ; (public_name pol) is what makes `opam install .` put this binary on the PATH
 ; as `pol`; without it the exe exists only inside _build.
@@ -11,7 +13,17 @@
  (name pol)
  (public_name pol)
  (package pol)
- (modules pol help version)
+ (modules
+  pol
+  cli_io
+  cmd_check
+  cmd_query
+  cmd_compare
+  cmd_control
+  cmd_schema
+  cmd_derive
+  help
+  version)
  (libraries pol_data pol_syntax pol_runtime pol_loadpath))
 
 ; `pol --version` reads the version dune already knows — the one in dune-project
