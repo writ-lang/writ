@@ -48,7 +48,7 @@ let org =
      (transition speak (when (is nabu.stands quiet)) (do (set nabu.stands \
      vocal)))"
 
-(* The shape of tests/examples/access: a mutable [role] under a [some] binder,
+(* The shape of pol-problems' access: a mutable [role] under a [some] binder,
    which is the formula §8's oracle needs to be able to write. *)
 let acc =
   model_of
@@ -240,7 +240,7 @@ let () =
 (* A kernel [some] binder is not a rule variable: it is bound by the
    quantifier and scoped to its own guard body, so §4's "must already be bound"
    does not reach it. Without that reading this formula — the one at
-   tests/examples/access/access.claims:13 — would be rejected. *)
+   pol-problems access/access.claims:13 — would be rejected. *)
 let () =
   accepted "a some binder under a negation inside holds" acc
     "(relation quiet-day (Situation))\n\

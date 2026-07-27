@@ -34,7 +34,7 @@ one it looks like.
 
 Diagonals are *not* the problem — those were solved by modelling rows as a
 ladder, so `R.next.next` says "two rows up" and no arithmetic is needed
-(`tests/examples/queens/README.md`). What remains is that there is one
+(pol-problems, `queens/README.md`). What remains is that there is one
 transition per **(column, row)** pair — sixty-four of them — and that floor
 is set by a single sentence in §10.3:
 
@@ -129,7 +129,7 @@ said to revisit "when a **domain** model wants it".
 
 ### That has now happened, twice
 
-**`tests/examples/jobshop-best/`** is a scheduling model, not a puzzle, and it
+**`jobshop-best/`** (pol-problems) is a scheduling model, not a puzzle, and it
 pays the floor in the open: nine of its sixty-nine lines are `tick-1` …
 `tick-9`, nine copies of one idea, because the clock cannot advance itself.
 What it wants to write is exactly the shape above:

@@ -141,7 +141,7 @@ let () =
     ~line:1 ~col:60 ~sub:"arrow `f` is already declared on `box`";
   (* The two controls that keep §8.3's freshness scoped to the owner rather than
      global. §7 is explicit that `bureau` and `case` may each own a `status`, and
-     tests/examples/river leans on it (traveler.at, cargo.at) — a check keyed on
+     pol-problems' river leans on it (traveler.at, cargo.at) — a check keyed on
      the name alone would pass every test above and break the river. The second
      control covers the same pair declared through different syntax, which is the
      case a per-[(type …)]-body check would miss. *)
