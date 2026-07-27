@@ -73,23 +73,32 @@ Twenty literal conjuncts per move became nine that read. The models are still
 generated, there being one move per (column, row), but that is the move set's
 doing rather than the arithmetic's.
 
-### 4. A blocking job shop — `jobshop/`
+### 4. A blocking job shop, asked twice — `jobshop-possible/`, `jobshop-best/`
 Three jobs, three machines, routed in a cycle, with no buffers: a job holds the
 machine it is on until it has *acquired* the next one.
 
-`pol check` answers **`holds all-finish`** — some schedule finishes every job —
-and then **`fails never-stuck`**, naming a three-move circular deadlock in
-full: `a-enters, b-enters, c-enters`, after which each job holds the machine
-the next one is waiting for.
+A shop has two different questions, and they need two different models.
 
-The pair is the lesson. A `possible` that holds says a good schedule exists and
-says nothing about the bad ones you can walk into first; `live` is the
-Prologue's wish 8, and it is the question a scheduler actually needs. Durations
-and makespan are deliberately absent — those are arithmetic — but the classical
-hard question about a *blocking* shop is whether a schedule exists at all,
-which is pure reachability.
+**`jobshop-possible/` — does a schedule exist?** `pol check` answers **`holds
+all-finish`**, then **`fails never-stuck`**, naming a three-move circular
+deadlock in full: `a-enters, b-enters, c-enters`, after which each job holds
+the machine the next one waits for. No time in this model at all — and it does
+not need any, because the shop seizes on the *shape* of the routings and would
+seize identically whether an operation took a minute or a week. 51 situations.
 
-See [`jobshop/README.md`](jobshop/README.md).
+**`jobshop-best/` — which schedule is shortest?** The same shop with a clock:
+ticks as a **small named scale** (Appendix G's own escape clause), a ladder of
+entities walked by `next`, so "finishes within 5 ticks" is an ordinary
+`possible`. `done-by-4` **fails** and `done-by-5` **holds**, which pins the
+optimum from both sides, and the witness is the optimal schedule. Optimisation
+by repeated feasibility rather than a cost function. 1314 situations — time is
+expensive, which is why the untimed model stays.
+
+The pair is the lesson. The optimum overlaps two jobs and holds the third back,
+and the *other* model is what proves it must: full utilisation is the deadlock.
+Neither answers that alone. See
+[`jobshop-possible/README.md`](jobshop-possible/README.md) and
+[`jobshop-best/README.md`](jobshop-best/README.md).
 
 ## The spec's §3 scenarios
 

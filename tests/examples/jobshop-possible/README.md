@@ -1,4 +1,9 @@
-# A blocking job shop — and what Pol is actually good at
+# A blocking job shop — does a schedule exist?
+
+*This is one of a pair. Here: **can** every job finish, and which schedules
+seize. Next door in [`../jobshop-best/`](../jobshop-best/): **which** schedule
+is shortest. The two questions need different models, and the difference is
+worth understanding before reaching for either.*
 
 ## The problem, from the beginning
 
@@ -94,27 +99,25 @@ shop can finish everything" is true and useless, because it says nothing about
 the schedules you can blunder into first. That gap between `possible` and
 `live` is the Prologue's wish 8, and it is the reason this example is here.
 
-## What is deliberately missing: time
+## There is no time in this model, on purpose
 
-A real scheduler wants to know how *long* a schedule takes — the **makespan** —
-and each operation has a duration. **None of that is modelled here, and none of
-it can be.** Durations are numbers, and Pol has none (Pivotal idea 3): there is
-no arithmetic, no ordering, no way to add two quantities.
+No durations, no makespan. Notice which question the deadlock turned on:
+**none of it involved time.** The shop seizes because of the *shape* of the
+routings, and it would seize identically whether an operation took a minute or
+a week. Making the machines faster does not help; nothing helps, because no job
+will ever release anything.
 
-That sounds like a crippling omission for a scheduling example, and mostly it
-is not. Notice which question the deadlock above turned on: **none of it
-involved time.** The shop seizes because of the *shape* of the routings, and it
-would seize identically whether each operation took a minute or a week. Making
-the machines faster does not help; nothing helps, because no job will ever
-release anything.
+Leaving time out is what keeps this model small — 51 situations — and the
+question sharp. When you *do* want the shortest schedule, that is a different
+model with a clock in it, and it is next door: `../jobshop-best/`, 1314
+situations for the same three jobs. Pay for time only when you are asking about
+time.
 
-So the division is clean, and it is worth stating as a rule of thumb:
-
-> Ask Pol whether a schedule **exists**. Ask a solver how **long** it takes.
-
-Appendix G draws the same line — "quantities and arithmetic … out of scope,
-unless honestly reduced to small named scales". A blocking shop's hardest
-question happens to fall on Pol's side of it.
+The witness under `all-finish` is worth reading with that in mind. It is **a**
+schedule, not a good one: it runs the jobs strictly one after another, leaving
+the machines idle. Every complete schedule here is nine moves, so "shortest"
+ranks none of them above another and Pol returned whichever it found first.
+Read it as proof that finishing is possible, never as a recommendation of how.
 
 ## One thing worth copying from this model
 

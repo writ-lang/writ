@@ -27,13 +27,19 @@ services:
     image: pol-prologue-tests
     command: ["queens"]
 
-  # A blocking job shop: deadlock detection as a `live` question. No durations
-  # and no makespan — those are arithmetic — but whether a schedule exists at
-  # all is exactly what `live` answers.
-  jobshop:
+  # A blocking job shop, asked the two different questions a shop has. Does a
+  # schedule exist at all (a `live` question about deadlock) …
+  jobshop-possible:
     build: .
     image: pol-prologue-tests
-    command: ["jobshop"]
+    command: ["jobshop_possible"]
+
+  # … and which schedule is shortest, with time as a small named scale so that
+  # "finishes within N ticks" is an ordinary `possible`.
+  jobshop-best:
+    build: .
+    image: pol-prologue-tests
+    command: ["jobshop_best"]
 
   # Institutional architecture (§3/§4). Runs `pol check` AND, inside the
   # run-tests `oversight` function, `pol compare oversight.pol oversight-repeal.pol`

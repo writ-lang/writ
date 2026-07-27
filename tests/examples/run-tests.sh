@@ -99,23 +99,46 @@ island() {
   has "island:    cal could be nothing at all" "$out" "fails  cal-can-be-knight"
 }
 
-jobshop() {
+jobshop_possible() {
   echo "== A blocking job shop =="
   echo "   Q: three jobs, three machines, no buffers — can every schedule still"
   echo "      finish, or can the shop walk into a deadlock?"
-  out=$("$POL" check "$here/jobshop/jobshop.pol" --claims "$here/jobshop/jobshop.claims" 2>&1)
+  out=$("$POL" check "$here/jobshop-possible/jobshop-possible.pol" --claims "$here/jobshop-possible/jobshop-possible.claims" 2>&1)
   st=$?
   printf '%s\n' "$out" | sed 's/^/     | /'
-  exit_is "jobshop: check reports findings" "$st" 1
-  has "jobshop: 51 reachable schedules" "$out" "states: 51"
-  has "jobshop: A. some schedule finishes every job" "$out" "holds  all-finish"
-  near "jobshop:    and pol shows one" "$out" "holds  all-finish" "witness:"
-  has "jobshop: B. but not EVERY schedule can still finish" "$out" "fails  never-stuck"
-  has "jobshop:    the deadlock is named in full" "$out" \
+  exit_is "jobshop-possible: check reports findings" "$st" 1
+  has "jobshop-possible: 51 reachable schedules" "$out" "states: 51"
+  has "jobshop-possible: A. some schedule finishes every job" "$out" "holds  all-finish"
+  near "jobshop-possible:    and pol shows one" "$out" "holds  all-finish" "witness:"
+  has "jobshop-possible: B. but not EVERY schedule can still finish" "$out" "fails  never-stuck"
+  has "jobshop-possible:    the deadlock is named in full" "$out" \
     "m1.held-by=a m2.held-by=b m3.held-by=c"
-  near "jobshop:    reached by three moves, one per job" "$out" "fails  never-stuck" "a-enters"
-  near "jobshop:    each job holding the machine the next one wants" "$out" \
+  near "jobshop-possible:    reached by three moves, one per job" "$out" "fails  never-stuck" "a-enters"
+  near "jobshop-possible:    each job holding the machine the next one wants" "$out" \
     "fails  never-stuck" "c-enters"
+}
+
+jobshop_best() {
+  echo "== The same job shop, with a clock =="
+  echo "   Q: what is the SHORTEST schedule, and what does it look like?"
+  out=$("$POL" check "$here/jobshop-best/jobshop-best.pol" \
+    --claims "$here/jobshop-best/jobshop-best.claims" 2>&1)
+  st=$?
+  printf '%s\n' "$out" | sed 's/^/     | /'
+  exit_is "jobshop-best: check reports a finding (the too-tight bound)" "$st" 1
+  has "jobshop-best: 1314 situations — the shop times the clock" "$out" "states: 1314"
+  has "jobshop-best: A. four ticks is NOT enough" "$out" "fails  done-by-4"
+  has "jobshop-best: B. five ticks is — the optimum, pinned from both sides" "$out" \
+    "holds  done-by-5"
+  near "jobshop-best:    and pol prints the optimal schedule" "$out" \
+    "holds  done-by-5" "witness:"
+  # The optimum overlaps a and b while holding c back — which is exactly what
+  # jobshop-possible proved was necessary, since all three in the shop at once
+  # is the deadlock.
+  near "jobshop-best:    it starts two jobs in the first tick" "$out" \
+    "holds  done-by-5" "b-enters"
+  near "jobshop-best:    and only then advances the clock" "$out" \
+    "holds  done-by-5" "tick-1"
 }
 
 oversight() {
@@ -246,7 +269,7 @@ crosscheck() {
 
 # The scenarios, in order — the single source of truth for `all`, numbering
 # (1-based, as `list` prints), and name lookup. Each is a function above.
-scenarios="river island queens jobshop oversight workflow access control gitcompare crosscheck"
+scenarios="river island queens jobshop_possible jobshop_best oversight workflow access control gitcompare crosscheck"
 
 list_scenarios() {
   echo "tests (run one by name or number, e.g. '$0 3' or '$0 river'):"

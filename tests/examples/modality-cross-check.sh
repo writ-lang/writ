@@ -32,7 +32,7 @@ set -u
 here=$(cd "$(dirname "$0")" && pwd)
 POL=${POL:-pol}
 
-scenarios="river island queens jobshop oversight workflow access"
+scenarios="river island queens jobshop-possible jobshop-best oversight workflow access"
 
 considered=0
 compared=0
