@@ -65,15 +65,17 @@ queens() {
   has "queens: 2057 situations, the column-ordered search tree" "$out" "states: 2057"
   has "queens: A. eight queens CAN be placed" "$out" "holds  solvable"
   near "queens:    and pol shows where they go" "$out" "holds  solvable" "witness:"
-  near "queens:    starting from a first-column placement" "$out" "holds  solvable" "p-1-"
+  near "queens:    starting from a first-column placement" "$out" "holds  solvable" "1. place-"
   # `near` looks six lines past its anchor and the witness is eight moves, so
   # the last one is asserted on the numbered line it prints as — a spelling
   # that occurs nowhere else, since dead ends are listed as "reached by:".
-  has "queens:    through to the eighth column" "$out" "8. p-8-"
-  # A complete board is a dead end whose route fills column 8. The other dead
-  # ends are stuck prefixes — a partial board with no safe next column — which
-  # is why this counts routes rather than dead ends.
-  n=$(printf '%s\n' "$out" | grep 'reached by:' | grep -c 'p-8-')
+  has "queens:    through to the eighth column" "$out" "8. place-"
+  # A complete board is a dead end reached in EIGHT moves — one per column,
+  # since the cursor advances exactly once per placement. The other dead ends
+  # are stuck prefixes, whose routes are shorter, which is why this counts
+  # route length rather than dead ends.
+  n=$(printf '%s\n' "$out" | grep 'reached by:' \
+      | awk -F'reached by:' '{ if (split($2, a, ",") == 8) c++ } END { print c+0 }')
   if [ "$n" -eq 92 ]; then
     ok "queens: B. all 92 complete boards are found (each a dead end)"
   else

@@ -69,35 +69,47 @@ let rec guard_holds (ctx : State.ctx) (st : State.t) (env : env)
         (fun e -> guard_holds ctx st ((x, e) :: env) g)
         (entities_of_type ctx ty)
 
-(* Write the cell named by a path's last step. The one-shorter prefix must be
-   defined (yielding the source entity); the cell is then updated in place in the
-   state vector. A step off an undefined prefix, or a target outside the layout
-   (a fixed or unknown cell), leaves the state unchanged — guards are expected to
-   have ensured applicability. *)
-let write_cell (ctx : State.ctx) (st : State.t) (p : Value.path)
-    (cell : Value.cell) : State.t =
+(* WHICH cell a path names: walk the one-shorter prefix to an entity, then take
+   the last step as the arrow. Returns the slot in the state vector.
+
+   This is separate from writing it, and that separation is the whole of §10.1's
+   simultaneity. A target is a path too — [(set cur.q.at S)] must walk [cur.q]
+   to find the queen — so if the walk happened at write time it would see what
+   an earlier effect of the same move had already written, and the order of
+   effects would be observable through the LEFT side even with every right side
+   read from the starting situation. That is not a hypothetical: the queens
+   cursor writes [cur.q.at] and [cur.q] in one move, and swapping the two gave
+   9 situations instead of 2057 until this was split out.
+
+   [None] for a rootless path, a step off an undefined prefix, or a target
+   outside the layout (a fixed or unknown cell) — the effect is then a no-op, as
+   §10.3 says: guards are expected to have ensured applicability. *)
+let target_index (ctx : State.ctx) (st : State.t) (p : Value.path) : int option
+    =
   match List.rev p.steps with
-  | [] -> st
+  | [] -> None
   | last :: rev_prefix -> (
       let prefix = { p with steps = List.rev rev_prefix } in
       match eval_path ctx st [] prefix with
-      | Some (Value.Filled src) -> (
-          let cr = { Instance.arrow = last; src } in
-          match State.index_of ctx cr with
-          | Some i -> State.set st i cell
-          | None -> st)
-      | _ -> st)
+      | Some (Value.Filled src) ->
+          State.index_of ctx { Instance.arrow = last; src }
+      | _ -> None)
 
 (* Applying a move, in two phases, which is what §10.3's chain-valued [set]
    forced and what §10.1 now states outright.
 
-   PHASE 1 reads every right-hand side in the situation the move STARTED from.
-   That makes a [do] block a simultaneous assignment: [(do (set a.x b.y) (set
-   b.y a.x))] is a swap, and the order of effects within one move stays
-   unobservable — which it must, since §10.1 says no situation exists between
-   two effects of one move, and nothing in the language can name that order.
-   Threading the state through the writes one at a time, as this used to, is
-   precisely the sequential reading that would break both.
+   PHASE 1 resolves every effect against the situation the move STARTED from —
+   BOTH sides. The right-hand side is read there, and so is the target: a
+   target is a path too, and [target_index] must walk it to find the cell. Miss
+   either half and the order of effects becomes observable through the half
+   that was missed. That makes a [do] block a simultaneous assignment: [(do
+   (set a.x b.y) (set b.y a.x))] is a swap, and writing the two effects of the
+   queens cursor in either order gives the same 2057 situations. §10.1 says no
+   situation exists between two effects of one move, and nothing in the
+   language can name that order — so nothing may depend on it.
+
+   Threading the state through the effects one at a time, as this used to, is
+   precisely the sequential reading that breaks all of the above.
 
    PHASE 1 also decides ENABLEDNESS. A chain with no answer — [(set q.at
    q.at.next)] at the top of a ladder — makes the move [`Blocked]: not a
@@ -119,14 +131,21 @@ let apply (ctx : State.ctx) (st : State.t) (effects : Model.effect list) :
         | Some (Value.Filled v) -> Some v
         | Some Value.Vacant | None -> None)
   in
-  (* Phase 1: every right-hand side, against the starting situation. *)
+  (* Phase 1: both sides of every effect, against the starting situation. A
+     target that names no cell is a no-op (§10.3), so it drops out here. *)
   let rec resolve acc = function
     | [] -> Ok (List.rev acc)
     | Model.Set (p, r) :: rest -> (
         match read r with
-        | Some v -> resolve (`Set (p, v) :: acc) rest
-        | None -> Error `Blocked)
-    | Model.Vacate p :: rest -> resolve (`Vacate p :: acc) rest
+        | None -> Error `Blocked
+        | Some v -> (
+            match target_index ctx st p with
+            | Some i -> resolve (`Write (i, Value.Filled v) :: acc) rest
+            | None -> resolve acc rest))
+    | Model.Vacate p :: rest -> (
+        match target_index ctx st p with
+        | Some i -> resolve (`Write (i, Value.Vacant) :: acc) rest
+        | None -> resolve acc rest)
     | Model.Gap msg :: rest -> resolve (`Gap msg :: acc) rest
   in
   match resolve [] effects with
@@ -135,13 +154,11 @@ let apply (ctx : State.ctx) (st : State.t) (effects : Model.effect list) :
       match List.find_opt (function `Gap _ -> true | _ -> false) resolved with
       | Some (`Gap msg) -> `Gap msg
       | _ ->
-          (* Phase 2: the writes, on values already read. *)
+          (* Phase 2: the writes, into slots already chosen. *)
           `Next
             (List.fold_left
                (fun st -> function
-                 | `Set (p, v) -> write_cell ctx st p (Value.Filled v)
-                 | `Vacate p -> write_cell ctx st p Value.Vacant
-                 | `Gap _ -> st)
+                 | `Write (i, cell) -> State.set st i cell | `Gap _ -> st)
                st resolved))
 
 (* A law is a guard, and it ranges over its single free root — the subject

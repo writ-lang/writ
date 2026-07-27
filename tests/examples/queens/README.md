@@ -33,7 +33,7 @@ diagonal" is then just `is`. No arithmetic is needed and none is smuggled in:
 small and fully known — which is Pivotal idea 3 doing exactly the work it
 exists to do.
 
-That one decision collapses the model. Safety stops being seven
+That one decision collapses the *guards*. Safety stops being seven
 distance-indexed forms and becomes **one**, quantified over queens instead of
 enumerated per column:
 
@@ -45,16 +45,42 @@ enumerated per column:
 
 An unplaced queen blocks nothing, and that too is free rather than arranged:
 its `at` is vacant, so `B.at.row` has no answer, `is` is strict, and `differ`
-is therefore true. Every move then fits on a line:
+is therefore true.
+
+## The second idea: don't say which queen
+
+Naming the diagonals shortens every guard but leaves sixty-four moves — one per
+square — because a move has to say which queen it places. **A cursor says it
+instead.**
 
 ```lisp
-(form (place N Q PREV S)
+(form (fill N S)
   => (transition N
-       (when (and (not (defined Q.at)) (defined PREV.at) (free p S)))
-       (do (set Q.at S))))
+       (when (and (not (defined cur.q.at)) (free p S)))
+       (do (set cur.q.at S) (set cur.q cur.q.next))))
 
-(place p-3-5 q3 q2 s35)
+(fill place-1 cur.q.sq1)   ; …and seven more. That is the entire move set.
 ```
+
+**Eight moves, not sixty-four.** The moves index *rows*; which column they fill
+is whatever `cur` currently points at, and each move advances it. Column order
+is then enforced by construction rather than by a conjunct in every guard.
+
+This needs both halves of the §10.3 widening and it is the reason that widening
+earned its place:
+
+- `set` takes a **chain**, so the cursor walks itself: `(set cur.q cur.q.next)`.
+- Effects are **simultaneous** (§10.1), so `(set cur.q.at S)` still writes the
+  queen the cursor named when the move *began*, not the one it has just moved
+  to. Write the two effects in either order and the space is identical — and
+  that is asserted, because it was not true when this model was first built.
+  Getting it wrong gave 9 situations instead of 2057, which is what found the
+  bug: the right-hand sides were read at the start but the *target path* was
+  walked at write time, so order was observable through the left side.
+
+The ring closes the model neatly. After `q8` the cursor lands back on `q1`,
+which is already placed, so nothing is enabled — a finished board is a **dead
+end**, which is precisely what a finished board should be.
 
 ### What this replaced, and what it did *not* need
 
@@ -73,54 +99,53 @@ seven-conjunct guard per move:
   (do (set q3.row r5)))
 ```
 
-| | lines | forms | per-move guard |
-| --- | --- | --- | --- |
-| ladder version | 468 | 7 `safeN` | 7–8 conjuncts |
-| naming version | 119 | 1 `free` | 3 conjuncts, quantified |
+| | lines | moves | forms | per-move guard |
+| --- | --- | --- | --- | --- |
+| ladder version | 468 | 64 | 7 `safeN` | 7–8 conjuncts |
+| named diagonals | 119 | 64 | 1 `free` | 3 conjuncts, quantified |
+| …plus the cursor | **83** | **8** | 2 | 3 conjuncts, quantified |
 
-Same 2057 situations, same 2056 edges, same 736 dead ends, same 92 boards. The
-model is four times smaller and the space is bit-for-bit identical.
+Same 2057 situations, same 2056 edges, same 736 dead ends, same 92 boards at
+every step. The model is five and a half times smaller and the space is
+bit-for-bit identical.
 
-Worth being exact about the cause, because the timing invites the wrong
-conclusion. This rewrite landed just after §10.3 was widened to let `set` take
-a chain — and **it does not use that**. `(set Q.at S)` writes a literal, as it
-always could. What made queens shorter was choosing better data, not a bigger
-language. The chain widening is what made the *job shop's clock* one
-transition; it does nothing for a search.
+The two ideas are independent and it is worth keeping them apart. **Naming the
+diagonals** is a *data* change and needs no language feature — it would have
+worked years ago. **The cursor** is what needs §10.3, and it is the one that
+removes the sixty-four.
 
-### The one thing that would shrink it further, and does not exist
+### What is left, and why
 
-Sixty-four `(place …)` lines remain — one per square. They are one line each
-and read as a table, but they are still sixty-four, and no form can fold them:
-a form cannot map over its `&rest` (§10.2, deliberately). What would fold them
-is a move that picks its destination nondeterministically —
+Eight `(fill …)` lines and a table of instance data. The data is genuinely
+irreducible — it is the board — and eight moves is one per row, which is the
+puzzle's own shape.
 
-```lisp
-(transition place (when (some (s square) (free p s))) (do (set q3.at s)))   ; NOT Pol
-```
-
-— and Pol has no such thing, because a guard's binder is scoped to the guard
-and an effect cannot name it. That is a real gap, and it is the honest reason
-this file is still generated rather than typed.
+The remaining awkwardness is that `sq1`…`sq8` are eight separate arrows where
+one indexed arrow would do. Pol has no indexed arrow, deliberately: an arrow
+is a function with a name, not an array. Writing the board column-wise makes
+the data read as a table, which is the best available answer.
 
 ## The optimisation that worked: order the placements
 
-`queens.pol` and `queens-unordered.pol` describe the same puzzle and have
-the same 92 solutions. They differ by **one conjunct**:
+`queens.pol` and `queens-unordered.pol` describe the same puzzle and have the
+same 92 solutions. The unordered one lets any column be filled at any time.
 
-```lisp
-(defined q2.at)     ; column 3 may only be filled once column 2 is
-```
+| | moves | situations | `pol check` |
+| --- | --- | --- | --- |
+| `queens-unordered.pol` | 64 | 118 969 | 30 s |
+| `queens.pol` | 8 | 2 057 | 0.2 s |
 
-| | situations | `pol check` |
-| --- | --- | --- |
-| `queens-unordered.pol` | 118 969 | 30 s |
-| `queens.pol` | 2 057 | 0.2 s |
+Nothing about legality changed. What changed is what the space *holds*: every
+safe **subset** of columns, versus every safe **prefix**. The subsets are the
+same boards reached by every order of arrival, and the search pays for each
+permutation. Fifty-eight times fewer situations.
 
-Nothing about legality changed. What changed is what the space *holds*:
-every safe **subset** of columns, versus every safe **prefix**. The subsets
-are the same boards reached by every order of arrival, and the search pays
-for each permutation. Fifty-eight times fewer situations.
+Ordering used to be one conjunct. It is now the difference between having a
+cursor and not: **a cursor can only exist if there is an order to advance
+along**, so committing to column order buys the 8-move model as well as the
+58× — the same decision paying twice. That is why the unordered file still
+carries sixty-four moves; it is the naming version without the cursor, and it
+is kept exactly so this comparison is a measurement rather than a claim.
 
 Worth noting against §14: the unordered space is 118 969 situations, which
 is *under* the 200 000 an implementation is permitted to cap at. So the

@@ -82,6 +82,46 @@ let () =
         (cell "b" = Some (Value.Filled "p"))
   | `Gap _ | `Blocked -> check "swap: the move applied" false
 
+(* --- Q1 again, through the LEFT side ---------------------------------------
+
+   The swap above pins that right-hand sides are read at the start. A TARGET is
+   a path too, and it was not: [write_cell] walked it at write time, so an
+   effect that moved a cursor changed where a LATER effect of the same move
+   landed. Order was observable through the left side while every right side
+   was simultaneous — a half-done simultaneity, which is worse than either
+   whole answer because §10.1 promises the order cannot matter.
+
+   Found by a model, not by reading: the queens cursor writes [cur.q.at] and
+   [cur.q] in one move, and swapping those two gave 9 situations instead of
+   2057. Here the same shape in miniature — write through [c.b.x] and move
+   [c.b] — asserted BOTH ways round. *)
+let cursor_src order =
+  "(schema s (type v (p q))\n\
+  \          (type box (arrow x (to v)) (arrow nxt (to box) fixed))\n\
+  \          (type cur-t (arrow b (to box))))\n\
+   (instance i (of s) (box b1 b2) (cur-t c) (v z)\n\
+  \  (x (b1 p) (b2 p)) (nxt (b1 b2) (b2 b1)) (b (c b1)))\n\
+   (use s)\n\
+   (initial i)\n\
+   (transition go (when (is c.b.x p)) (do " ^ order ^ "))\n"
+
+let () =
+  let a = space_of (cursor_src "(set c.b.x q) (set c.b c.b.nxt)") in
+  let b = space_of (cursor_src "(set c.b c.b.nxt) (set c.b.x q)") in
+  check "the cursor move reaches the same situations either way"
+    (Array.length a.Space.states = Array.length b.Space.states);
+  (* Both orders must write b1 — the box the cursor named when the move BEGAN. *)
+  let wrote_b1 sp =
+    let ctx = sp.Space.ctx in
+    Array.exists
+      (fun st ->
+        Eval.eval_path ctx st [] { Value.root = "b1"; steps = [ "x" ] }
+        = Some (Value.Filled "q"))
+      sp.Space.states
+  in
+  check "effect order is not observable through the TARGET path"
+    (wrote_b1 a && wrote_b1 b)
+
 (* --- Q2: an unanswerable chain disables the move -------------------------- *)
 
 (* A four-rung ladder walked by ONE transition — the whole point of the change:
