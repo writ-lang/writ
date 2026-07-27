@@ -1,0 +1,9 @@
+; The question, kept apart from the puzzle (Prologue wish 12).
+(load "stdlib.pol")
+
+; `possible` is enough: its witness IS a solution, printed as the eight moves
+; that place the queens. Asking for a LIST of all 92 is a query's job, not a
+; property's — and `pol check` already reports each complete placement as a
+; dead end, since a full board has no move left.
+(property solvable "all eight queens placed, none attacking"
+  (possible (all (q queen) (defined q.row))))

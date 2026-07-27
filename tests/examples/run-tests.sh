@@ -55,6 +55,32 @@ river() {
   near "river:    stranding prey with its predator is the mistake" "$out" "fails  no-blunders" "stuck at:"
 }
 
+queens() {
+  echo "== Eight queens =="
+  echo "   Q: can eight queens stand on a board with none attacking another?"
+  out=$("$POL" check "$here/queens/queens.pol" --claims "$here/queens/queens.claims" 2>&1)
+  st=$?
+  printf '%s\n' "$out" | sed 's/^/     | /' | head -14
+  exit_is "queens: check exits clean — nothing is wrong with the board" "$st" 0
+  has "queens: 2057 situations, the column-ordered search tree" "$out" "states: 2057"
+  has "queens: A. eight queens CAN be placed" "$out" "holds  solvable"
+  near "queens:    and pol shows where they go" "$out" "holds  solvable" "witness:"
+  near "queens:    starting from a first-column placement" "$out" "holds  solvable" "place-1-"
+  # `near` looks six lines past its anchor and the witness is eight moves, so
+  # the last one is asserted on the numbered line it prints as — a spelling
+  # that occurs nowhere else, since dead ends are listed as "reached by:".
+  has "queens:    through to the eighth column" "$out" "8. place-8-"
+  # A complete board is a dead end whose route fills column 8. The other dead
+  # ends are stuck prefixes — a partial board with no safe next column — which
+  # is why this counts routes rather than dead ends.
+  n=$(printf '%s\n' "$out" | grep 'reached by:' | grep -c 'place-8-')
+  if [ "$n" -eq 92 ]; then
+    ok "queens: B. all 92 complete boards are found (each a dead end)"
+  else
+    bad "queens: B. expected 92 complete boards, found $n"
+  fi
+}
+
 island() {
   echo "== Knights & knaves (kernel-spec Appendix D) =="
   echo "   Q: can every native be classified, and who could be a knight?"
@@ -201,7 +227,7 @@ crosscheck() {
 
 # The scenarios, in order — the single source of truth for `all`, numbering
 # (1-based, as `list` prints), and name lookup. Each is a function above.
-scenarios="river island oversight workflow access control gitcompare crosscheck"
+scenarios="river island queens oversight workflow access control gitcompare crosscheck"
 
 list_scenarios() {
   echo "tests (run one by name or number, e.g. '$0 3' or '$0 river'):"

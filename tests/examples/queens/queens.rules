@@ -1,0 +1,45 @@
+; The eight queens claim, re-asked as a derivation (extension §2).
+;
+; This file exists to be CHECKED AGAINST queens.claims, not to replace it:
+; `pol check` answers `solvable` with the checker's own reading, and
+; `modality-cross-check.sh` re-asks the same question of the rules engine. Two
+; implementations of one question; a disagreement is a bug in one of them.
+;
+; POLARITY. `solvable` is a `possible`, so it is encoded POSITIVELY: the
+; relation holds the reachable situations that satisfy F, and NON-EMPTY means
+; the property holds. (The counterexample-set encoding river.rules explains is
+; for `live`, and nothing here is one.)
+
+(load "stdlib.pol")
+
+; Reachability over real edges, reflexive at every situation — the same graph
+; the checker walks. Cheap here for a reason worth noting: queens.pol is the
+; COLUMN-ORDERED model, so its graph is a tree of 2057 situations with 2056
+; edges and no cycles. The unordered variant beside it has 118969 situations,
+; and this transitive closure over that would be its own performance essay.
+(relation reach 2)
+(rule (reach S S) (situation S))
+(rule (reach S T) (edge E S M) (reach M T))
+
+; `possible`: the boards, reachable from the empty one, with every queen
+; placed. Non-empty ⟺ `holds solvable`.
+;
+; The guard is the same one queens.claims asks, `all` and all — G is a guard
+; DATUM, and forms expand in a .rules file exactly as they do in a model, so
+; this is the stdlib `all` reaching the engine already rewritten into the
+; kernel's `some`.
+(relation solvable 1)
+(rule (solvable T)
+  (init S)
+  (reach S T)
+  (holds T (all (q queen) (defined q.row))))
+
+; The per-queen view the conjunction above cannot give: where each queen stands
+; in a given situation. `pol derive queens.pol queens.rules "(placed 2056 Q R)"`
+; reads a finished board off the space.
+;
+; The typed declaration is not decoration. `R` occurs only here and in a
+; sort-transparent position, so nothing else in the rule could seed it — and a
+; row is what the answer is about.
+(relation placed (Situation queen row-t))
+(rule (placed S Q R) (situation S) (holds S (is Q.row R)))
