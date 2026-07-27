@@ -75,8 +75,12 @@ the same 92 solutions. They differ by **one conjunct**:
 
 | | situations | `pol check` |
 | --- | --- | --- |
-| `queens-unordered.pol` | 118 969 | **did not finish in 10 minutes** |
+| `queens-unordered.pol` | 118 969 | 26 s |
 | `queens.pol` | 2 057 | under a second |
+
+*(The unordered figure was "did not finish in ten minutes" when this was
+written. Chasing that number is what found the engine bug below; the model is
+unchanged, the engine is 13× faster, and the ordering still buys 58×.)*
 
 Nothing about legality changed. What changed is what the space *holds*:
 every safe **subset** of columns, versus every safe **prefix**. The subsets
@@ -89,10 +93,44 @@ is *under* the 200 000 an implementation is permitted to cap at. So the
 spec's stated ceiling is not the real one — a model becomes unusable well
 before it trips the limit that is supposed to catch it.
 
-## The optimisation that did not work: an O(1) cell index
+## The optimisation that mattered most: profile before optimising
 
-Recorded because a plausible idea measured to nothing, and the measurement
-is worth more than the idea was.
+Three plausible engine fixes were tried on this puzzle. Two bought nothing
+and one bought 13×, and the difference was not intuition — it was measuring
+instead of reasoning.
+
+Timing `pol check` by phase on the 16 870-situation model settled it at once:
+
+```
+[load]      8 ms
+[space]  2 059 ms     ← enumerating 16 870 situations and 68 703 edges
+[report] 30 804 ms    ← everything after
+```
+
+The **search was never the problem.** `Space.dead_ends` asked, for each
+situation, whether any edge left it — by filtering the whole edge list:
+
+```ocaml
+let enabled_of t s = List.filter (fun e -> same e.src s) t.edges
+```
+
+16 870 situations × 68 703 edges is 1.16 **billion** comparisons. One pass
+over the edges answers the same question, and report time fell to 2 348 ms.
+A second, smaller fix went with it: `shortest_path` rediscovered each route
+by scanning every edge for a predecessor, when the BFS already knew the
+parent of every situation it discovered — worth 18% on its own.
+
+| | before | after |
+| --- | --- | --- |
+| 16 870 situations | 30.8 s | 2.3 s |
+| 118 969 situations | did not finish in 10 min | 26 s |
+
+Both models still report 92 complete boards.
+
+## The optimisations that did not work
+
+Recorded because two plausible ideas measured to nothing, and knowing which
+ideas are wrong is worth as much as the one that was right.
 
 `State.index_of` maps a cell reference to its slot in the state vector by
 **scanning** the layout:
@@ -126,10 +164,12 @@ from, not from scanning. And the real cost is elsewhere, plausibly in state
 copying and the sheer edge count (8 980 edges for 6 queens), which no
 lookup-table change touches.
 
-**The lesson the two halves teach together:** the model-level change bought
-58× and the engine-level change bought nothing. When a Pol model is slow,
-the first question is what the *space* holds, not how fast the engine walks
-it.
+**What the three halves teach together.** The model-level change bought 58×.
+Two engine changes chosen by reading the code bought nothing. One engine
+change chosen by timing the phases bought 13×. When a Pol model is slow, ask
+what the *space* holds first — and if you must touch the engine, measure
+where the time goes before deciding what to fix, because the innermost
+operation is not reliably the expensive one.
 
 ## Files
 
