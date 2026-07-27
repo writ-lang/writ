@@ -139,3 +139,23 @@
 ; universal computation, which Pol must refuse, since decidability by
 ; exhaustion is the whole product. A description of itself, in itself, short
 ; enough to read, is the half that transfers.
+
+; 8. Optional arrows
+; `(maybe A T)` declares a vacatable arrow: exactly `(arrow A (to T)
+; vacatable)`, which is far and away the most-written arrow shape in every
+; model here.
+;
+; WHY IT EARNS ITS PLACE, and why it is spelled this way. The instinct is to
+; sugar the *inside* of the declaration — `(arrow held-by *(to job))`, some
+; sigil meaning "vacatable". That cannot be a form: a form invoked inside a
+; list must expand to exactly ONE datum (`Expander.expr`), so a template of
+; `(to T) vacatable` is refused, and the sigil would have to be a reader
+; change — the first punctuation in the language after `.` and `"`. It would
+; then apply to every file whether or not anyone wanted it, and buy one
+; keyword in one position. Wrapping the WHOLE datum is one datum, so it is an
+; ordinary form, it is three tokens instead of five, and a reader can expand
+; it by hand and see the kernel underneath. Pivotal idea 7 intact.
+;
+; Cost: the name `maybe`, and no more. `fixed` gets no partner — an arrow is
+; total by default, so the short spelling is already the kernel's.
+(form (maybe A T) => (arrow A (to T) vacatable))

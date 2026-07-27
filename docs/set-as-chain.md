@@ -103,16 +103,45 @@ twenty-seven.
 
 ## Recommendation
 
-**Not yet, and not on the strength of a puzzle.** Eight queens is a bad
-witness for a language change: it is the case Appendix G already calls out as
-needing "small named scales", and it is not what Pol is for.
+**Originally: not yet, and not on the strength of a puzzle.** Eight queens is
+a bad witness for a language change — it is the case Appendix G already calls
+out as needing "small named scales", and it is not what Pol is for. The note
+said to revisit "when a **domain** model wants it".
 
-The argument that would justify it is the *asymmetry* — that a reader who has
-just learnt `(is a.x b.y)` will reasonably write `(set a.x b.y)` and be
-refused. If that lands as a wart in practice, this note is the design; if it
-never comes up, the floor on generated moves is a cost only puzzle models pay.
+### That has now happened, twice
 
-Worth revisiting when a **domain** model wants it — a token moving along a
-delegation chain is the shape to watch for. Until then the honest position is
-that the language is asymmetric on purpose, and that the reason is that
-writing is harder than reading.
+**`tests/examples/jobshop-best/`** is a scheduling model, not a puzzle, and it
+pays the floor in the open: nine of its sixty-nine lines are `tick-1` …
+`tick-9`, nine copies of one idea, because the clock cannot advance itself.
+What it wants to write is exactly the shape above:
+
+```lisp
+(do (set clk.at clk.at.next) …)
+```
+
+The clock is a **counter over a named scale**, which is the second item this
+note already listed under "Buy" — so the shape that was being watched for has
+arrived, in the form the note predicted rather than a surprising one.
+
+**`pol control`'s own output** is the other, and it is the more telling of the
+two, because it is *Pol's* generated text and not a modeller's.
+
+Three independent asks — one puzzle, one domain model, one tool — and the
+measurement in [`sugar.md`](sugar.md) shows this single sentence of §10.3 is
+where essentially all model bulk comes from: `transition` outnumbers every
+other datum head four to one, and 500 of `queens.pol`'s 561 lines are the
+sixty-four moves it forces.
+
+### What still blocks it
+
+Not the case for the change — the two semantic questions in §1 and §2 above.
+**When the right-hand side is read** (the note recommends: the starting
+situation, making `do` a simultaneous assignment) and **what an undefined
+right-hand side does** (no-op, or not enabled — both defensible, and a
+modeller must be able to say which out loud). Neither is hard; both need
+deciding before code, and the second may want to be written in the model
+rather than fixed by the language.
+
+The asymmetry argument stands as it was: a reader who has just learnt
+`(is a.x b.y)` will reasonably write `(set a.x b.y)` and be refused. What has
+changed is that this is no longer the *only* argument.
