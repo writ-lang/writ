@@ -25,7 +25,7 @@
   (type tick (arrow next (to tick) fixed vacatable))
   (type clock-t (arrow at (to tick)))
   (type yn (no yes))
-  (type machine (arrow held-by (to job) vacatable))
+  (type machine (maybe held-by job))
   (type stage-t (queued on-first on-second done))
   (type job
     (arrow stage  (to stage-t))

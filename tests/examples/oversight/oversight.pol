@@ -32,7 +32,7 @@
     (arrow stage        (to stage-t))
     (arrow investigator (to bureau) fixed)
     (arrow prosecutor   (to bureau) fixed)
-    (arrow judge        (to person) vacatable))
+    (maybe judge        person))
   (equation same-agency
     (= case.investigator.independence case.prosecutor.independence)))
 

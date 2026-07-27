@@ -158,4 +158,18 @@
 ;
 ; Cost: the name `maybe`, and no more. `fixed` gets no partner — an arrow is
 ; total by default, so the short spelling is already the kernel's.
+;
+; ITS LIMIT, which is visible in queens.pol and worth not hiding: `maybe`
+; covers the PLAIN vacatable arrow, and there is no spelling here for `fixed
+; vacatable`. So a row ladder still reads
+;
+;   (arrow next (to row-t) fixed vacatable)   ; the board does not rewire
+;   (maybe row row-t)                         ; a queen may be unplaced
+;
+; side by side in one type, long form next to short. Eight arrows across the
+; shipped models take `maybe`; three want `fixed vacatable` and keep the long
+; form. Covering the second case means either a second name — and `fixed-maybe`
+; is a worse name than the thing it abbreviates — or flags as slots, which
+; hands a form a keyword position and is a bigger change than the saving is
+; worth. Two shapes, one abbreviated, is the honest state.
 (form (maybe A T) => (arrow A (to T) vacatable))

@@ -13,7 +13,7 @@
 (load "stdlib.pol")
 
 (schema shop
-  (type machine (arrow held-by (to job) vacatable))
+  (type machine (maybe held-by job))
   (type stage-t (queued on-first on-second done))
   (type job
     (arrow stage  (to stage-t))

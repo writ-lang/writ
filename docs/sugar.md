@@ -114,8 +114,24 @@ one keyword in one position.
 ```
 
 Three tokens against the proposal's five, no kernel change, and the expansion
-is readable. Verified: builds, checks, `set`/`vacate` both work through it.
-If `maybe` is worth having, it belongs in the standard library, not the reader.
+is readable. This is what shipped, as stdlib §8, and it is **used**: eight
+arrows across the examples and `tests/models/politics.lib.pol` now take it,
+including one inside another form's template (`headship` expands to `maybe`
+expands to `arrow`, which nests correctly).
+
+Its limit is worth stating in the same breath, because it is visible in
+`queens.pol`: `maybe` covers the **plain** vacatable arrow, and three arrows in
+the shipped models are `fixed vacatable`, which keeps the long form. So one
+type can read
+
+```lisp
+(arrow next (to row-t) fixed vacatable)   ; the board does not rewire
+(maybe row row-t)                         ; a queen may be unplaced
+```
+
+— long form beside short. Covering that would need either a second name
+(`fixed-maybe` is worse than what it abbreviates) or flags as slots, which
+hands a form a keyword position for a saving that does not justify it.
 
 ### Wall 3 — template heads, which is not a wall
 

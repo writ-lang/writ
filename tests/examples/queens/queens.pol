@@ -29,7 +29,7 @@
   (type row-t
     (arrow next (to row-t) fixed vacatable)
     (arrow prev (to row-t) fixed vacatable))
-  (type queen (arrow row (to row-t) vacatable)))
+  (type queen (maybe row row-t)))
 
 (form (safe1 P R)
   => (and (differ P R) (differ P R.next) (differ P R.prev)))
