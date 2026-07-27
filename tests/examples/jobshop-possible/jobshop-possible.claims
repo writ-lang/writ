@@ -1,5 +1,5 @@
 ; The questions, kept apart from the shop (Prologue wish 12).
-(load "../scheduling.lib.pol")
+(load "../libraries/scheduling.lib.pol")
 
 ; Some schedule finishes everything — the shop is not broken outright.
 (property all-finish "every job can finish"

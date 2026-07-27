@@ -19,7 +19,7 @@
 ; situations against 2057, because every ORDER of arrival at the same board is
 ; its own route. NOT run by the suite — ~30s against a fifth of a second.
 
-(load "chess.lib.pol")
+(load "../libraries/chess.lib.pol")
 (use board)
 (initial empty)
 

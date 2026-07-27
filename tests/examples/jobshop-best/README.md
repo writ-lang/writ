@@ -106,9 +106,10 @@ The space is unchanged: still 1314 situations, still an optimum of five.
 
 ## Files
 
-- [`../scheduling.lib.pol`](../scheduling.lib.pol) — the **domain library**
-  both job shop scenarios load: the shop, the blocking rule, the turn
-  discipline, the tick ladder. No moves.
+- [`../libraries/scheduling.lib.pol`](../libraries/scheduling.lib.pol) — the
+  **domain library** both job shop scenarios load: the shop, the blocking rule,
+  the turn discipline, the tick ladder. No moves. See
+  [`../libraries/README.md`](../libraries/README.md).
 - `jobshop-best.pol` — 20 lines: the same three moves as next door, each
   spending the job's turn, plus one `tick-over`.
 - `jobshop-best.claims` — the two bounds that pin the optimum.

@@ -12,12 +12,13 @@
 ;    a transition — the loader rejects it. So a library can carry a schema, an
 ;    instance and forms, but never a model's own choice of what to run.
 ;
-; 2. IT SITS BESIDE THE MODELS THAT LOAD IT. Design D3's first search rule is
-;    the including file's own directory, which is exactly so a domain library
-;    can live next to its models without anyone setting POL_LIB. It is not
-;    standard and is not shipped; `stdlib.pol` is, and that is the difference
-;    between the two kinds of library. (`POL_TRACE_LOADS=1` prints which file
-;    each load actually resolved to, if you ever need to be sure.)
+; 2. IT IS NAMED BY A RELATIVE PATH. Design D3 resolves a load against the
+;    INCLUDING file's directory first, so `(load "../libraries/chess.lib.pol")`
+;    finds this file with no POL_LIB and no install step. It is not standard and
+;    is not shipped; `stdlib.pol` is, and that is the difference between the two
+;    kinds of library — see ../libraries/README.md on why these are grouped
+;    rather than left beside their models. (`POL_TRACE_LOADS=1` prints which
+;    file each load actually resolved to, if you ever need to be sure.)
 ;
 ; 3. IT PAYS THE NAMESPACE. Names are global across the loaded universe and may
 ;    not be redeclared (§7), so every model loading this one gives up `board`,

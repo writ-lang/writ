@@ -17,18 +17,18 @@ needing a specific one, which is a distinction worth being able to point at.
 Neither `.pol` file here contains a board. Both load one:
 
 ```lisp
-(load "chess.lib.pol")
+(load "../libraries/chess.lib.pol")
 (use board)
 (initial empty)
 ```
 
-`chess.lib.pol` is a **domain library** — the vocabulary of a chessboard, and
-none of its behaviour. That split is what leaves `queens.pol` at fifteen lines
+[`../libraries/chess.lib.pol`](../libraries/chess.lib.pol) is a **domain
+library** — the vocabulary of a chessboard, and none of its behaviour. That split is what leaves `queens.pol` at fifteen lines
 and `queens-unordered.pol` at twenty: everything they share is said once.
 
 | | lines |
 | --- | --- |
-| `chess.lib.pol` — squares, rows, diagonals, the `free` test, the empty board | 69 |
+| `../libraries/chess.lib.pol` — squares, rows, diagonals, the `free` test, the empty board | 69 |
 | `queens.pol` — the cursor and eight moves | **15** |
 | `queens-unordered.pol` — sixty-four moves in eight lines | **20** |
 
@@ -38,12 +38,12 @@ Three things make it a library rather than a file that happens to be loaded.
 `(use …)`, `(initial …)` or a transition, so a library can carry a schema, an
 instance and forms — but never a model's own choice of what to run.
 
-**It sits beside the models that load it**, and that is by design, not
-convenience: design D3's *first* search rule is the including file's own
-directory, precisely so a domain library needs no `POL_LIB` and no install
-step. `stdlib.pol` is shipped; a domain library is not, and that is the whole
-difference between the two kinds. (`POL_TRACE_LOADS=1` prints which file each
-load resolved to, which is how you check rather than assume.)
+**It is found by a relative path, with nothing configured.** Design D3's
+*first* search rule is the including file's own directory, which is what makes
+`../libraries/…` resolve — no `POL_LIB`, no install step. `stdlib.pol` is
+shipped; a domain library is not, and that is the whole difference between the
+two kinds. (`POL_TRACE_LOADS=1` prints which file each load resolved to, which
+is how you check rather than assume.)
 
 **It pays the namespace.** Names are global across the loaded universe and may
 not be redeclared (§7), so every model loading this gives up `board`, `square`,
@@ -315,8 +315,9 @@ which needs branching *and* needs "no move left" to mean "solved".
 
 ## Files
 
-- `chess.lib.pol` — the domain library both models load: the board, and the
-  `free` test over it. No moves.
+- [`../libraries/chess.lib.pol`](../libraries/chess.lib.pol) — the domain
+  library both models load: the board, and the `free` test over it. No moves.
+  See [`../libraries/README.md`](../libraries/README.md).
 - `queens.pol` — column-ordered, 2 057 situations. What the runner exercises.
 - `queens-unordered.pol` — the same board without the ordering commitment, so
   no cursor and sixty-four moves (in eight lines). Kept as the measured

@@ -20,7 +20,7 @@
 ; by repeated feasibility, which is how you optimise with a decision procedure
 ; rather than a cost function. The witness is the optimal schedule itself.
 
-(load "../scheduling.lib.pol")
+(load "../libraries/scheduling.lib.pol")
 (use shop)
 (initial start)
 

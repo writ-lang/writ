@@ -19,7 +19,7 @@
 ; so nothing is enabled — a finished board is a dead end, which is exactly what
 ; a finished board should be. All 92 of them are in `pol check`'s dead-end list.
 
-(load "chess.lib.pol")
+(load "../libraries/chess.lib.pol")
 (use board)
 (initial empty)
 

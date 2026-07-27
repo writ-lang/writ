@@ -132,11 +132,10 @@ the way it does.
 
 ## Files
 
-- [`../scheduling.lib.pol`](../scheduling.lib.pol) — the **domain library**
-  both job shop scenarios load: the shop, the blocking rule, the turn
-  discipline, a clock. No moves. It sits one level up because it serves two
-  folders; design D3 resolves `(load "../scheduling.lib.pol")` against this
-  file's own directory.
+- [`../libraries/scheduling.lib.pol`](../libraries/scheduling.lib.pol) — the
+  **domain library** both job shop scenarios load: the shop, the blocking rule,
+  the turn discipline, a clock. No moves. See
+  [`../libraries/README.md`](../libraries/README.md).
 - `jobshop-possible.pol` — 19 lines: three move forms and one line per job.
   No clock — the library offers one and this model declines it.
 - `jobshop-possible.claims` — the two questions, kept next door (wish 12).

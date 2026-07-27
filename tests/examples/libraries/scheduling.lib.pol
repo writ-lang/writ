@@ -1,16 +1,15 @@
 ; scheduling.lib.pol — a DOMAIN library: the vocabulary of a blocking job shop.
 ;
-; The sibling of queens/chess.lib.pol, and the same split: a library says what
+; The sibling of chess.lib.pol beside it, and the same split: a library says what
 ; EXISTS, a model says what may HAPPEN. Both job shop scenarios load this one
 ; and then differ only in their moves, which is exactly the thing they are a
 ; pair in order to compare.
 ;
-; WHY IT LIVES HERE, one level up from both. Design D3's first search rule is
-; the including file's own directory, so a library serving ONE folder sits in
-; it — chess.lib.pol does. This one serves two, `jobshop-possible/` and
-; `jobshop-best/`, so it sits at the level that contains both and they load it
-; as `(load "../scheduling.lib.pol")`. A relative name resolves against the
-; including file's directory, which is the same rule doing the same work.
+; WHERE IT LIVES. Beside chess.lib.pol in `libraries/`, loaded by name and
+; relative path: `(load "../libraries/scheduling.lib.pol")`. Design D3 resolves
+; that against the including file's own directory, so no POL_LIB and no install
+; step are needed. Both job shop folders load this one file; ../libraries/README.md
+; says why the libraries are grouped rather than each sitting beside its models.
 ;
 ; It pays the namespace, as any library does (§7): every model loading it gives
 ; up `shop`, `job`, `machine`, `tick`, `idle`, `hand-over` and the rest. That

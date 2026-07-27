@@ -11,7 +11,7 @@
 ;   can still finish" would read as the satisfying set and silently invert the
 ;   oracle — every live verdict backwards, the script still green.
 
-(load "../scheduling.lib.pol")
+(load "../libraries/scheduling.lib.pol")
 
 ; Reachability over real edges, reflexive at every situation.
 (relation reach 2)
