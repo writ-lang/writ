@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pol": {
+      "command": "_build/default/tooling/mcp/bin/pol_mcp.exe",
+      "args": [],
+      "env": {}
+    }
+  }
+}

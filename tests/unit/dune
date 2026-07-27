@@ -44,3 +44,11 @@
 (test
  (name test_lsp)
  (libraries pol_data pol_syntax pol_runtime pol_lsp))
+
+; The MCP server tests, likewise: [Server.handle] is pure (JSON in, JSON out),
+; so they link [pol_mcp] and drive the whole protocol with no process and no
+; pipe. The resolver serves fixture text from an in-memory map.
+
+(test
+ (name test_mcp)
+ (libraries pol_data pol_syntax pol_runtime pol_mcp pol_json))

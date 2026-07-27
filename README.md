@@ -143,6 +143,27 @@ completion, hover and an outline, all served by the same code the CLI runs:
 make extension        # builds the language server and installs the client
 ```
 
+With pol installed and no checkout, the extension finds `pol-lsp` on your
+`PATH` — nothing to configure. See
+[`tooling/vscode/README.md`](tooling/vscode/README.md).
+
+## Use it from an AI assistant
+
+`pol-mcp` is an MCP server over the same engine, installed alongside `pol`. It
+exposes three tools — `pol_check`, `pol_query` and `pol_derive` — so an
+assistant can model a problem and get an answer with a **witness route** rather
+than a plausible guess.
+
+```jsonc
+// .mcp.json — this repository ships one already
+{ "mcpServers": { "pol": { "command": "pol-mcp" } } }
+```
+
+A failing call answers with the parser's own message rather than dying, which
+is usually enough for the caller to fix the file and retry. There is a Claude
+skill in [`.claude/skills/pol/`](.claude/skills/pol/) that knows when Pol is
+the right tool and how to read a report.
+
 ## Documentation
 
 - **The language** (normative): [`docs/kernel-spec.md`](docs/kernel-spec.md) — the

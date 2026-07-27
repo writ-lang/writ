@@ -1,0 +1,15 @@
+; JSON, shared. It was inside [pol_lsp] because the language server was the only
+; thing that spoke it; [pol_mcp] speaks it too, and an MCP server that linked the
+; whole language server to borrow a parser would be a dependency nobody could
+; explain later.
+;
+; UNWRAPPED on purpose. Wrapped, these become [Pol_json.Json] and every existing
+; [Json.] reference in the LSP tree would have to change or be aliased back —
+; churn across a dozen files to rename a module that is already named exactly
+; what it is. The cost is that [Json] and [Json_parse] are global module names;
+; there are no others in this build, and a collision would be a compile error
+; rather than a silent shadowing.
+
+(library
+ (name pol_json)
+ (wrapped false))
