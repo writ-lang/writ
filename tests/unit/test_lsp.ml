@@ -267,5 +267,26 @@ let () =
         ^ string_of_int (List.length ds))
         false
 
+(* 5. a .rules buffer is checked as RULES against its sibling model, not waved
+   through as a library. The failure this pins is silence: before the Rules
+   role existed the buffer fell to [Library], which read+expanded it happily,
+   so an undeclared relation head produced no diagnostic at all while the CLI
+   reported it. *)
+let () =
+  let st = Server.create ~resolve in
+  let src = "(relation declared 1)\n(rule (undeclared X) (situation X))\n" in
+  let out = Server.handle st (did_open "file:///w/mini.rules" src) in
+  match diagnostics_of out with
+  | [ d ] ->
+      check "bad .rules: the undeclared head is reported"
+        (match Json.member "message" d with
+        | Some (Json.String m) -> contains_sub ~sub:"undeclared" m
+        | _ -> false)
+  | ds ->
+      check
+        ("bad .rules: expected one diagnostic, got "
+        ^ string_of_int (List.length ds))
+        false
+
 let () =
   print_string ("lsp tests: " ^ string_of_int !passed ^ " checks passed\n")

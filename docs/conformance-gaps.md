@@ -1074,9 +1074,9 @@ disease. That control has its own test.
 
 ## 8. A `.rules` buffer gets no semantic diagnostics in the editor
 
-**Status:** partially closed 2026-07-27 — highlighting and file-role dispatch
-are in, semantic checking is wired but **not yet reaching the buffer**. The
-remaining half is diagnosed below but not fixed.
+**Status:** **fixed** 2026-07-27. Filed half-closed and finished the same day;
+the diagnosis recorded here is kept because the cause was one layer past where
+it looked.
 
 ### What was missing
 
@@ -1097,32 +1097,46 @@ CLI:  broke.rules:3:1: `dangling` is not a declared relation; add (relation dang
 LSP:  0 diagnostics
 ```
 
-### What is fixed
+### The cause, which was not where it looked
 
-Highlighting and dispatch. `.rules` joins the language's extensions,
-`relation` and `rule` join the keyword pattern beside `property`/`query`, and
-`Role` gained `Rules of string` — a `.rules` buffer is asked of its sibling
-model exactly as a `.claims` buffer is, with `Diagnostics.check_rules`
-running `Loader.read_rules` against it.
+Adding the `Rules` role and calling `Loader.read_rules` was not enough, and
+the buffer stayed silent. What discriminated it was a **reader** error being
+reported while a **semantic** one was not: the pipeline ran, so resolution and
+dispatch were fine, and the fault had to be inside the check itself.
 
-### What is NOT fixed, and how far it was traced
+`Loader.read_rules` only **parses**. Sorts, stratification, range restriction
+and the undeclared-head check live in `Rules_check.check`, which `Cli_io`
+runs immediately afterwards — and its own comment says why:
 
-The semantic diagnostic still does not appear. It is not a resolver problem:
+> the ONLY constructor of a `[Rules.program]`: sorts, stratification, range
+> restriction and the ALL-CAPS collision check are read-time rejections, so
+> they belong to reading the file
 
-- a **reader** error in a `.rules` buffer *is* reported
-  (`unbalanced parenthesis: list never closed`), so the pipeline runs;
-- a **semantic** error is not, so `check_rules` is falling back to
-  `structural`, which read+expands without a schema and cannot see it;
-- it is not the sibling model failing to load a library — a sibling with no
-  `(load …)` at all behaves identically;
-- the CLI reports the same file correctly from the same directory, so the
-  engine and the fixture are both fine.
+Every error the extension actually rejects is on the far side of that call.
+Calling `read_rules` alone reproduced the original silence exactly, which is
+why the first attempt looked wired and behaved unchanged.
 
-That leaves `Role.of_path` not returning `Rules`, or `check_rules` returning
-`Ok` where the CLI errors. Both are two-line checks for whoever picks this
-up; the fixture pair (`mini.pol` with no loads, `mini.rules` with an
-undeclared head) reproduces it in one `didOpen`.
+### How it was fixed
 
-**No regression either way:** a `.rules` buffer behaved as `Library` before
-and produced no diagnostics; it now takes the `Rules` path and produces none.
-The highlighting is a straight gain.
+`Diagnostics.check_rules` now runs `Rules_check.check` after
+`Loader.read_rules`, so the editor and the CLI reject the same files for the
+same reasons. `.rules` joined the language's extensions, `relation` and `rule`
+joined the keyword pattern beside `property`/`query`, and `Role` gained
+`Rules of string`.
+
+```
+mini.rules:  1 diagnostic — line 2 — `other` is not a declared relation
+queens.rules: 0 diagnostics
+```
+
+`test_lsp.ml` pins it: a `.rules` buffer with an undeclared head publishes one
+diagnostic naming it. The test fails against `read_rules` alone, which is the
+regression worth guarding — the wiring can look complete and check nothing.
+
+### The general lesson
+
+A front-end entry point that stops before its checker is a **silent** partial
+implementation: it type-checks, it compiles, it returns `Ok`, and the feature
+is dead. `Loader.read_claims` and `Loader.read_model` do run their checks;
+`read_rules` does not, and nothing in its name says so. Worth a look if a
+fourth file type ever arrives.

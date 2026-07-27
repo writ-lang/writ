@@ -99,8 +99,16 @@ let structural (resolve : Loader.resolve) (path : string) :
 let check_rules (resolve : Loader.resolve) ~(path : string) ~(sibling : string)
     : (unit, Errors.t) result =
   match Loader.read_model resolve sibling with
-  | Ok model -> Result.map (fun _ -> ()) (Loader.read_rules resolve model path)
   | Error _ -> structural resolve path
+  | Ok model ->
+      (* [Loader.read_rules] only PARSES. Sorts, stratification, range
+         restriction and the undeclared-head check live in [Rules_check], which
+         [Cli_io.read_rules] runs straight after — and its comment says why:
+         those are read-time rejections, so they belong to reading the file.
+         Stopping at the parse is what made this buffer silent: every shape
+         error the extension actually rejects is on the far side of it. *)
+      let* prog = Loader.read_rules resolve model path in
+      Result.map (fun _ -> ()) (Rules_check.check model prog)
 
 (* A .claims buffer is checked against its sibling model; if that model is
    absent or does not build, fall back to the structural check. *)
