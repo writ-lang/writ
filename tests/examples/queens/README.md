@@ -145,9 +145,25 @@ permutation. Fifty-eight times fewer situations.
 Ordering used to be one conjunct. It is now the difference between having a
 cursor and not: **a cursor can only exist if there is an order to advance
 along**, so committing to column order buys the 8-move model as well as the
-58× — the same decision paying twice. That is why the unordered file still
-carries sixty-four moves; it is the naming version without the cursor, and it
-is kept exactly so this comparison is a measurement rather than a claim.
+58× — the same decision paying twice.
+
+The unordered file is not ugly about it. Its sixty-four moves are written as
+eight `(column …)` lines, and the square is never named, because `Q.sqN` is the
+square:
+
+```lisp
+(form (column Q N1 N2 N3 N4 N5 N6 N7 N8)
+  => (transition N1 (when (and (not (defined Q.at)) (free p Q.sq1))) (do (set Q.at Q.sq1)))
+     …)
+
+(column q3 p31 p32 p33 p34 p35 p36 p37 p38)
+```
+
+That is §10.3's chain earning its place a second time — and the names are kept
+rather than letting the transitions go anonymous, because a route then reads
+`p11, p23, p35, …`, which *is* the board. But sixty-four moves is what the
+model **has**, however few lines declare them, and that is the thing being
+measured.
 
 Worth noting against §14: the unordered space is 118 969 situations, which
 is *under* the 200 000 an implementation is permitted to cap at. So the
@@ -250,9 +266,10 @@ which needs branching *and* needs "no move left" to mean "solved".
 ## Files
 
 - `queens.pol` — column-ordered, 2 057 situations. What the runner exercises.
-- `queens-unordered.pol` — the same puzzle without the ordering conjunct.
-  Kept as the measured contrast; **not** run by the test suite, because it
-  takes ~30 s where the ordered model takes a fifth of a second.
+- `queens-unordered.pol` — the same board without the ordering commitment, so
+  no cursor and sixty-four moves (in eight lines). Kept as the measured
+  contrast; **not** run by the test suite, because it takes ~30 s where the
+  ordered model takes a fifth of a second.
 - `queens.claims` — the question, kept apart from the puzzle (wish 12).
 - `queens.rules` — the same question re-asked of the rules engine, so the
   cross-check oracle compares two implementations of one question.

@@ -1,25 +1,25 @@
-; queens-unordered.pol — the same puzzle, without the ordering conjunct.
+; queens-unordered.pol — the same puzzle, without the ordering commitment.
 ;
-; One queen per COLUMN is built into the data rather than checked: `q3` IS the
-; queen of column 3, so the column rule cannot be broken because it cannot be
-; written. What remains is rows and diagonals, and BOTH are answered the same
-; way here — by naming them.
+; The board is identical to queens.pol: squares carry their row and their two
+; diagonals as named entities, so safety is one quantified form and no
+; arithmetic is needed. Read that file first — this one exists only to be
+; measured against it.
 ;
-; A square knows the row it is on and the two diagonals it lies on, as three
-; `fixed` arrows filled in by the instance. Diagonals are ordinary entities,
-; d1..d15, and "these two queens share a diagonal" is then just `is`. No
-; arithmetic is needed and none is smuggled in: |Δrow| = |Δcol| is not computed,
-; it is looked up, because the table is small and fully known (Pivotal idea 3).
+; WHAT IS MISSING IS THE CURSOR. In queens.pol a move does not say which queen
+; it places; `cur` does, and each move advances it. That costs the commitment
+; to fill columns left to right — and a cursor can only exist if there IS an
+; order to advance along. Drop the order and the cursor goes with it, so every
+; (column, row) pair needs its own move again: SIXTY-FOUR of them.
 ;
-; That one decision collapses the whole model. Safety stops being seven
-; distance-indexed forms and becomes ONE, quantified over queens rather than
-; enumerated per column, and every move fits on a line.
+; They are written as eight `(column …)` lines rather than sixty-four, and the
+; square is never named — `Q.sqN` is the square, reached by a chain, which is
+; §10.3's widening earning its place a second time. But sixty-four moves is
+; what the model HAS, and that is the point being measured.
 ;
-; This file differs from queens.pol by ONE conjunct: it does not require
-; column C-1 to be filled before column C. The 92 boards are identical. The
-; space is not: 118969 situations against 2057, because every ORDER of arrival
-; at the same board is its own route. Kept as the measured contrast, and NOT
-; run by the suite — it takes ~30s where queens.pol takes a fifth of a second.
+; The 92 boards are identical. The space is not: 118969 situations against
+; 2057, because every ORDER of arrival at the same board is its own route.
+; NOT run by the suite — it takes ~30s where queens.pol takes a fifth of a
+; second, which is the other half of what ordering buys.
 
 (load "stdlib.pol")
 
@@ -30,21 +30,36 @@
     (arrow row (to row-t)  fixed)      ; which row this square is on
     (arrow da  (to diag-t) fixed)      ; the ↘ diagonal through it
     (arrow db  (to diag-t) fixed))     ; the ↗ diagonal through it
-  (type queen (maybe at square)))
+  (type queen
+    (maybe at square)                  ; where this queen stands, if placed
+    (arrow sq1 (to square) fixed)      ; this queen's square on row 1
+    (arrow sq2 (to square) fixed)      ; this queen's square on row 2
+    (arrow sq3 (to square) fixed)      ; this queen's square on row 3
+    (arrow sq4 (to square) fixed)      ; this queen's square on row 4
+    (arrow sq5 (to square) fixed)      ; this queen's square on row 5
+    (arrow sq6 (to square) fixed)      ; this queen's square on row 6
+    (arrow sq7 (to square) fixed)      ; this queen's square on row 7
+    (arrow sq8 (to square) fixed)      ; this queen's square on row 8
+    ))
 
-; Square S is free: no queen already stands on its row or on either of its
-; diagonals. B is the binder's name, passed in because a form template's list
-; head must be a slot. An UNPLACED queen blocks nothing — its `at` is vacant, so
-; `B.at.row` has no answer, `is` is strict, and `differ` is therefore true.
+; Square S is free: no queen stands on its row or on either of its diagonals.
+; B names the binder — a form template's list head must be a slot.
 (form (free B S)
   => (all (B queen)
        (and (differ B.at.row S.row) (differ B.at.da S.da) (differ B.at.db S.db))))
 
-; One move, and the whole board is 64 invocations of it. Note what is NOT here:
-; no `(defined PREV.at)`. Any column may be filled at any time, which is the
-; single difference from queens.pol.
-(form (place N Q S)
-  => (transition N (when (and (not (defined Q.at)) (free p S))) (do (set Q.at S))))
+; A whole column in one line. The square is never written down: `Q.sqN` IS it,
+; reached by a chain, so only the eight move NAMES have to be supplied — and
+; they are what makes a route readable as a board.
+(form (column Q N1 N2 N3 N4 N5 N6 N7 N8)
+  => (transition N1 (when (and (not (defined Q.at)) (free p Q.sq1))) (do (set Q.at Q.sq1)))
+     (transition N2 (when (and (not (defined Q.at)) (free p Q.sq2))) (do (set Q.at Q.sq2)))
+     (transition N3 (when (and (not (defined Q.at)) (free p Q.sq3))) (do (set Q.at Q.sq3)))
+     (transition N4 (when (and (not (defined Q.at)) (free p Q.sq4))) (do (set Q.at Q.sq4)))
+     (transition N5 (when (and (not (defined Q.at)) (free p Q.sq5))) (do (set Q.at Q.sq5)))
+     (transition N6 (when (and (not (defined Q.at)) (free p Q.sq6))) (do (set Q.at Q.sq6)))
+     (transition N7 (when (and (not (defined Q.at)) (free p Q.sq7))) (do (set Q.at Q.sq7)))
+     (transition N8 (when (and (not (defined Q.at)) (free p Q.sq8))) (do (set Q.at Q.sq8))))
 
 (instance empty (of board)
   (square s11 s12 s13 s14 s15 s16 s17 s18
@@ -56,6 +71,7 @@
           s71 s72 s73 s74 s75 s76 s77 s78
           s81 s82 s83 s84 s85 s86 s87 s88)
   (queen q1 q2 q3 q4 q5 q6 q7 q8)
+  ; each square's row and its two diagonals
   (row (s11 r1) (s12 r2) (s13 r3) (s14 r4) (s15 r5) (s16 r6) (s17 r7) (s18 r8)
        (s21 r1) (s22 r2) (s23 r3) (s24 r4) (s25 r5) (s26 r6) (s27 r7) (s28 r8)
        (s31 r1) (s32 r2) (s33 r3) (s34 r4) (s35 r5) (s36 r6) (s37 r7) (s38 r8)
@@ -80,73 +96,26 @@
        (s61 d6) (s62 d7) (s63 d8) (s64 d9) (s65 d10) (s66 d11) (s67 d12) (s68 d13)
        (s71 d7) (s72 d8) (s73 d9) (s74 d10) (s75 d11) (s76 d12) (s77 d13) (s78 d14)
        (s81 d8) (s82 d9) (s83 d10) (s84 d11) (s85 d12) (s86 d13) (s87 d14) (s88 d15))
+  ; each queen's own square on each row — the board, seen column-wise
+  (sq1 (q1 s11) (q2 s21) (q3 s31) (q4 s41) (q5 s51) (q6 s61) (q7 s71) (q8 s81))
+  (sq2 (q1 s12) (q2 s22) (q3 s32) (q4 s42) (q5 s52) (q6 s62) (q7 s72) (q8 s82))
+  (sq3 (q1 s13) (q2 s23) (q3 s33) (q4 s43) (q5 s53) (q6 s63) (q7 s73) (q8 s83))
+  (sq4 (q1 s14) (q2 s24) (q3 s34) (q4 s44) (q5 s54) (q6 s64) (q7 s74) (q8 s84))
+  (sq5 (q1 s15) (q2 s25) (q3 s35) (q4 s45) (q5 s55) (q6 s65) (q7 s75) (q8 s85))
+  (sq6 (q1 s16) (q2 s26) (q3 s36) (q4 s46) (q5 s56) (q6 s66) (q7 s76) (q8 s86))
+  (sq7 (q1 s17) (q2 s27) (q3 s37) (q4 s47) (q5 s57) (q6 s67) (q7 s77) (q8 s87))
+  (sq8 (q1 s18) (q2 s28) (q3 s38) (q4 s48) (q5 s58) (q6 s68) (q7 s78) (q8 s88))
   (at (q1 vacant) (q2 vacant) (q3 vacant) (q4 vacant) (q5 vacant) (q6 vacant) (q7 vacant) (q8 vacant)))
 
 (use board)
 (initial empty)
 
-; The board: one line per square.
-(place p-1-1 q1 s11)
-(place p-1-2 q1 s12)
-(place p-1-3 q1 s13)
-(place p-1-4 q1 s14)
-(place p-1-5 q1 s15)
-(place p-1-6 q1 s16)
-(place p-1-7 q1 s17)
-(place p-1-8 q1 s18)
-(place p-2-1 q2 s21)
-(place p-2-2 q2 s22)
-(place p-2-3 q2 s23)
-(place p-2-4 q2 s24)
-(place p-2-5 q2 s25)
-(place p-2-6 q2 s26)
-(place p-2-7 q2 s27)
-(place p-2-8 q2 s28)
-(place p-3-1 q3 s31)
-(place p-3-2 q3 s32)
-(place p-3-3 q3 s33)
-(place p-3-4 q3 s34)
-(place p-3-5 q3 s35)
-(place p-3-6 q3 s36)
-(place p-3-7 q3 s37)
-(place p-3-8 q3 s38)
-(place p-4-1 q4 s41)
-(place p-4-2 q4 s42)
-(place p-4-3 q4 s43)
-(place p-4-4 q4 s44)
-(place p-4-5 q4 s45)
-(place p-4-6 q4 s46)
-(place p-4-7 q4 s47)
-(place p-4-8 q4 s48)
-(place p-5-1 q5 s51)
-(place p-5-2 q5 s52)
-(place p-5-3 q5 s53)
-(place p-5-4 q5 s54)
-(place p-5-5 q5 s55)
-(place p-5-6 q5 s56)
-(place p-5-7 q5 s57)
-(place p-5-8 q5 s58)
-(place p-6-1 q6 s61)
-(place p-6-2 q6 s62)
-(place p-6-3 q6 s63)
-(place p-6-4 q6 s64)
-(place p-6-5 q6 s65)
-(place p-6-6 q6 s66)
-(place p-6-7 q6 s67)
-(place p-6-8 q6 s68)
-(place p-7-1 q7 s71)
-(place p-7-2 q7 s72)
-(place p-7-3 q7 s73)
-(place p-7-4 q7 s74)
-(place p-7-5 q7 s75)
-(place p-7-6 q7 s76)
-(place p-7-7 q7 s77)
-(place p-7-8 q7 s78)
-(place p-8-1 q8 s81)
-(place p-8-2 q8 s82)
-(place p-8-3 q8 s83)
-(place p-8-4 q8 s84)
-(place p-8-5 q8 s85)
-(place p-8-6 q8 s86)
-(place p-8-7 q8 s87)
-(place p-8-8 q8 s88)
+; Sixty-four moves, eight lines.
+(column q1 p11 p12 p13 p14 p15 p16 p17 p18)
+(column q2 p21 p22 p23 p24 p25 p26 p27 p28)
+(column q3 p31 p32 p33 p34 p35 p36 p37 p38)
+(column q4 p41 p42 p43 p44 p45 p46 p47 p48)
+(column q5 p51 p52 p53 p54 p55 p56 p57 p58)
+(column q6 p61 p62 p63 p64 p65 p66 p67 p68)
+(column q7 p71 p72 p73 p74 p75 p76 p77 p78)
+(column q8 p81 p82 p83 p84 p85 p86 p87 p88)
