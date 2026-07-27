@@ -1,117 +1,32 @@
 ; queens.pol — the eight queens puzzle, in eight moves.
 ;
-; One queen per COLUMN is built into the data rather than checked: `q3` IS the
-; queen of column 3, so the column rule cannot be broken because it cannot be
-; written. What remains is rows and diagonals, and both are answered the same
-; way — by NAMING them.
-;
-; A square knows its row and the two diagonals it lies on, as `fixed` arrows the
-; instance fills in. Diagonals are ordinary entities, d1..d15, so "these two
-; queens share a diagonal" is just `is`. No arithmetic is smuggled in:
-; |Δrow| = |Δcol| is never computed, it is looked up, because the table is small
-; and fully known (Pivotal idea 3).
+; The BOARD is not here. It lives in chess.lib.pol beside this file — sixty-four
+; squares, their rows and diagonals, and the `free` test — because it is
+; vocabulary rather than behaviour, and queens-unordered.pol says the same
+; things about the same board. This file is only what may HAPPEN.
 ;
 ; THE CURSOR is what makes this eight moves instead of sixty-four. A move does
 ; not say WHICH queen it places — `cur` does, and the move advances it. So the
 ; moves index rows only, and column order is enforced by construction rather
 ; than by a conjunct in every guard.
 ;
-; That needs both halves of §10.1/§10.3: `set` takes a CHAIN, so the cursor can
+; That needs both halves of §10.3/§10.1: `set` takes a CHAIN, so the cursor can
 ; walk itself with `(set cur.q cur.q.next)`, and effects are SIMULTANEOUS, so
 ; `(set cur.q.at S)` still writes the queen the cursor named when the move
 ; began. Write the two effects in either order and the space is identical.
+;
+; The ring closes it: after q8 the cursor lands on q1, which is already placed,
+; so nothing is enabled — a finished board is a dead end, which is exactly what
+; a finished board should be. All 92 of them are in `pol check`'s dead-end list.
 
-(load "stdlib.pol")
+(load "chess.lib.pol")
+(use board)
+(initial empty)
 
-(schema board
-  (type row-t  (r1 r2 r3 r4 r5 r6 r7 r8))
-  (type diag-t (d1 d2 d3 d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 d14 d15))
-  (type square
-    (arrow row (to row-t)  fixed)      ; which row this square is on
-    (arrow da  (to diag-t) fixed)      ; the ↘ diagonal through it
-    (arrow db  (to diag-t) fixed))     ; the ↗ diagonal through it
-  (type queen
-    (maybe at square)                  ; where this queen stands, if placed
-    (arrow sq1 (to square) fixed)      ; this queen's square on row 1
-    (arrow sq2 (to square) fixed)      ; this queen's square on row 2
-    (arrow sq3 (to square) fixed)      ; this queen's square on row 3
-    (arrow sq4 (to square) fixed)      ; this queen's square on row 4
-    (arrow sq5 (to square) fixed)      ; this queen's square on row 5
-    (arrow sq6 (to square) fixed)      ; this queen's square on row 6
-    (arrow sq7 (to square) fixed)      ; this queen's square on row 7
-    (arrow sq8 (to square) fixed)      ; this queen's square on row 8
-    (arrow next (to queen) fixed))     ; the column to fill after this one
-  (type cursor-t (arrow q (to queen))))
-
-; Square S is free: no queen stands on its row or on either of its diagonals.
-; B names the binder — a form template's list head must be a slot, so it is
-; passed in. An UNPLACED queen blocks nothing, and that is free rather than
-; arranged: its `at` is vacant, so `B.at.row` has no answer, `is` is strict, and
-; `differ` is therefore true.
-(form (free B S)
-  => (all (B queen)
-       (and (differ B.at.row S.row) (differ B.at.da S.da) (differ B.at.db S.db))))
-
-; One move per ROW. Which queen it places is not written down.
 (form (fill N S)
   => (transition N
        (when (and (not (defined cur.q.at)) (free p S)))
        (do (set cur.q.at S) (set cur.q cur.q.next))))
-
-(instance empty (of board)
-  (square s11 s12 s13 s14 s15 s16 s17 s18
-          s21 s22 s23 s24 s25 s26 s27 s28
-          s31 s32 s33 s34 s35 s36 s37 s38
-          s41 s42 s43 s44 s45 s46 s47 s48
-          s51 s52 s53 s54 s55 s56 s57 s58
-          s61 s62 s63 s64 s65 s66 s67 s68
-          s71 s72 s73 s74 s75 s76 s77 s78
-          s81 s82 s83 s84 s85 s86 s87 s88)
-  (queen q1 q2 q3 q4 q5 q6 q7 q8)
-  (cursor-t cur)
-  ; each square's row and its two diagonals
-  (row (s11 r1) (s12 r2) (s13 r3) (s14 r4) (s15 r5) (s16 r6) (s17 r7) (s18 r8)
-       (s21 r1) (s22 r2) (s23 r3) (s24 r4) (s25 r5) (s26 r6) (s27 r7) (s28 r8)
-       (s31 r1) (s32 r2) (s33 r3) (s34 r4) (s35 r5) (s36 r6) (s37 r7) (s38 r8)
-       (s41 r1) (s42 r2) (s43 r3) (s44 r4) (s45 r5) (s46 r6) (s47 r7) (s48 r8)
-       (s51 r1) (s52 r2) (s53 r3) (s54 r4) (s55 r5) (s56 r6) (s57 r7) (s58 r8)
-       (s61 r1) (s62 r2) (s63 r3) (s64 r4) (s65 r5) (s66 r6) (s67 r7) (s68 r8)
-       (s71 r1) (s72 r2) (s73 r3) (s74 r4) (s75 r5) (s76 r6) (s77 r7) (s78 r8)
-       (s81 r1) (s82 r2) (s83 r3) (s84 r4) (s85 r5) (s86 r6) (s87 r7) (s88 r8))
-  (da  (s11 d8) (s12 d7) (s13 d6) (s14 d5) (s15 d4) (s16 d3) (s17 d2) (s18 d1)
-       (s21 d9) (s22 d8) (s23 d7) (s24 d6) (s25 d5) (s26 d4) (s27 d3) (s28 d2)
-       (s31 d10) (s32 d9) (s33 d8) (s34 d7) (s35 d6) (s36 d5) (s37 d4) (s38 d3)
-       (s41 d11) (s42 d10) (s43 d9) (s44 d8) (s45 d7) (s46 d6) (s47 d5) (s48 d4)
-       (s51 d12) (s52 d11) (s53 d10) (s54 d9) (s55 d8) (s56 d7) (s57 d6) (s58 d5)
-       (s61 d13) (s62 d12) (s63 d11) (s64 d10) (s65 d9) (s66 d8) (s67 d7) (s68 d6)
-       (s71 d14) (s72 d13) (s73 d12) (s74 d11) (s75 d10) (s76 d9) (s77 d8) (s78 d7)
-       (s81 d15) (s82 d14) (s83 d13) (s84 d12) (s85 d11) (s86 d10) (s87 d9) (s88 d8))
-  (db  (s11 d1) (s12 d2) (s13 d3) (s14 d4) (s15 d5) (s16 d6) (s17 d7) (s18 d8)
-       (s21 d2) (s22 d3) (s23 d4) (s24 d5) (s25 d6) (s26 d7) (s27 d8) (s28 d9)
-       (s31 d3) (s32 d4) (s33 d5) (s34 d6) (s35 d7) (s36 d8) (s37 d9) (s38 d10)
-       (s41 d4) (s42 d5) (s43 d6) (s44 d7) (s45 d8) (s46 d9) (s47 d10) (s48 d11)
-       (s51 d5) (s52 d6) (s53 d7) (s54 d8) (s55 d9) (s56 d10) (s57 d11) (s58 d12)
-       (s61 d6) (s62 d7) (s63 d8) (s64 d9) (s65 d10) (s66 d11) (s67 d12) (s68 d13)
-       (s71 d7) (s72 d8) (s73 d9) (s74 d10) (s75 d11) (s76 d12) (s77 d13) (s78 d14)
-       (s81 d8) (s82 d9) (s83 d10) (s84 d11) (s85 d12) (s86 d13) (s87 d14) (s88 d15))
-  ; each queen's own square on each row — the board, seen column-wise
-  (sq1 (q1 s11) (q2 s21) (q3 s31) (q4 s41) (q5 s51) (q6 s61) (q7 s71) (q8 s81))
-  (sq2 (q1 s12) (q2 s22) (q3 s32) (q4 s42) (q5 s52) (q6 s62) (q7 s72) (q8 s82))
-  (sq3 (q1 s13) (q2 s23) (q3 s33) (q4 s43) (q5 s53) (q6 s63) (q7 s73) (q8 s83))
-  (sq4 (q1 s14) (q2 s24) (q3 s34) (q4 s44) (q5 s54) (q6 s64) (q7 s74) (q8 s84))
-  (sq5 (q1 s15) (q2 s25) (q3 s35) (q4 s45) (q5 s55) (q6 s65) (q7 s75) (q8 s85))
-  (sq6 (q1 s16) (q2 s26) (q3 s36) (q4 s46) (q5 s56) (q6 s66) (q7 s76) (q8 s86))
-  (sq7 (q1 s17) (q2 s27) (q3 s37) (q4 s47) (q5 s57) (q6 s67) (q7 s77) (q8 s87))
-  (sq8 (q1 s18) (q2 s28) (q3 s38) (q4 s48) (q5 s58) (q6 s68) (q7 s78) (q8 s88))
-  ; the column order, closing into a ring: after q8 the cursor lands on
-  ; q1, which is already placed, so no move is enabled and the board is a
-  ; dead end — which is exactly what a finished board should be.
-  (next (q1 q2) (q2 q3) (q3 q4) (q4 q5) (q5 q6) (q6 q7) (q7 q8) (q8 q1))
-  (q (cur q1))
-  (at (q1 vacant) (q2 vacant) (q3 vacant) (q4 vacant) (q5 vacant) (q6 vacant) (q7 vacant) (q8 vacant)))
-
-(use board)
-(initial empty)
 
 ; The entire move set.
 (fill place-1 cur.q.sq1)

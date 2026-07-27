@@ -8,11 +8,56 @@ place the queens.
 This scenario is here for three reasons. It is the first puzzle Pol can state
 that it could not state before; it is the clearest measurement in the
 repository of *which* optimisation matters; and it is where a 468-line model
-became an 83-line one in two steps — the first needing no language feature at
-all, the second needing a specific one, which is a distinction worth being
-able to point at.
+became a fifteen-line one over a shared library, in two modelling steps and
+one split — the first step needing no language feature at all, the second
+needing a specific one, which is a distinction worth being able to point at.
 
-## The whole model is one idea: name the diagonals
+## The board is a library
+
+Neither `.pol` file here contains a board. Both load one:
+
+```lisp
+(load "chess.lib.pol")
+(use board)
+(initial empty)
+```
+
+`chess.lib.pol` is a **domain library** — the vocabulary of a chessboard, and
+none of its behaviour. That split is what leaves `queens.pol` at fifteen lines
+and `queens-unordered.pol` at twenty: everything they share is said once.
+
+| | lines |
+| --- | --- |
+| `chess.lib.pol` — squares, rows, diagonals, the `free` test, the empty board | 69 |
+| `queens.pol` — the cursor and eight moves | **15** |
+| `queens-unordered.pol` — sixty-four moves in eight lines | **20** |
+
+Three things make it a library rather than a file that happens to be loaded.
+
+**It is declarations only.** The loader refuses a loaded file that contains
+`(use …)`, `(initial …)` or a transition, so a library can carry a schema, an
+instance and forms — but never a model's own choice of what to run.
+
+**It sits beside the models that load it**, and that is by design, not
+convenience: design D3's *first* search rule is the including file's own
+directory, precisely so a domain library needs no `POL_LIB` and no install
+step. `stdlib.pol` is shipped; a domain library is not, and that is the whole
+difference between the two kinds. (`POL_TRACE_LOADS=1` prints which file each
+load resolved to, which is how you check rather than assume.)
+
+**It pays the namespace.** Names are global across the loaded universe and may
+not be redeclared (§7), so every model loading this gives up `board`, `square`,
+`queen`, `free`, `empty` and the rest. That cost is exactly why this is a
+*domain* library and not an addition to stdlib — the standard library may not
+spend the shared namespace on a worldly concept.
+
+And it **offers** rather than imposes. The library declares a `cursor-t`;
+`queens.pol` advances one and needs eight moves, `queens-unordered.pol` never
+touches it and needs sixty-four. Which of the vocabulary to use is the model's
+say — and the unused cursor costs the unordered space nothing, because a cell
+that never changes is the same cell in every situation.
+
+## The board itself is one idea: name the diagonals
 
 **Columns** are not constrained, they are unrepresentable: queen `q3` **is**
 the queen of column 3, so no two queens can share one. Building the constraint
@@ -105,11 +150,16 @@ seven-conjunct guard per move:
 | --- | --- | --- | --- | --- |
 | ladder version | 468 | 64 | 7 `safeN` | 7–8 conjuncts |
 | named diagonals | 119 | 64 | 1 `free` | 3 conjuncts, quantified |
-| …plus the cursor | **83** | **8** | 2 | 3 conjuncts, quantified |
+| …plus the cursor | 83 | **8** | 2 | 3 conjuncts, quantified |
+| …board split into the library | **15** + 69 shared | 8 | 1 + 1 shared | 3 conjuncts, quantified |
 
 Same 2057 situations, same 2056 edges, same 736 dead ends, same 92 boards at
-every step. The model is five and a half times smaller and the space is
-bit-for-bit identical.
+every step. Nothing about the space moved through any of it.
+
+The last row is bookkeeping rather than a saving: 15 + 69 is not fewer lines
+than 83. What it buys is that the 69 are shared — the two models together went
+from 167 lines to 104 — and that a reader opening `queens.pol` sees eight moves
+and nothing else.
 
 The two ideas are independent and it is worth keeping them apart. **Naming the
 diagonals** is a *data* change and needs no language feature — it would have
@@ -265,6 +315,8 @@ which needs branching *and* needs "no move left" to mean "solved".
 
 ## Files
 
+- `chess.lib.pol` — the domain library both models load: the board, and the
+  `free` test over it. No moves.
 - `queens.pol` — column-ordered, 2 057 situations. What the runner exercises.
 - `queens-unordered.pol` — the same board without the ordering commitment, so
   no cursor and sixty-four moves (in eight lines). Kept as the measured
