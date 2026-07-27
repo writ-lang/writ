@@ -6,4 +6,4 @@
 ; property's — and `pol check` already reports each complete placement as a
 ; dead end, since a full board has no move left.
 (property solvable "all eight queens placed, none attacking"
-  (possible (all (q queen) (defined q.row))))
+  (possible (all (q queen) (defined q.at))))

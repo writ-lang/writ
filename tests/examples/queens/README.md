@@ -1,47 +1,67 @@
 # Eight queens — and what made it tractable
 
 Eight queens on a board, none attacking another. `pol check queens.pol
---claims queens.claims` answers it in well under a second, and the witness
-under the holding `solvable` **is** a solution — the eight moves that place
-the queens.
+--claims queens.claims` answers it in about a fifth of a second, and the
+witness under the holding `solvable` **is** a solution — the eight moves that
+place the queens.
 
-This scenario is here for two reasons. It is the first puzzle Pol can state
-that it could not state before, and it is the clearest measurement in the
-repository of *which* optimisation matters.
+This scenario is here for three reasons. It is the first puzzle Pol can state
+that it could not state before; it is the clearest measurement in the
+repository of *which* optimisation matters; and it is the clearest example of
+a model getting four times shorter without the language changing at all.
 
-## What the model can and cannot say
+## The whole model is one idea: name the diagonals
 
 **Columns** are not constrained, they are unrepresentable: queen `q3` **is**
-the queen of column 3, so no two queens can share one. Building the
-constraint into the data is the oldest trick in the puzzle and it costs
-nothing here.
+the queen of column 3, so no two queens can share one. Building the constraint
+into the data is the oldest trick in the puzzle and it costs nothing here.
 
-**Rows** are said directly:
-
-```lisp
-(differ q1.row q2.row)
-```
-
-Which the language could not express until §8.6 let a law hold a guard and
-`differ` joined the standard library. Before that, `is` took a literal on
-the right and "two queens share a row" had no spelling at all.
-
-**Diagonals** are said, not enumerated — which took one modelling decision.
-`|Δrow| = |Δcol|` is arithmetic and Pol has none (Pivotal idea 3), so the
-first version of this model listed the forbidden rows as literals and read
-like a wall:
+**Rows and diagonals** are the real question, and the model answers both the
+same way — by *naming* them. A square knows three things, all `fixed` and all
+filled in by the instance:
 
 ```lisp
-(when (and (not (defined q3.row)) (defined q2.row)
-           (differ q1.row r3) (differ q1.row r5) (differ q1.row r7)
-           (differ q2.row r4) (differ q2.row r5) (differ q2.row r6)
-           … 20 conjuncts …))
+(type square
+  (arrow row (to row-t)  fixed)      ; which row this square is on
+  (arrow da  (to diag-t) fixed)      ; the ↘ diagonal through it
+  (arrow db  (to diag-t) fixed))     ; the ↗ diagonal through it
 ```
 
-Make rows **entities on a ladder** instead of an enumerated set — `next`
-climbs, `prev` descends, both running off the board into `vacant` — and the
-square a queen *d* columns away attacks is just `R.next` walked *d* times.
-Name the three-way test once per distance and the same transition becomes:
+Diagonals are ordinary entities, `d1`…`d15`. "These two queens share a
+diagonal" is then just `is`. No arithmetic is needed and none is smuggled in:
+|Δrow| = |Δcol| is never *computed*, it is *looked up*, because the table is
+small and fully known — which is Pivotal idea 3 doing exactly the work it
+exists to do.
+
+That one decision collapses the model. Safety stops being seven
+distance-indexed forms and becomes **one**, quantified over queens instead of
+enumerated per column:
+
+```lisp
+(form (free B S)
+  => (all (B queen)
+       (and (differ B.at.row S.row) (differ B.at.da S.da) (differ B.at.db S.db))))
+```
+
+An unplaced queen blocks nothing, and that too is free rather than arranged:
+its `at` is vacant, so `B.at.row` has no answer, `is` is strict, and `differ`
+is therefore true. Every move then fits on a line:
+
+```lisp
+(form (place N Q PREV S)
+  => (transition N
+       (when (and (not (defined Q.at)) (defined PREV.at) (free p S)))
+       (do (set Q.at S))))
+
+(place p-3-5 q3 q2 s35)
+```
+
+### What this replaced, and what it did *not* need
+
+The previous version walked. Rows were entities on a **ladder** — `next`
+climbed, `prev` descended — so the square a queen *d* columns away attacks was
+`R.next` walked *d* times, which needed one `safeN` form per distance and a
+seven-conjunct guard per move:
 
 ```lisp
 (transition place-3-5
@@ -53,16 +73,35 @@ Name the three-way test once per distance and the same transition becomes:
   (do (set q3.row r5)))
 ```
 
-Nine conjuncts against twenty, and each says what it means: *the queen two
-columns away is safe from a queen at r5*. Two language facts make it work. A
-form's slot substitutes into a chain's **root**, so `R.next.next` becomes
-`r5.next.next` at the call site. And running off the board leaves the chain
-undefined, where `is` is strict — so `differ` is true and the board's edge
-constrains nothing, which is exactly right and costs nothing to arrange.
+| | lines | forms | per-move guard |
+| --- | --- | --- | --- |
+| ladder version | 468 | 7 `safeN` | 7–8 conjuncts |
+| naming version | 119 | 1 `free` | 3 conjuncts, quantified |
 
-The files are still **generated**, because there is one move per (column,
-row) and sixty-four of those is not something to type. But that is a
-consequence of the move set, not of the arithmetic.
+Same 2057 situations, same 2056 edges, same 736 dead ends, same 92 boards. The
+model is four times smaller and the space is bit-for-bit identical.
+
+Worth being exact about the cause, because the timing invites the wrong
+conclusion. This rewrite landed just after §10.3 was widened to let `set` take
+a chain — and **it does not use that**. `(set Q.at S)` writes a literal, as it
+always could. What made queens shorter was choosing better data, not a bigger
+language. The chain widening is what made the *job shop's clock* one
+transition; it does nothing for a search.
+
+### The one thing that would shrink it further, and does not exist
+
+Sixty-four `(place …)` lines remain — one per square. They are one line each
+and read as a table, but they are still sixty-four, and no form can fold them:
+a form cannot map over its `&rest` (§10.2, deliberately). What would fold them
+is a move that picks its destination nondeterministically —
+
+```lisp
+(transition place (when (some (s square) (free p s))) (do (set q3.at s)))   ; NOT Pol
+```
+
+— and Pol has no such thing, because a guard's binder is scoped to the guard
+and an effect cannot name it. That is a real gap, and it is the honest reason
+this file is still generated rather than typed.
 
 ## The optimisation that worked: order the placements
 
@@ -70,23 +109,18 @@ consequence of the move set, not of the arithmetic.
 the same 92 solutions. They differ by **one conjunct**:
 
 ```lisp
-(defined q7.row)     ; column 8 may only be filled once column 7 is
+(defined q2.at)     ; column 3 may only be filled once column 2 is
 ```
 
 | | situations | `pol check` |
 | --- | --- | --- |
-| `queens-unordered.pol` | 118 969 | 26 s |
-| `queens.pol` | 2 057 | under a second |
-
-*(The unordered figure was "did not finish in ten minutes" when this was
-written. Chasing that number is what found the engine bug below; the model is
-unchanged, the engine is 13× faster, and the ordering still buys 58×.)*
+| `queens-unordered.pol` | 118 969 | 30 s |
+| `queens.pol` | 2 057 | 0.2 s |
 
 Nothing about legality changed. What changed is what the space *holds*:
 every safe **subset** of columns, versus every safe **prefix**. The subsets
 are the same boards reached by every order of arrival, and the search pays
-for each permutation. Fifty-eight times fewer situations, and the difference
-between "never" and "instant".
+for each permutation. Fifty-eight times fewer situations.
 
 Worth noting against §14: the unordered space is 118 969 situations, which
 is *under* the 200 000 an implementation is permitted to cap at. So the
@@ -99,7 +133,7 @@ Three plausible engine fixes were tried on this puzzle. Two bought nothing
 and one bought 13×, and the difference was not intuition — it was measuring
 instead of reasoning.
 
-Timing `pol check` by phase on the 16 870-situation model settled it at once:
+Timing `pol check` by phase on a 16 870-situation model settled it at once:
 
 ```
 [load]      8 ms
@@ -123,9 +157,10 @@ parent of every situation it discovered — worth 18% on its own.
 | | before | after |
 | --- | --- | --- |
 | 16 870 situations | 30.8 s | 2.3 s |
-| 118 969 situations | did not finish in 10 min | 26 s |
+| 118 969 situations | did not finish in 10 min | 30 s |
 
-Both models still report 92 complete boards.
+*(Those figures were measured on the ladder version. The situation counts are
+unchanged by the rewrite, so the comparison still stands; git has the file.)*
 
 ## The optimisations that did not work
 
@@ -161,20 +196,36 @@ Two things the numbers do say. The padding experiment does not isolate what
 it was meant to: cells **are** the state vector, so adding 400 of them grows
 every state copied and every state compared — which is where that 2× came
 from, not from scanning. And the real cost is elsewhere, plausibly in state
-copying and the sheer edge count (8 980 edges for 6 queens), which no
-lookup-table change touches.
+copying and the sheer edge count, which no lookup-table change touches.
 
-**What the three halves teach together.** The model-level change bought 58×.
-Two engine changes chosen by reading the code bought nothing. One engine
-change chosen by timing the phases bought 13×. When a Pol model is slow, ask
-what the *space* holds first — and if you must touch the engine, measure
-where the time goes before deciding what to fix, because the innermost
-operation is not reliably the expensive one.
+## A third thing that did not work: walking
+
+Once `set` took a chain, the obvious move was to let a queen **walk** its
+column — `(set q3.at q3.at.up)` — turning 64 moves into 16. It was built and
+measured, and it is worse on every axis that matters:
+
+| | lines | situations | 92 boards visible? |
+| --- | --- | --- | --- |
+| placing (shipped) | 119 | 2 057 | **yes** |
+| walking | 80 | 15 721 | **no** |
+
+Two costs, one fatal. A walking queen passes *through* unsafe squares, so the
+space grows 7.6×. And a complete board stops being a **dead end** — the queen
+can always step again — which destroys the nicest thing this example
+demonstrates: that `pol check`'s dead-end list *is* the solution set, all 92 of
+them, with no query needed. The unordered walk variant does not even build; it
+exceeds the 200 000 cap.
+
+The general lesson is worth more than the puzzle: `set`-with-a-chain suits a
+**clock**, which has one walker and a well-defined end, and not a **search**,
+which needs branching *and* needs "no move left" to mean "solved".
 
 ## Files
 
 - `queens.pol` — column-ordered, 2 057 situations. What the runner exercises.
 - `queens-unordered.pol` — the same puzzle without the ordering conjunct.
   Kept as the measured contrast; **not** run by the test suite, because it
-  does not finish.
+  takes ~30 s where the ordered model takes a fifth of a second.
 - `queens.claims` — the question, kept apart from the puzzle (wish 12).
+- `queens.rules` — the same question re-asked of the rules engine, so the
+  cross-check oracle compares two implementations of one question.

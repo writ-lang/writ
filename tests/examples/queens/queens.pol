@@ -2,560 +2,155 @@
 ;
 ; One queen per COLUMN is built into the data rather than checked: `q3` IS the
 ; queen of column 3, so the column rule cannot be broken because it cannot be
-; written. What remains is rows and diagonals.
+; written. What remains is rows and diagonals, and BOTH are answered the same
+; way here — by naming them.
 ;
-; Rows are ENTITIES on a ladder rather than an enumerated set. `next` climbs it,
-; `prev` descends, and both run off the board into `vacant` — which is what lets
-; a diagonal be SAID instead of enumerated: a queen d columns away attacks the
-; square d rows up or down, and `R.next.next` is that square. Falling off the
-; board leaves the chain undefined, `is` is strict, so `differ` is true and the
-; edge of the board constrains nothing. Exactly right, and for free.
+; A square knows the row it is on and the two diagonals it lies on, as three
+; `fixed` arrows filled in by the instance. Diagonals are ordinary entities,
+; d1..d15, and "these two queens share a diagonal" is then just `is`. No
+; arithmetic is needed and none is smuggled in: |Δrow| = |Δcol| is not computed,
+; it is looked up, because the table is small and fully known (Pivotal idea 3).
 ;
-; The three-way test is named once per distance (`safe2` = "two columns away")
-; and a form's slot substitutes into a chain's ROOT, so `R.next.next` becomes
-; `r5.next.next` at the call. Each transition then reads as what it means: one
-; conjunct per other queen, not one per forbidden row.
+; That one decision collapses the whole model. Safety stops being seven
+; distance-indexed forms and becomes ONE, quantified over queens rather than
+; enumerated per column, and every move fits on a line.
 ;
-; ORDERED placement: column c is filled only once c-1 is. The same 92 boards
-; are legal; what changes is what the space HOLDS — prefixes rather than every
-; safe subset of columns. 2057 situations instead of 118969. See
-; queens-unordered.pol for the identical puzzle without that one conjunct.
-
+; ORDERING. Column C may only be filled once column C-1 is. Every board is
+; still reachable and none is lost — what changes is what the space HOLDS:
+; safe PREFIXES rather than every safe SUBSET of columns. 2057 situations
+; instead of 118969, for one conjunct. See queens-unordered.pol.
 
 (load "stdlib.pol")
 
-
 (schema board
-  (type row-t
-    (arrow next (to row-t) fixed vacatable)
-    (arrow prev (to row-t) fixed vacatable))
-  (type queen (maybe row row-t)))
+  (type row-t  (r1 r2 r3 r4 r5 r6 r7 r8))
+  (type diag-t (d1 d2 d3 d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 d14 d15))
+  (type square
+    (arrow row (to row-t)  fixed)      ; which row this square is on
+    (arrow da  (to diag-t) fixed)      ; the ↘ diagonal through it
+    (arrow db  (to diag-t) fixed))     ; the ↗ diagonal through it
+  (type queen (maybe at square)))
 
-(form (safe1 P R)
-  => (and (differ P R) (differ P R.next) (differ P R.prev)))
-(form (safe2 P R)
-  => (and (differ P R) (differ P R.next.next) (differ P R.prev.prev)))
-(form (safe3 P R)
-  => (and (differ P R) (differ P R.next.next.next) (differ P R.prev.prev.prev)))
-(form (safe4 P R)
-  => (and (differ P R) (differ P R.next.next.next.next) (differ P R.prev.prev.prev.prev)))
-(form (safe5 P R)
-  => (and (differ P R) (differ P R.next.next.next.next.next) (differ P R.prev.prev.prev.prev.prev)))
-(form (safe6 P R)
-  => (and (differ P R) (differ P R.next.next.next.next.next.next) (differ P R.prev.prev.prev.prev.prev.prev)))
-(form (safe7 P R)
-  => (and (differ P R) (differ P R.next.next.next.next.next.next.next) (differ P R.prev.prev.prev.prev.prev.prev.prev)))
+; Square S is free: no queen already stands on its row or on either of its
+; diagonals. B is the binder's name, passed in because a form template's list
+; head must be a slot. An UNPLACED queen blocks nothing — its `at` is vacant, so
+; `B.at.row` has no answer, `is` is strict, and `differ` is therefore true.
+(form (free B S)
+  => (all (B queen)
+       (and (differ B.at.row S.row) (differ B.at.da S.da) (differ B.at.db S.db))))
+
+; One move, and the whole board is 64 invocations of it. PREV is the column to
+; the left, which must already be filled — the ordering conjunct.
+(form (place N Q PREV S)
+  => (transition N
+       (when (and (not (defined Q.at)) (defined PREV.at) (free p S)))
+       (do (set Q.at S))))
+
+; Column 1 has nothing to its left.
+(form (place1 N Q S)
+  => (transition N (when (and (not (defined Q.at)) (free p S))) (do (set Q.at S))))
 
 (instance empty (of board)
-  (row-t r1 r2 r3 r4 r5 r6 r7 r8)
+  (square s11 s12 s13 s14 s15 s16 s17 s18
+          s21 s22 s23 s24 s25 s26 s27 s28
+          s31 s32 s33 s34 s35 s36 s37 s38
+          s41 s42 s43 s44 s45 s46 s47 s48
+          s51 s52 s53 s54 s55 s56 s57 s58
+          s61 s62 s63 s64 s65 s66 s67 s68
+          s71 s72 s73 s74 s75 s76 s77 s78
+          s81 s82 s83 s84 s85 s86 s87 s88)
   (queen q1 q2 q3 q4 q5 q6 q7 q8)
-  (next (r1 r2) (r2 r3) (r3 r4) (r4 r5) (r5 r6) (r6 r7) (r7 r8) (r8 vacant))
-  (prev (r1 vacant) (r2 r1) (r3 r2) (r4 r3) (r5 r4) (r6 r5) (r7 r6) (r8 r7))
-  (row (q1 vacant) (q2 vacant) (q3 vacant) (q4 vacant) (q5 vacant) (q6 vacant) (q7 vacant) (q8 vacant)))
+  (row (s11 r1) (s12 r2) (s13 r3) (s14 r4) (s15 r5) (s16 r6) (s17 r7) (s18 r8)
+       (s21 r1) (s22 r2) (s23 r3) (s24 r4) (s25 r5) (s26 r6) (s27 r7) (s28 r8)
+       (s31 r1) (s32 r2) (s33 r3) (s34 r4) (s35 r5) (s36 r6) (s37 r7) (s38 r8)
+       (s41 r1) (s42 r2) (s43 r3) (s44 r4) (s45 r5) (s46 r6) (s47 r7) (s48 r8)
+       (s51 r1) (s52 r2) (s53 r3) (s54 r4) (s55 r5) (s56 r6) (s57 r7) (s58 r8)
+       (s61 r1) (s62 r2) (s63 r3) (s64 r4) (s65 r5) (s66 r6) (s67 r7) (s68 r8)
+       (s71 r1) (s72 r2) (s73 r3) (s74 r4) (s75 r5) (s76 r6) (s77 r7) (s78 r8)
+       (s81 r1) (s82 r2) (s83 r3) (s84 r4) (s85 r5) (s86 r6) (s87 r7) (s88 r8))
+  (da  (s11 d8) (s12 d7) (s13 d6) (s14 d5) (s15 d4) (s16 d3) (s17 d2) (s18 d1)
+       (s21 d9) (s22 d8) (s23 d7) (s24 d6) (s25 d5) (s26 d4) (s27 d3) (s28 d2)
+       (s31 d10) (s32 d9) (s33 d8) (s34 d7) (s35 d6) (s36 d5) (s37 d4) (s38 d3)
+       (s41 d11) (s42 d10) (s43 d9) (s44 d8) (s45 d7) (s46 d6) (s47 d5) (s48 d4)
+       (s51 d12) (s52 d11) (s53 d10) (s54 d9) (s55 d8) (s56 d7) (s57 d6) (s58 d5)
+       (s61 d13) (s62 d12) (s63 d11) (s64 d10) (s65 d9) (s66 d8) (s67 d7) (s68 d6)
+       (s71 d14) (s72 d13) (s73 d12) (s74 d11) (s75 d10) (s76 d9) (s77 d8) (s78 d7)
+       (s81 d15) (s82 d14) (s83 d13) (s84 d12) (s85 d11) (s86 d10) (s87 d9) (s88 d8))
+  (db  (s11 d1) (s12 d2) (s13 d3) (s14 d4) (s15 d5) (s16 d6) (s17 d7) (s18 d8)
+       (s21 d2) (s22 d3) (s23 d4) (s24 d5) (s25 d6) (s26 d7) (s27 d8) (s28 d9)
+       (s31 d3) (s32 d4) (s33 d5) (s34 d6) (s35 d7) (s36 d8) (s37 d9) (s38 d10)
+       (s41 d4) (s42 d5) (s43 d6) (s44 d7) (s45 d8) (s46 d9) (s47 d10) (s48 d11)
+       (s51 d5) (s52 d6) (s53 d7) (s54 d8) (s55 d9) (s56 d10) (s57 d11) (s58 d12)
+       (s61 d6) (s62 d7) (s63 d8) (s64 d9) (s65 d10) (s66 d11) (s67 d12) (s68 d13)
+       (s71 d7) (s72 d8) (s73 d9) (s74 d10) (s75 d11) (s76 d12) (s77 d13) (s78 d14)
+       (s81 d8) (s82 d9) (s83 d10) (s84 d11) (s85 d12) (s86 d13) (s87 d14) (s88 d15))
+  (at (q1 vacant) (q2 vacant) (q3 vacant) (q4 vacant) (q5 vacant) (q6 vacant) (q7 vacant) (q8 vacant)))
 
 (use board)
 (initial empty)
 
-(transition place-1-1
-  (when (and (not (defined q1.row)) (safe1 q2.row r1)
-             (safe2 q3.row r1) (safe3 q4.row r1)
-             (safe4 q5.row r1) (safe5 q6.row r1)
-             (safe6 q7.row r1) (safe7 q8.row r1)))
-  (do (set q1.row r1)))
-
-(transition place-1-2
-  (when (and (not (defined q1.row)) (safe1 q2.row r2)
-             (safe2 q3.row r2) (safe3 q4.row r2)
-             (safe4 q5.row r2) (safe5 q6.row r2)
-             (safe6 q7.row r2) (safe7 q8.row r2)))
-  (do (set q1.row r2)))
-
-(transition place-1-3
-  (when (and (not (defined q1.row)) (safe1 q2.row r3)
-             (safe2 q3.row r3) (safe3 q4.row r3)
-             (safe4 q5.row r3) (safe5 q6.row r3)
-             (safe6 q7.row r3) (safe7 q8.row r3)))
-  (do (set q1.row r3)))
-
-(transition place-1-4
-  (when (and (not (defined q1.row)) (safe1 q2.row r4)
-             (safe2 q3.row r4) (safe3 q4.row r4)
-             (safe4 q5.row r4) (safe5 q6.row r4)
-             (safe6 q7.row r4) (safe7 q8.row r4)))
-  (do (set q1.row r4)))
-
-(transition place-1-5
-  (when (and (not (defined q1.row)) (safe1 q2.row r5)
-             (safe2 q3.row r5) (safe3 q4.row r5)
-             (safe4 q5.row r5) (safe5 q6.row r5)
-             (safe6 q7.row r5) (safe7 q8.row r5)))
-  (do (set q1.row r5)))
-
-(transition place-1-6
-  (when (and (not (defined q1.row)) (safe1 q2.row r6)
-             (safe2 q3.row r6) (safe3 q4.row r6)
-             (safe4 q5.row r6) (safe5 q6.row r6)
-             (safe6 q7.row r6) (safe7 q8.row r6)))
-  (do (set q1.row r6)))
-
-(transition place-1-7
-  (when (and (not (defined q1.row)) (safe1 q2.row r7)
-             (safe2 q3.row r7) (safe3 q4.row r7)
-             (safe4 q5.row r7) (safe5 q6.row r7)
-             (safe6 q7.row r7) (safe7 q8.row r7)))
-  (do (set q1.row r7)))
-
-(transition place-1-8
-  (when (and (not (defined q1.row)) (safe1 q2.row r8)
-             (safe2 q3.row r8) (safe3 q4.row r8)
-             (safe4 q5.row r8) (safe5 q6.row r8)
-             (safe6 q7.row r8) (safe7 q8.row r8)))
-  (do (set q1.row r8)))
-
-(transition place-2-1
-  (when (and (not (defined q2.row)) (defined q1.row)
-             (safe1 q1.row r1) (safe1 q3.row r1)
-             (safe2 q4.row r1) (safe3 q5.row r1)
-             (safe4 q6.row r1) (safe5 q7.row r1)
-             (safe6 q8.row r1)))
-  (do (set q2.row r1)))
-
-(transition place-2-2
-  (when (and (not (defined q2.row)) (defined q1.row)
-             (safe1 q1.row r2) (safe1 q3.row r2)
-             (safe2 q4.row r2) (safe3 q5.row r2)
-             (safe4 q6.row r2) (safe5 q7.row r2)
-             (safe6 q8.row r2)))
-  (do (set q2.row r2)))
-
-(transition place-2-3
-  (when (and (not (defined q2.row)) (defined q1.row)
-             (safe1 q1.row r3) (safe1 q3.row r3)
-             (safe2 q4.row r3) (safe3 q5.row r3)
-             (safe4 q6.row r3) (safe5 q7.row r3)
-             (safe6 q8.row r3)))
-  (do (set q2.row r3)))
-
-(transition place-2-4
-  (when (and (not (defined q2.row)) (defined q1.row)
-             (safe1 q1.row r4) (safe1 q3.row r4)
-             (safe2 q4.row r4) (safe3 q5.row r4)
-             (safe4 q6.row r4) (safe5 q7.row r4)
-             (safe6 q8.row r4)))
-  (do (set q2.row r4)))
-
-(transition place-2-5
-  (when (and (not (defined q2.row)) (defined q1.row)
-             (safe1 q1.row r5) (safe1 q3.row r5)
-             (safe2 q4.row r5) (safe3 q5.row r5)
-             (safe4 q6.row r5) (safe5 q7.row r5)
-             (safe6 q8.row r5)))
-  (do (set q2.row r5)))
-
-(transition place-2-6
-  (when (and (not (defined q2.row)) (defined q1.row)
-             (safe1 q1.row r6) (safe1 q3.row r6)
-             (safe2 q4.row r6) (safe3 q5.row r6)
-             (safe4 q6.row r6) (safe5 q7.row r6)
-             (safe6 q8.row r6)))
-  (do (set q2.row r6)))
-
-(transition place-2-7
-  (when (and (not (defined q2.row)) (defined q1.row)
-             (safe1 q1.row r7) (safe1 q3.row r7)
-             (safe2 q4.row r7) (safe3 q5.row r7)
-             (safe4 q6.row r7) (safe5 q7.row r7)
-             (safe6 q8.row r7)))
-  (do (set q2.row r7)))
-
-(transition place-2-8
-  (when (and (not (defined q2.row)) (defined q1.row)
-             (safe1 q1.row r8) (safe1 q3.row r8)
-             (safe2 q4.row r8) (safe3 q5.row r8)
-             (safe4 q6.row r8) (safe5 q7.row r8)
-             (safe6 q8.row r8)))
-  (do (set q2.row r8)))
-
-(transition place-3-1
-  (when (and (not (defined q3.row)) (defined q2.row)
-             (safe2 q1.row r1) (safe1 q2.row r1)
-             (safe1 q4.row r1) (safe2 q5.row r1)
-             (safe3 q6.row r1) (safe4 q7.row r1)
-             (safe5 q8.row r1)))
-  (do (set q3.row r1)))
-
-(transition place-3-2
-  (when (and (not (defined q3.row)) (defined q2.row)
-             (safe2 q1.row r2) (safe1 q2.row r2)
-             (safe1 q4.row r2) (safe2 q5.row r2)
-             (safe3 q6.row r2) (safe4 q7.row r2)
-             (safe5 q8.row r2)))
-  (do (set q3.row r2)))
-
-(transition place-3-3
-  (when (and (not (defined q3.row)) (defined q2.row)
-             (safe2 q1.row r3) (safe1 q2.row r3)
-             (safe1 q4.row r3) (safe2 q5.row r3)
-             (safe3 q6.row r3) (safe4 q7.row r3)
-             (safe5 q8.row r3)))
-  (do (set q3.row r3)))
-
-(transition place-3-4
-  (when (and (not (defined q3.row)) (defined q2.row)
-             (safe2 q1.row r4) (safe1 q2.row r4)
-             (safe1 q4.row r4) (safe2 q5.row r4)
-             (safe3 q6.row r4) (safe4 q7.row r4)
-             (safe5 q8.row r4)))
-  (do (set q3.row r4)))
-
-(transition place-3-5
-  (when (and (not (defined q3.row)) (defined q2.row)
-             (safe2 q1.row r5) (safe1 q2.row r5)
-             (safe1 q4.row r5) (safe2 q5.row r5)
-             (safe3 q6.row r5) (safe4 q7.row r5)
-             (safe5 q8.row r5)))
-  (do (set q3.row r5)))
-
-(transition place-3-6
-  (when (and (not (defined q3.row)) (defined q2.row)
-             (safe2 q1.row r6) (safe1 q2.row r6)
-             (safe1 q4.row r6) (safe2 q5.row r6)
-             (safe3 q6.row r6) (safe4 q7.row r6)
-             (safe5 q8.row r6)))
-  (do (set q3.row r6)))
-
-(transition place-3-7
-  (when (and (not (defined q3.row)) (defined q2.row)
-             (safe2 q1.row r7) (safe1 q2.row r7)
-             (safe1 q4.row r7) (safe2 q5.row r7)
-             (safe3 q6.row r7) (safe4 q7.row r7)
-             (safe5 q8.row r7)))
-  (do (set q3.row r7)))
-
-(transition place-3-8
-  (when (and (not (defined q3.row)) (defined q2.row)
-             (safe2 q1.row r8) (safe1 q2.row r8)
-             (safe1 q4.row r8) (safe2 q5.row r8)
-             (safe3 q6.row r8) (safe4 q7.row r8)
-             (safe5 q8.row r8)))
-  (do (set q3.row r8)))
-
-(transition place-4-1
-  (when (and (not (defined q4.row)) (defined q3.row)
-             (safe3 q1.row r1) (safe2 q2.row r1)
-             (safe1 q3.row r1) (safe1 q5.row r1)
-             (safe2 q6.row r1) (safe3 q7.row r1)
-             (safe4 q8.row r1)))
-  (do (set q4.row r1)))
-
-(transition place-4-2
-  (when (and (not (defined q4.row)) (defined q3.row)
-             (safe3 q1.row r2) (safe2 q2.row r2)
-             (safe1 q3.row r2) (safe1 q5.row r2)
-             (safe2 q6.row r2) (safe3 q7.row r2)
-             (safe4 q8.row r2)))
-  (do (set q4.row r2)))
-
-(transition place-4-3
-  (when (and (not (defined q4.row)) (defined q3.row)
-             (safe3 q1.row r3) (safe2 q2.row r3)
-             (safe1 q3.row r3) (safe1 q5.row r3)
-             (safe2 q6.row r3) (safe3 q7.row r3)
-             (safe4 q8.row r3)))
-  (do (set q4.row r3)))
-
-(transition place-4-4
-  (when (and (not (defined q4.row)) (defined q3.row)
-             (safe3 q1.row r4) (safe2 q2.row r4)
-             (safe1 q3.row r4) (safe1 q5.row r4)
-             (safe2 q6.row r4) (safe3 q7.row r4)
-             (safe4 q8.row r4)))
-  (do (set q4.row r4)))
-
-(transition place-4-5
-  (when (and (not (defined q4.row)) (defined q3.row)
-             (safe3 q1.row r5) (safe2 q2.row r5)
-             (safe1 q3.row r5) (safe1 q5.row r5)
-             (safe2 q6.row r5) (safe3 q7.row r5)
-             (safe4 q8.row r5)))
-  (do (set q4.row r5)))
-
-(transition place-4-6
-  (when (and (not (defined q4.row)) (defined q3.row)
-             (safe3 q1.row r6) (safe2 q2.row r6)
-             (safe1 q3.row r6) (safe1 q5.row r6)
-             (safe2 q6.row r6) (safe3 q7.row r6)
-             (safe4 q8.row r6)))
-  (do (set q4.row r6)))
-
-(transition place-4-7
-  (when (and (not (defined q4.row)) (defined q3.row)
-             (safe3 q1.row r7) (safe2 q2.row r7)
-             (safe1 q3.row r7) (safe1 q5.row r7)
-             (safe2 q6.row r7) (safe3 q7.row r7)
-             (safe4 q8.row r7)))
-  (do (set q4.row r7)))
-
-(transition place-4-8
-  (when (and (not (defined q4.row)) (defined q3.row)
-             (safe3 q1.row r8) (safe2 q2.row r8)
-             (safe1 q3.row r8) (safe1 q5.row r8)
-             (safe2 q6.row r8) (safe3 q7.row r8)
-             (safe4 q8.row r8)))
-  (do (set q4.row r8)))
-
-(transition place-5-1
-  (when (and (not (defined q5.row)) (defined q4.row)
-             (safe4 q1.row r1) (safe3 q2.row r1)
-             (safe2 q3.row r1) (safe1 q4.row r1)
-             (safe1 q6.row r1) (safe2 q7.row r1)
-             (safe3 q8.row r1)))
-  (do (set q5.row r1)))
-
-(transition place-5-2
-  (when (and (not (defined q5.row)) (defined q4.row)
-             (safe4 q1.row r2) (safe3 q2.row r2)
-             (safe2 q3.row r2) (safe1 q4.row r2)
-             (safe1 q6.row r2) (safe2 q7.row r2)
-             (safe3 q8.row r2)))
-  (do (set q5.row r2)))
-
-(transition place-5-3
-  (when (and (not (defined q5.row)) (defined q4.row)
-             (safe4 q1.row r3) (safe3 q2.row r3)
-             (safe2 q3.row r3) (safe1 q4.row r3)
-             (safe1 q6.row r3) (safe2 q7.row r3)
-             (safe3 q8.row r3)))
-  (do (set q5.row r3)))
-
-(transition place-5-4
-  (when (and (not (defined q5.row)) (defined q4.row)
-             (safe4 q1.row r4) (safe3 q2.row r4)
-             (safe2 q3.row r4) (safe1 q4.row r4)
-             (safe1 q6.row r4) (safe2 q7.row r4)
-             (safe3 q8.row r4)))
-  (do (set q5.row r4)))
-
-(transition place-5-5
-  (when (and (not (defined q5.row)) (defined q4.row)
-             (safe4 q1.row r5) (safe3 q2.row r5)
-             (safe2 q3.row r5) (safe1 q4.row r5)
-             (safe1 q6.row r5) (safe2 q7.row r5)
-             (safe3 q8.row r5)))
-  (do (set q5.row r5)))
-
-(transition place-5-6
-  (when (and (not (defined q5.row)) (defined q4.row)
-             (safe4 q1.row r6) (safe3 q2.row r6)
-             (safe2 q3.row r6) (safe1 q4.row r6)
-             (safe1 q6.row r6) (safe2 q7.row r6)
-             (safe3 q8.row r6)))
-  (do (set q5.row r6)))
-
-(transition place-5-7
-  (when (and (not (defined q5.row)) (defined q4.row)
-             (safe4 q1.row r7) (safe3 q2.row r7)
-             (safe2 q3.row r7) (safe1 q4.row r7)
-             (safe1 q6.row r7) (safe2 q7.row r7)
-             (safe3 q8.row r7)))
-  (do (set q5.row r7)))
-
-(transition place-5-8
-  (when (and (not (defined q5.row)) (defined q4.row)
-             (safe4 q1.row r8) (safe3 q2.row r8)
-             (safe2 q3.row r8) (safe1 q4.row r8)
-             (safe1 q6.row r8) (safe2 q7.row r8)
-             (safe3 q8.row r8)))
-  (do (set q5.row r8)))
-
-(transition place-6-1
-  (when (and (not (defined q6.row)) (defined q5.row)
-             (safe5 q1.row r1) (safe4 q2.row r1)
-             (safe3 q3.row r1) (safe2 q4.row r1)
-             (safe1 q5.row r1) (safe1 q7.row r1)
-             (safe2 q8.row r1)))
-  (do (set q6.row r1)))
-
-(transition place-6-2
-  (when (and (not (defined q6.row)) (defined q5.row)
-             (safe5 q1.row r2) (safe4 q2.row r2)
-             (safe3 q3.row r2) (safe2 q4.row r2)
-             (safe1 q5.row r2) (safe1 q7.row r2)
-             (safe2 q8.row r2)))
-  (do (set q6.row r2)))
-
-(transition place-6-3
-  (when (and (not (defined q6.row)) (defined q5.row)
-             (safe5 q1.row r3) (safe4 q2.row r3)
-             (safe3 q3.row r3) (safe2 q4.row r3)
-             (safe1 q5.row r3) (safe1 q7.row r3)
-             (safe2 q8.row r3)))
-  (do (set q6.row r3)))
-
-(transition place-6-4
-  (when (and (not (defined q6.row)) (defined q5.row)
-             (safe5 q1.row r4) (safe4 q2.row r4)
-             (safe3 q3.row r4) (safe2 q4.row r4)
-             (safe1 q5.row r4) (safe1 q7.row r4)
-             (safe2 q8.row r4)))
-  (do (set q6.row r4)))
-
-(transition place-6-5
-  (when (and (not (defined q6.row)) (defined q5.row)
-             (safe5 q1.row r5) (safe4 q2.row r5)
-             (safe3 q3.row r5) (safe2 q4.row r5)
-             (safe1 q5.row r5) (safe1 q7.row r5)
-             (safe2 q8.row r5)))
-  (do (set q6.row r5)))
-
-(transition place-6-6
-  (when (and (not (defined q6.row)) (defined q5.row)
-             (safe5 q1.row r6) (safe4 q2.row r6)
-             (safe3 q3.row r6) (safe2 q4.row r6)
-             (safe1 q5.row r6) (safe1 q7.row r6)
-             (safe2 q8.row r6)))
-  (do (set q6.row r6)))
-
-(transition place-6-7
-  (when (and (not (defined q6.row)) (defined q5.row)
-             (safe5 q1.row r7) (safe4 q2.row r7)
-             (safe3 q3.row r7) (safe2 q4.row r7)
-             (safe1 q5.row r7) (safe1 q7.row r7)
-             (safe2 q8.row r7)))
-  (do (set q6.row r7)))
-
-(transition place-6-8
-  (when (and (not (defined q6.row)) (defined q5.row)
-             (safe5 q1.row r8) (safe4 q2.row r8)
-             (safe3 q3.row r8) (safe2 q4.row r8)
-             (safe1 q5.row r8) (safe1 q7.row r8)
-             (safe2 q8.row r8)))
-  (do (set q6.row r8)))
-
-(transition place-7-1
-  (when (and (not (defined q7.row)) (defined q6.row)
-             (safe6 q1.row r1) (safe5 q2.row r1)
-             (safe4 q3.row r1) (safe3 q4.row r1)
-             (safe2 q5.row r1) (safe1 q6.row r1)
-             (safe1 q8.row r1)))
-  (do (set q7.row r1)))
-
-(transition place-7-2
-  (when (and (not (defined q7.row)) (defined q6.row)
-             (safe6 q1.row r2) (safe5 q2.row r2)
-             (safe4 q3.row r2) (safe3 q4.row r2)
-             (safe2 q5.row r2) (safe1 q6.row r2)
-             (safe1 q8.row r2)))
-  (do (set q7.row r2)))
-
-(transition place-7-3
-  (when (and (not (defined q7.row)) (defined q6.row)
-             (safe6 q1.row r3) (safe5 q2.row r3)
-             (safe4 q3.row r3) (safe3 q4.row r3)
-             (safe2 q5.row r3) (safe1 q6.row r3)
-             (safe1 q8.row r3)))
-  (do (set q7.row r3)))
-
-(transition place-7-4
-  (when (and (not (defined q7.row)) (defined q6.row)
-             (safe6 q1.row r4) (safe5 q2.row r4)
-             (safe4 q3.row r4) (safe3 q4.row r4)
-             (safe2 q5.row r4) (safe1 q6.row r4)
-             (safe1 q8.row r4)))
-  (do (set q7.row r4)))
-
-(transition place-7-5
-  (when (and (not (defined q7.row)) (defined q6.row)
-             (safe6 q1.row r5) (safe5 q2.row r5)
-             (safe4 q3.row r5) (safe3 q4.row r5)
-             (safe2 q5.row r5) (safe1 q6.row r5)
-             (safe1 q8.row r5)))
-  (do (set q7.row r5)))
-
-(transition place-7-6
-  (when (and (not (defined q7.row)) (defined q6.row)
-             (safe6 q1.row r6) (safe5 q2.row r6)
-             (safe4 q3.row r6) (safe3 q4.row r6)
-             (safe2 q5.row r6) (safe1 q6.row r6)
-             (safe1 q8.row r6)))
-  (do (set q7.row r6)))
-
-(transition place-7-7
-  (when (and (not (defined q7.row)) (defined q6.row)
-             (safe6 q1.row r7) (safe5 q2.row r7)
-             (safe4 q3.row r7) (safe3 q4.row r7)
-             (safe2 q5.row r7) (safe1 q6.row r7)
-             (safe1 q8.row r7)))
-  (do (set q7.row r7)))
-
-(transition place-7-8
-  (when (and (not (defined q7.row)) (defined q6.row)
-             (safe6 q1.row r8) (safe5 q2.row r8)
-             (safe4 q3.row r8) (safe3 q4.row r8)
-             (safe2 q5.row r8) (safe1 q6.row r8)
-             (safe1 q8.row r8)))
-  (do (set q7.row r8)))
-
-(transition place-8-1
-  (when (and (not (defined q8.row)) (defined q7.row)
-             (safe7 q1.row r1) (safe6 q2.row r1)
-             (safe5 q3.row r1) (safe4 q4.row r1)
-             (safe3 q5.row r1) (safe2 q6.row r1)
-             (safe1 q7.row r1)))
-  (do (set q8.row r1)))
-
-(transition place-8-2
-  (when (and (not (defined q8.row)) (defined q7.row)
-             (safe7 q1.row r2) (safe6 q2.row r2)
-             (safe5 q3.row r2) (safe4 q4.row r2)
-             (safe3 q5.row r2) (safe2 q6.row r2)
-             (safe1 q7.row r2)))
-  (do (set q8.row r2)))
-
-(transition place-8-3
-  (when (and (not (defined q8.row)) (defined q7.row)
-             (safe7 q1.row r3) (safe6 q2.row r3)
-             (safe5 q3.row r3) (safe4 q4.row r3)
-             (safe3 q5.row r3) (safe2 q6.row r3)
-             (safe1 q7.row r3)))
-  (do (set q8.row r3)))
-
-(transition place-8-4
-  (when (and (not (defined q8.row)) (defined q7.row)
-             (safe7 q1.row r4) (safe6 q2.row r4)
-             (safe5 q3.row r4) (safe4 q4.row r4)
-             (safe3 q5.row r4) (safe2 q6.row r4)
-             (safe1 q7.row r4)))
-  (do (set q8.row r4)))
-
-(transition place-8-5
-  (when (and (not (defined q8.row)) (defined q7.row)
-             (safe7 q1.row r5) (safe6 q2.row r5)
-             (safe5 q3.row r5) (safe4 q4.row r5)
-             (safe3 q5.row r5) (safe2 q6.row r5)
-             (safe1 q7.row r5)))
-  (do (set q8.row r5)))
-
-(transition place-8-6
-  (when (and (not (defined q8.row)) (defined q7.row)
-             (safe7 q1.row r6) (safe6 q2.row r6)
-             (safe5 q3.row r6) (safe4 q4.row r6)
-             (safe3 q5.row r6) (safe2 q6.row r6)
-             (safe1 q7.row r6)))
-  (do (set q8.row r6)))
-
-(transition place-8-7
-  (when (and (not (defined q8.row)) (defined q7.row)
-             (safe7 q1.row r7) (safe6 q2.row r7)
-             (safe5 q3.row r7) (safe4 q4.row r7)
-             (safe3 q5.row r7) (safe2 q6.row r7)
-             (safe1 q7.row r7)))
-  (do (set q8.row r7)))
-
-(transition place-8-8
-  (when (and (not (defined q8.row)) (defined q7.row)
-             (safe7 q1.row r8) (safe6 q2.row r8)
-             (safe5 q3.row r8) (safe4 q4.row r8)
-             (safe3 q5.row r8) (safe2 q6.row r8)
-             (safe1 q7.row r8)))
-  (do (set q8.row r8)))
+; The board: one line per square.
+(place1 p-1-1 q1 s11)
+(place1 p-1-2 q1 s12)
+(place1 p-1-3 q1 s13)
+(place1 p-1-4 q1 s14)
+(place1 p-1-5 q1 s15)
+(place1 p-1-6 q1 s16)
+(place1 p-1-7 q1 s17)
+(place1 p-1-8 q1 s18)
+(place p-2-1 q2 q1 s21)
+(place p-2-2 q2 q1 s22)
+(place p-2-3 q2 q1 s23)
+(place p-2-4 q2 q1 s24)
+(place p-2-5 q2 q1 s25)
+(place p-2-6 q2 q1 s26)
+(place p-2-7 q2 q1 s27)
+(place p-2-8 q2 q1 s28)
+(place p-3-1 q3 q2 s31)
+(place p-3-2 q3 q2 s32)
+(place p-3-3 q3 q2 s33)
+(place p-3-4 q3 q2 s34)
+(place p-3-5 q3 q2 s35)
+(place p-3-6 q3 q2 s36)
+(place p-3-7 q3 q2 s37)
+(place p-3-8 q3 q2 s38)
+(place p-4-1 q4 q3 s41)
+(place p-4-2 q4 q3 s42)
+(place p-4-3 q4 q3 s43)
+(place p-4-4 q4 q3 s44)
+(place p-4-5 q4 q3 s45)
+(place p-4-6 q4 q3 s46)
+(place p-4-7 q4 q3 s47)
+(place p-4-8 q4 q3 s48)
+(place p-5-1 q5 q4 s51)
+(place p-5-2 q5 q4 s52)
+(place p-5-3 q5 q4 s53)
+(place p-5-4 q5 q4 s54)
+(place p-5-5 q5 q4 s55)
+(place p-5-6 q5 q4 s56)
+(place p-5-7 q5 q4 s57)
+(place p-5-8 q5 q4 s58)
+(place p-6-1 q6 q5 s61)
+(place p-6-2 q6 q5 s62)
+(place p-6-3 q6 q5 s63)
+(place p-6-4 q6 q5 s64)
+(place p-6-5 q6 q5 s65)
+(place p-6-6 q6 q5 s66)
+(place p-6-7 q6 q5 s67)
+(place p-6-8 q6 q5 s68)
+(place p-7-1 q7 q6 s71)
+(place p-7-2 q7 q6 s72)
+(place p-7-3 q7 q6 s73)
+(place p-7-4 q7 q6 s74)
+(place p-7-5 q7 q6 s75)
+(place p-7-6 q7 q6 s76)
+(place p-7-7 q7 q6 s77)
+(place p-7-8 q7 q6 s78)
+(place p-8-1 q8 q7 s81)
+(place p-8-2 q8 q7 s82)
+(place p-8-3 q8 q7 s83)
+(place p-8-4 q8 q7 s84)
+(place p-8-5 q8 q7 s85)
+(place p-8-6 q8 q7 s86)
+(place p-8-7 q8 q7 s87)
+(place p-8-8 q8 q7 s88)

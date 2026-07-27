@@ -41,6 +41,10 @@ And by file, non-comment non-blank lines:
 | `workflow/workflow.pol` | 44 |
 | everything else | 26–40 |
 
+*(Both queens figures are as measured. They are now 112, and the section
+"What the measurement got wrong" at the end says why — it was not the language
+that shrank them.)*
+
 Two things fall out immediately. **Transitions outnumber arrows four to one**,
 so sugar aimed at `arrow` is aimed at 36 datums out of 278. And **one file is
 seven times the size of every other**, so "why are Pol models long?" is really
@@ -174,11 +178,42 @@ for why that is a smaller win than it sounds.
 would let forms build instance data and type bodies, and it is the general
 version of what the `*(x)` proposal wanted in one specific spot.
 
-## The honest caveat
+## What the measurement got wrong
 
-Removing Wall 1 does **not** by itself get eight queens under thirty lines.
-Each queen's safety guard names a different set of distances to the other
-seven, so the eight walk-transitions do not collapse into one form invocation —
-they collapse from sixty-four bodies to eight, which is a large win and not a
-total one. Any line count quoted before the change is built is an estimate,
-and this note declines to quote one.
+The counting above is correct and its conclusion about *sugar* still stands.
+Its conclusion about **queens** does not, and the error is worth keeping
+because it is the kind this whole note was written to avoid.
+
+The note said the 500 lines of `queens.pol` were forced by §10.3 — one move
+per (column, row), because `set` took a literal. §10.3 was then widened, and
+queens was rewritten. It is now **119 lines**, with the same 2057 situations
+and the same 92 boards.
+
+**It does not use the widening.** `(set Q.at S)` writes a literal, exactly as
+it always could. What shrank the file was giving squares a `da` and `db` arrow
+so a **diagonal is a named entity** rather than a ladder walked *d* times.
+That turned seven distance-indexed `safeN` forms into one quantified `free`,
+and a seven-conjunct guard into three. Better data, not a bigger language.
+
+Two corrections follow.
+
+**Transitions were the bulk, but not for the reason given.** There are still
+sixty-four `(place …)` invocations — the count never moved. What moved is that
+each is now one line instead of seven. The floor on the *number* of moves is
+real and is set by something this note never named: Pol has no move that picks
+its destination nondeterministically, because a guard's binder is scoped to the
+guard and an effect cannot name it. `(some (s square) …)` cannot hand `s` to
+`(set q3.at s)`. **That** is what keeps queens generated, and it is a bigger
+gap than either wall above.
+
+**The widening was still right, just not here.** It made the job shop's clock
+one transition from eight, because a clock has one walker and a well-defined
+end. Applied to queens it measured *worse* — a walking queen passes through
+unsafe squares (7.6× the situations) and a finished board stops being a dead
+end, which is the nicest thing that example demonstrates. `tests/examples/
+queens/README.md` has both measurements.
+
+The transferable lesson: when a model is long, ask what its **data** cannot
+say before asking what the **language** cannot say. Here the language was
+widened, correctly, and the model got four times shorter for an unrelated
+reason.

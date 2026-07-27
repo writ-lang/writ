@@ -32,7 +32,7 @@
 (rule (solvable T)
   (init S)
   (reach S T)
-  (holds T (all (q queen) (defined q.row))))
+  (holds T (all (q queen) (defined q.at))))
 
 ; The per-queen view the conjunction above cannot give: where each queen stands
 ; in a given situation. `pol derive queens.pol queens.rules "(placed 2056 Q R)"`
@@ -41,5 +41,5 @@
 ; The typed declaration is not decoration. `R` occurs only here and in a
 ; sort-transparent position, so nothing else in the rule could seed it — and a
 ; row is what the answer is about.
-(relation placed (Situation queen row-t))
-(rule (placed S Q R) (situation S) (holds S (is Q.row R)))
+(relation placed (Situation queen square))
+(rule (placed S Q R) (situation S) (holds S (is Q.at R)))
