@@ -51,15 +51,21 @@ install-pol: build
 # search path and keeps resolving after it has been removed from the project.
 	rm -rf "$(PREFIX)/share/pol/lib"
 	mkdir -p "$(PREFIX)/bin" "$(PREFIX)/share/pol/lib"
-	rm -f "$(PREFIX)/bin/pol"
-	cp -f _build/default/tooling/cli/pol.exe "$(PREFIX)/bin/pol"
-	chmod u+w "$(PREFIX)/bin/pol"
+# All THREE binaries, not just the CLI. The editor client looks for `pol-lsp`
+# on PATH when it is not inside a checkout, and an MCP client is pointed at
+# `pol-mcp` by name — so installing only `pol` leaves both of them with nothing
+# to talk to, which is a confusing way to fail.
+	for exe in pol pol-lsp pol-mcp; do \
+	  rm -f "$(PREFIX)/bin/$$exe"; \
+	  cp -fL "_build/install/default/bin/$$exe" "$(PREFIX)/bin/$$exe"; \
+	  chmod u+w "$(PREFIX)/bin/$$exe"; \
+	done
 	cp -f core/stdlib/*.pol "$(PREFIX)/share/pol/lib/"
 	@case ":$$PATH:" in *":$(PREFIX)/bin:"*) ;; \
 	  *) printf 'note: add %s to your PATH to run `pol`\n' "$(PREFIX)/bin" ;; esac
 
 uninstall-pol:
-	rm -f "$(PREFIX)/bin/pol"
+	rm -f "$(PREFIX)/bin/pol" "$(PREFIX)/bin/pol-lsp" "$(PREFIX)/bin/pol-mcp"
 	rm -rf "$(PREFIX)/share/pol"
 
 # ── Packaging ────────────────────────────────────────────────────────────────
@@ -110,6 +116,7 @@ release:
 	mkdir -p "$(DIST)/$(RELNAME)/bin" "$(DIST)/$(RELNAME)/share/pol/lib"
 	cp -L _build/install/default/bin/pol "$(DIST)/$(RELNAME)/bin/pol"
 	cp -L _build/install/default/bin/pol-lsp "$(DIST)/$(RELNAME)/bin/pol-lsp"
+	cp -L _build/install/default/bin/pol-mcp "$(DIST)/$(RELNAME)/bin/pol-mcp"
 	chmod 755 "$(DIST)/$(RELNAME)/bin/"*
 	cp core/stdlib/*.pol "$(DIST)/$(RELNAME)/share/pol/lib/"
 	cp scripts/release-install.sh "$(DIST)/$(RELNAME)/install.sh"

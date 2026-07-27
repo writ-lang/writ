@@ -14,7 +14,7 @@
 # as the machine that built it — see the note printed at the end.
 #
 # Uninstall is the inverse and equally plain:
-#     rm -f  <prefix>/bin/pol <prefix>/bin/pol-lsp
+#     rm -f  <prefix>/bin/pol <prefix>/bin/pol-lsp <prefix>/bin/pol-mcp
 #     rm -rf <prefix>/share/pol
 set -eu
 
@@ -34,7 +34,7 @@ mkdir -p "$prefix/bin" "$prefix/share/pol/lib"
 
 # rm first: an already-installed pol is read-only (mode 555), so a plain cp over
 # it fails with EACCES.
-for exe in pol pol-lsp; do
+for exe in pol pol-lsp pol-mcp; do
   [ -f "$here/bin/$exe" ] || continue
   rm -f "$prefix/bin/$exe"
   cp "$here/bin/$exe" "$prefix/bin/$exe"
@@ -48,6 +48,7 @@ cp "$here/share/pol/lib/"*.pol "$prefix/share/pol/lib/"
 echo "installed:"
 echo "  $prefix/bin/pol"
 [ -f "$prefix/bin/pol-lsp" ] && echo "  $prefix/bin/pol-lsp  (language server)"
+[ -f "$prefix/bin/pol-mcp" ] && echo "  $prefix/bin/pol-mcp  (MCP server)"
 echo "  $prefix/share/pol/lib/*.pol"
 
 case ":${PATH:-}:" in
