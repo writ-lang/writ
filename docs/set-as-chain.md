@@ -1,9 +1,28 @@
 # Should `set` take a chain? — a design note
 
-*Status: proposal, nothing implemented. The symmetric twin of
-`docs/law-as-guard.md`, which widened `is`; this asks whether `set` should be
-widened the same way. It carries a real cost that `is` did not, and the note
-does not resolve it.*
+*Status: **DONE**. Both open questions were decided as this note recommended,
+and the change shipped: §10.3 takes a chain, §10.1 says when effects read, and
+`tests/unit/test_set_as_chain.ml` pins both decisions — each mutation-checked,
+so sequential reading fails exactly one assertion and a no-op fails exactly
+one other. The answers are recorded in "The two decisions" below; the argument
+that produced them is left standing, because the reasoning is the useful part.
+The symmetric twin of `docs/law-as-guard.md`, which widened `is`.*
+
+## The two decisions
+
+**1. The right-hand side is read in the situation the move STARTED from.** A
+`do` block is a simultaneous assignment; the order of effects within one move
+stays unobservable. §10.1 has the sentence it was missing.
+
+**2. Where the chain has no answer, the move is ABSENT** — not a no-op, not a
+vacated target. The deciding argument is one this note originally missed: a
+no-op is still an **edge**, from a situation to itself, and `Space.dead_ends`
+marks a state as having an out-edge on `e.src` alone. So "no-op" would have
+made a stuck situation stop reporting as stuck, and dead ends are one of the
+answers `pol check` exists to give. That is not a matter of taste.
+
+The third question — does the space stay finite — was already answered yes
+below, and nothing about the implementation changed it.
 
 **The change in one line:** `(set CHAIN V)` accepts a **chain** on the right,
 not only a literal — exactly as `(is CHAIN RHS)` now does (§10.2).

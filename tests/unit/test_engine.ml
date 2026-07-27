@@ -32,7 +32,7 @@ let ty name flavor arrows : Schema.ty = { name; flavor; arrows }
 let path root steps : Value.path = { root; steps }
 let is e a v = Model.Is (path e [ a ], Model.Lit v)
 let ind a = path "case" [ a; "independence" ] (* total: strict = Kleene *)
-let set e a v = Model.Set (path e [ a ], v)
+let set e a v = Model.Set (path e [ a ], Model.Lit v)
 
 let tr name g effs : Model.transition =
   { name = Some name; when_ = g; effects = effs }

@@ -88,7 +88,7 @@ let () =
             | ( Model.Is
                   ( { Value.root = "watchdog"; steps = [ "independence" ] },
                     Model.Lit "independent" ),
-                [ Model.Set (_, "captured") ] ) ->
+                [ Model.Set (_, Model.Lit "captured") ] ) ->
                 true
             | _ -> false)
           m.Model.transitions

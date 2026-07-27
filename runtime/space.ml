@@ -65,6 +65,11 @@ let build (m : Model.t) : (t, string) result =
                 match tr.name with Some n -> n | None -> "#" ^ string_of_int i
               in
               match Eval.apply ctx s tr.effects with
+              (* A move whose chain-valued [set] has no answer here is NOT
+                 available (§10.3). No edge of any kind — an edge to this same
+                 situation would be a self-loop, and [dead_ends] below would
+                 then never report the situation as stuck. *)
+              | `Blocked -> ()
               | `Gap msg -> edges := { src = s; via; dst = `Gap msg } :: !edges
               | `Next s' ->
                   edges := { src = s; via; dst = `To s' } :: !edges;

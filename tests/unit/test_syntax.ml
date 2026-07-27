@@ -229,7 +229,7 @@ let () =
           | [
            Model.Set
              ( { Value.root = "watchdog"; steps = [ "independence" ] },
-               "captured" );
+               Model.Lit "captured" );
           ] ->
               check "parse: effect is (set watchdog.independence captured)" true
           | _ -> check "parse: effect shape" false)

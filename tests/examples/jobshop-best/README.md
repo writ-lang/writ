@@ -77,16 +77,32 @@ comfortable; a shop floor is not. The honest positioning is that Pol gives you
 an *optimal* answer with a *proof* on small instances, where a solver gives you
 a good answer fast on large ones.
 
-**The clock is advanced by one transition per tick**, because `set` takes a
-literal value. What this model wants to write is
+## The clock is one move, and this model is why
+
+It was not always. The clock used to be **eight near-identical transitions**,
+one per tick, because `set` took only a literal and so a value could be
+assigned by name but never *moved*. A library form got the body down to one
+copy but could not remove the eight invocations — a form cannot map over its
+`&rest` (§10.2, deliberately).
+
+Nothing but a language change could, and this model asking for it is what
+produced one. §10.3 now takes a chain on the right, so the clock walks its own
+ladder:
 
 ```lisp
-(do (set clk.at clk.at.next) …)
+(transition tick
+  (when (is clk.at clk.at))
+  (do (set clk.at clk.at.next)
+      (set a.moved no) (set b.moved no) (set c.moved no)))
 ```
 
-and cannot — a chain on the right of `set`. That is
-[`docs/set-as-chain.md`](../../../docs/set-as-chain.md), and this is the third
-independent model to ask for it.
+There is no guard stopping it at t9 and none is needed: **where the chain has
+no answer the move is absent** — not a no-op, which would be a self-loop and
+would stop the situation ever being reported as a dead end. The full argument,
+including the swap that fixes when the right-hand side is read, is
+[`docs/set-as-chain.md`](../../../docs/set-as-chain.md).
+
+The space is unchanged: still 1314 situations, still an optimum of five.
 
 ## Files
 

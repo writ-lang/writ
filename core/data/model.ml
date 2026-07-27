@@ -16,11 +16,12 @@ type guard = Guard.t =
   | Defined of Value.path
   | Some_ of string * string * guard
 
-type effect =
-  | Set of Value.path * string
-  | Vacate of Value.path
-  | Gap of string
-
+(* [Set] carries the same [rhs] a guard's [Is] does: a literal, or a CHAIN read
+   in the situation the move started from (§10.3). The symmetry is the point —
+   a reader who has learnt [(is a.x b.y)] writes [(set a.x b.y)] and is not
+   refused — and it is what lets a value be MOVED rather than only assigned by
+   name, so a ladder no longer needs one transition per destination. *)
+type effect = Set of Value.path * rhs | Vacate of Value.path | Gap of string
 type transition = { name : string option; when_ : guard; effects : effect list }
 
 type t = {

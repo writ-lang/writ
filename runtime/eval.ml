@@ -88,17 +88,61 @@ let write_cell (ctx : State.ctx) (st : State.t) (p : Value.path)
           | None -> st)
       | _ -> st)
 
+(* Applying a move, in two phases, which is what §10.3's chain-valued [set]
+   forced and what §10.1 now states outright.
+
+   PHASE 1 reads every right-hand side in the situation the move STARTED from.
+   That makes a [do] block a simultaneous assignment: [(do (set a.x b.y) (set
+   b.y a.x))] is a swap, and the order of effects within one move stays
+   unobservable — which it must, since §10.1 says no situation exists between
+   two effects of one move, and nothing in the language can name that order.
+   Threading the state through the writes one at a time, as this used to, is
+   precisely the sequential reading that would break both.
+
+   PHASE 1 also decides ENABLEDNESS. A chain with no answer — [(set q.at
+   q.at.next)] at the top of a ladder — makes the move [`Blocked]: not a
+   no-op, and not a vacated target. Vacating would write [vacant] through
+   [set], which §8.3 forbids outright. A no-op would be worse than it looks: it
+   is still an EDGE, from a situation to itself, and [Space.dead_ends] marks a
+   state as having an out-edge on [e.src] alone — so a self-loop would quietly
+   stop a stuck situation being reported as stuck, and dead ends are one of the
+   answers `pol check` exists to give.
+
+   [`Blocked] outranks [`Gap]: a move whose effects cannot be carried out is
+   not available at all, so it contributes no edge of any kind. *)
 let apply (ctx : State.ctx) (st : State.t) (effects : Model.effect list) :
-    [ `Next of State.t | `Gap of string ] =
-  let rec go st = function
-    | [] -> `Next st
-    | eff :: rest -> (
-        match eff with
-        | Model.Gap msg -> `Gap msg
-        | Model.Set (p, v) -> go (write_cell ctx st p (Value.Filled v)) rest
-        | Model.Vacate p -> go (write_cell ctx st p Value.Vacant) rest)
+    [ `Next of State.t | `Gap of string | `Blocked ] =
+  let read = function
+    | Model.Lit v -> Some v
+    | Model.Chain p -> (
+        match eval_path ctx st [] p with
+        | Some (Value.Filled v) -> Some v
+        | Some Value.Vacant | None -> None)
   in
-  go st effects
+  (* Phase 1: every right-hand side, against the starting situation. *)
+  let rec resolve acc = function
+    | [] -> Ok (List.rev acc)
+    | Model.Set (p, r) :: rest -> (
+        match read r with
+        | Some v -> resolve (`Set (p, v) :: acc) rest
+        | None -> Error `Blocked)
+    | Model.Vacate p :: rest -> resolve (`Vacate p :: acc) rest
+    | Model.Gap msg :: rest -> resolve (`Gap msg :: acc) rest
+  in
+  match resolve [] effects with
+  | Error `Blocked -> `Blocked
+  | Ok resolved -> (
+      match List.find_opt (function `Gap _ -> true | _ -> false) resolved with
+      | Some (`Gap msg) -> `Gap msg
+      | _ ->
+          (* Phase 2: the writes, on values already read. *)
+          `Next
+            (List.fold_left
+               (fun st -> function
+                 | `Set (p, v) -> write_cell ctx st p (Value.Filled v)
+                 | `Vacate p -> write_cell ctx st p Value.Vacant
+                 | `Gap _ -> st)
+               st resolved))
 
 (* A law is a guard, and it ranges over its single free root — the subject
    §8.6 writes its chains from ("case.investigator… means for every case"). The

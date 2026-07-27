@@ -1,8 +1,10 @@
 # Where the bulk actually is — a measurement, not a proposal
 
-*Status: findings only. Nothing implemented, and the one change worth making
-is not sugar. Written after the job shop pair, to answer "what syntax would
-make Pol models shorter?" with numbers rather than taste.*
+*Status: acted on. Written after the job shop pair, to answer "what syntax
+would make Pol models shorter?" with numbers rather than taste — and the
+numbers said the answer was not sugar at all. Both conclusions have since
+shipped: `maybe` into stdlib §8, and the real change, `set` with a chain,
+into §10.3.*
 
 The prompt was a specific suggestion: replace
 
@@ -76,10 +78,13 @@ job shop is the third independent model to ask for it.
 Each of these was checked by running `pol check` on a small file, because the
 first two contradicted what reading the expander suggested.
 
-### Wall 1 — `set` takes a literal
+### Wall 1 — `set` took a literal — **now removed**
 
-Above. Costs 64 transitions in queens, 9 in `jobshop-best`. Designed already,
-not implemented.
+Above. It cost 64 transitions in queens and 9 in `jobshop-best`. §10.3 now
+takes a chain, so a value can be MOVED and a ladder is walked by one move;
+`jobshop-best`'s clock is one transition. The two semantic questions this
+raised — when the right-hand side is read, and what an unanswerable chain does
+— are decided and recorded in [`set-as-chain.md`](set-as-chain.md).
 
 ### Wall 2 — a form in expression position must yield exactly one datum
 
@@ -157,11 +162,13 @@ and buys one keyword; `(maybe held-by job)` is already shorter.
 covers the case that prompted the question.
 
 **3. The real change is `set` with a chain, and it is a widening, not sugar.**
-It removes 64 transitions from one model and 9 from another; it is symmetric
-with what §10.2 already did to `is`; and it adds no kernel word, so the count
-stays at twenty-seven. [`set-as-chain.md`](set-as-chain.md) has the design and
-the two open semantic questions (when the right-hand side is read, and what an
-undefined right-hand side does). Those need deciding before anything is built.
+**DONE.** Symmetric with what §10.2 did to `is`, and it adds no kernel word, so
+the count stays at twenty-seven. The two open questions were decided as
+[`set-as-chain.md`](set-as-chain.md) recommended — the right-hand side is read
+in the situation the move started from, and a chain with no answer makes the
+move absent rather than a no-op. `jobshop-best`'s clock went from eight
+transitions to one. Queens has not been rewritten yet; see the caveat below
+for why that is a smaller win than it sounds.
 
 **4. Wall 2 is worth a note of its own, eventually.** Splicing inside a list
 would let forms build instance data and type bodies, and it is the general

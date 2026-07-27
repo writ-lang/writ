@@ -29,7 +29,7 @@ let contains ~sub s =
 
 let path root steps : Value.path = { root; steps }
 let is e a v = Model.Is (path e [ a ], Model.Lit v)
-let set e a v = Model.Set (path e [ a ], v)
+let set e a v = Model.Set (path e [ a ], Model.Lit v)
 
 let named n g effs : Model.transition =
   { name = Some n; when_ = g; effects = effs }

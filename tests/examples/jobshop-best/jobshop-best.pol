@@ -15,9 +15,10 @@
 ; repeated feasibility, which is how you optimise with a decision procedure
 ; rather than a cost function. The witness is the optimal schedule itself.
 ;
-; The clock is advanced by one transition per tick because `set` takes a
-; literal: `(set clk.at clk.at.next)` is what this wants to say and cannot.
-; See docs/set-as-chain.md — this is the third model to ask for it.
+; The clock is ONE transition, because §10.3 lets `set` take a chain:
+; `(set clk.at clk.at.next)` walks the tick ladder, and the move is absent at
+; the top where `next` runs off the end. This model is what asked for that
+; change — see docs/set-as-chain.md, now done.
 
 (load "stdlib.pol")
 
@@ -72,22 +73,16 @@
 (job-of b b-enters b-advances b-leaves)
 (job-of c c-enters c-advances c-leaves)
 
-; The clock. One transition per tick, for want of a chain on the right of
-; `set` — but the BODY is written once. `(tick N FROM TO)` is the same
-; name-carrying shape as the three move forms above, so a witness still reads
-; `tick-1` rather than an anonymous move, and the roster of jobs to un-flag
-; appears in ONE place: a fourth job is one edit here, not eight.
+; The clock: ONE move, because §10.3 lets `set` take a chain. The clock walks
+; its own ladder — `clk.at.next` is the tick after this one — and the move is
+; simply ABSENT at t9, where `next` runs off the end. No guard is needed to
+; stop it and no transition is needed per tick.
 ;
-; What no form can do is generate the eight invocations, because a form cannot
-; map over its `&rest` (§10.2, and deliberately — the same power would let a
-; form rewrite `or`). So the ladder is still walked by hand. Eight lines of
-; hand-walking is the honest floor until `set` takes a chain.
-(form (tick N FROM TO)
-  => (transition N
-       (when (is clk.at FROM))
-       (do (set clk.at TO)
-           (set a.moved no) (set b.moved no) (set c.moved no))))
-
-(tick tick-1 t1 t2)  (tick tick-2 t2 t3)  (tick tick-3 t3 t4)
-(tick tick-4 t4 t5)  (tick tick-5 t5 t6)  (tick tick-6 t6 t7)
-(tick tick-7 t7 t8)  (tick tick-8 t8 t9)
+; This file is what asked for that change. It used to be eight near-identical
+; transitions, twenty-seven lines; a form got the body down to one copy but
+; could not remove the eight invocations, because a form cannot map over its
+; `&rest` (§10.2, deliberately). Nothing but the language change could.
+(transition tick
+  (when (is clk.at clk.at))
+  (do (set clk.at clk.at.next)
+      (set a.moved no) (set b.moved no) (set c.moved no)))

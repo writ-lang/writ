@@ -112,8 +112,8 @@ let effect (d : Reader.t) : (Model.effect, Errors.t) result =
       match (k, args) with
       | "set", [ pd; vd ] ->
           let* pth = path pd in
-          let* v = target vd in
-          Ok (Model.Set (pth, v))
+          let* r = rhs vd in
+          Ok (Model.Set (pth, r))
       | "vacate", [ pd ] ->
           let* pth = path pd in
           Ok (Model.Vacate pth)
@@ -230,19 +230,32 @@ let check_set (s : Schema.t) (env : env) (pd : Reader.t) (vd : Reader.t) :
   let* last = written_arrow s env pd in
   match last with
   | None -> Ok ()
-  | Some last ->
+  | Some last -> (
       let* () = check_mutable "set it" last pd in
-      let* v = target vd in
       let cod = last.Schema.cod in
-      let ok =
-        match Schema.type_of s cod with
-        | Some { flavor = Enumerated _; _ } ->
-            List.mem v (Schema.elements_of s cod)
-        | Some { flavor = Open; _ } -> List.assoc_opt v env = Some cod
-        | None -> true
-      in
-      if ok then Ok ()
-      else Reader.err_at vd ("value " ^ v ^ " not in codomain " ^ cod)
+      match vd with
+      (* A CHAIN on the right must land in the written arrow's codomain — the
+         same rule [check_is] applies to two compared chains, and for the same
+         reason: without it a mistyped write is not an error but a move that
+         silently never fires, which is no diagnostic and no behaviour. *)
+      | Reader.Atom (v, _) when String.contains v '.' ->
+          let* rcod = check_path_cod s env vd in
+          if String.equal rcod cod then Ok ()
+          else
+            Reader.err_at vd
+              ("this chain lands in `" ^ rcod ^ "`, but `" ^ last.Schema.name
+             ^ "` takes `" ^ cod ^ "`")
+      | _ ->
+          let* v = target vd in
+          let ok =
+            match Schema.type_of s cod with
+            | Some { flavor = Enumerated _; _ } ->
+                List.mem v (Schema.elements_of s cod)
+            | Some { flavor = Open; _ } -> List.assoc_opt v env = Some cod
+            | None -> true
+          in
+          if ok then Ok ()
+          else Reader.err_at vd ("value " ^ v ^ " not in codomain " ^ cod))
 
 (* §9.3 makes emptiness the privilege of a [vacatable] arrow, and
    [State.build_ctx] enforces it on an *instance*: an unset, non-vacatable cell

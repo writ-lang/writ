@@ -666,6 +666,14 @@ filling is the start, are irreducible acts of naming.
   - The `do` states what the move changes there, as an ordered effect
     list, applied atomically: no situation exists "between" two effects
     of one move.
+  - **Every effect reads the situation the move started from.** A `do`
+    block is therefore a *simultaneous* assignment, and the order of
+    effects within one move is not observable:
+    `(do (set a.x b.y) (set b.y a.x))` is a swap. This became sayable
+    only when §10.3 let `set` take a chain — before that no effect read
+    anything, so the question had no answer to give.
+  - A move is **absent** where any effect's chain has no answer, exactly
+    as if its guard were false (§10.3).
   - A move's meaning is, in substance, a table — situation in,
     situation out; the `when`/`do` formula is that table written
     compactly, and is the language's only formula syntax.
@@ -718,19 +726,40 @@ can see.
 
 | Effect             | Does                                           | Constraints                                                                               |
 | ------------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `(set CHAIN V)`  | writes the slot named by the chain's last step | last step mutable; earlier steps have answers at application time; V in the target domain |
+| `(set CHAIN RHS)` | writes the slot named by the chain's last step | last step mutable; earlier steps have answers at application time; RHS a literal in the target domain, or a **chain landing in it** |
 | `(vacate CHAIN)` | empties the slot                               | last step mutable and vacatable                                                           |
 
+RHS is read exactly as §10.2 reads the right of `is`: a dotted atom is a
+chain, anything else a literal. A chain is read in the situation the move
+started from (§10.1).
+
+**Where the chain has no answer, the move is absent** — not a no-op, and
+not a vacated target. `(set q.at q.at.next)` at the top of a ladder simply
+does not exist there, exactly as if the guard were false.
+
 *Example. `(set docket.stage concluded)` — legal.
+`(set docket.stage docket.next-stage)` — legal: a chain landing in `stage-t`.
 `(set docket.investigator prosecutions)` — error: fixed.
 `(vacate docket.judge)` — legal (a recusal).
 `(vacate docket.stage)` — error: not vacatable.
-`(set docket.stage pending)` — error: `pending` ∉ `stage-t`.*
+`(set docket.stage pending)` — error: `pending` ∉ `stage-t`.
+`(set docket.stage docket.judge)` — error: that chain lands in `person`.*
 
 *Design note.* `set` is the single generator of change; richer effects
 (ordered step-up, toggles, latches) are guarded `set`s, written as
 library forms. `vacate` is not a `set`: `vacant` is not a member of the
 target type — an empty slot is the absence of an answer.
+
+*Design note.* Permitting a chain is what lets a value be **moved** rather
+than only assigned by name, which removes the floor of one transition per
+destination: a ladder is walked by one move instead of one per rung. Two
+rules make it safe. **Absent, not no-op**, because a no-op would still be an
+edge — a self-loop — and a situation with a self-loop would never be
+reported as a dead end (§15), so a stuck model would quietly stop looking
+stuck. **Absent, not vacated**, because writing `vacant` through `set` is
+precisely what the note above forbids. Finiteness is untouched: a chain
+writes a value that already exists in some slot, so no move can invent a
+member and §12.1's space is still a product of finite domains.
 
 ### 10.4 `gap`
 
@@ -1230,7 +1259,7 @@ guard       ::= (and guard…) | (or guard…) | (not guard)
               | (is CHAIN rhs) | (defined CHAIN)
               | (some (VAR TYPE) guard)
               | NAME                                      ; nullary form
-effect      ::= (set CHAIN value) | (vacate CHAIN) | (gap "MSG")
+effect      ::= (set CHAIN rhs) | (vacate CHAIN) | (gap "MSG")
 
 form-d      ::= (form PATTERN => TEMPLATE…)
               | (form NAME => DATUM)

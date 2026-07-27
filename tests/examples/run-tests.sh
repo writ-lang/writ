@@ -138,7 +138,7 @@ jobshop_best() {
   near "jobshop-best:    it starts two jobs in the first tick" "$out" \
     "holds  done-by-5" "b-enters"
   near "jobshop-best:    and only then advances the clock" "$out" \
-    "holds  done-by-5" "tick-1"
+    "holds  done-by-5" "3. tick"
 }
 
 oversight() {
