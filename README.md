@@ -10,18 +10,17 @@ must obey), an **instance** (one starting configuration), and **transitions**
 and answers the questions you put to it *by exhaustion*, with a concrete route as
 evidence.
 
-The whole language is **twenty-eight words**; everything else — ordering,
-quantifiers, relations, entire domain vocabularies — is a library of **forms**
+The whole language is **twenty-seven words**; everything else — ordering,
+quantifiers, equality, entire domain vocabularies — is a library of **forms**
 over those words. Questions live *apart* from models, in `.claims` files, so one
 question suite can be asked of many models, and comparing two versions of a model
 is a tool operation.
 
 ## A taste
 
-The river crossing (`river/` in [pol-problems](https://github.com/sajonaro/pol-problems)):
-a farmer must ferry a wolf, a goat and a
-cabbage across a river; left alone with its prey, the wolf eats the goat and the
-goat eats the cabbage. The questions live beside the model:
+The river crossing: a farmer must ferry a wolf, a goat and a cabbage across a
+river; left alone with its prey, the wolf eats the goat and the goat eats the
+cabbage. The questions live beside the model:
 
 ```lisp
 ;; river.claims
@@ -40,8 +39,12 @@ states: 36   edges: 76
 gaps: none
 dead ends: none
 holds  solvable
-  witness:  1. cross-goat-LR   2. cross-empty-RL   3. cross-wolf-LR
-            4. cross-goat-RL    5. cross-cabbage-LR 6. cross-empty-RL
+  witness:  1. cross-goat-LR
+            2. cross-empty-RL
+            3. cross-wolf-LR
+            4. cross-goat-RL
+            5. cross-cabbage-LR
+            6. cross-empty-RL
             7. cross-goat-LR
 fails  no-blunders
   stuck at: (farmer.at=right wolf.at=left goat.at=left cabbage.at=left)
@@ -62,11 +65,11 @@ predator with its prey, and from there the crossing can never succeed.
 | `pol compare OLD NEW [--map M]` | report each equation and property **preserved / LOST / gained** across two models |
 | `pol compare --git R1 R2 MODEL` | …across two git revisions of one file |
 | `pol control MODEL` | emit the move list as an instance of the standard library's `quiver` schema |
+| `pol schema MODEL` | emit the model's schema as an instance of the standard library's `olog` schema |
 | `pol derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
 | `pol derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
 | `pol derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
-| `pol --help` | the full reference |
-| `pol --version` | the version this binary was built from |
+| `pol --help` · `pol --version` | the full reference · the version this binary was built from |
 
 Exit status is the interface: **0** clean · **1** a finding (a failed property; a
 violated, unadmitted, or stale law; a lost-in-compare guarantee) · **2**
@@ -74,8 +77,9 @@ unreadable input.
 
 ## Install
 
-Three ways, all landing the same layout — `bin/pol` plus the `.pol` standard
-library at `share/pol/lib`, which is where the resolver looks:
+Three ways, all landing the same layout — `bin/` holding `pol`, `pol-lsp` and
+`pol-mcp`, plus the `.pol` standard library at `share/pol/lib`, which is where
+the resolver looks:
 
 ```sh
 make install-pol      # from this checkout -> ~/.local  (plain cp; no opam)
@@ -85,11 +89,11 @@ make release          # a portable tarball -> dist/pol-<version>-linux-x86_64.ta
 
 **opam.** `pol` is a real package (`pol.opam`, generated from `dune-project`), so
 `opam install .` or `opam pin add pol .` on any machine with a switch builds and
-installs `pol` **and** `pol-lsp` **and** the stdlib. Note opam builds from your
-git HEAD — commit first, or pass `--working-dir`.
+installs all three binaries and the stdlib. Note opam builds from your git HEAD —
+commit first, or pass `--working-dir`.
 
 **Portable tarball.** For a machine with no OCaml, no opam and no network:
-`make release` produces one tarball holding a **statically linked** binary, the
+`make release` produces one tarball holding **statically linked** binaries, the
 stdlib and an `install.sh`. No libc version floor — the same tarball is verified
 to run on Debian 12 (glibc) and Alpine (musl):
 
@@ -105,81 +109,75 @@ there is none — macOS — use `make release STATIC=0` and accept a binary that
 only travels between similar machines. `make release` prints what the binary
 actually requires, so the portability claim is checked, not assumed.
 
-No opam or npm is needed to *use* `pol`. The bundled stdlib lets `(load
+Nothing external is needed to *use* `pol`. The bundled stdlib lets `(load
 "stdlib.pol")` resolve from any directory (the resolver searches the including
-file's dir, `$POL_LIB`, the copy beside the binary, then `./core/stdlib`).
-Remove a `make install-pol` with `make uninstall-pol`, an opam install with
+file's dir, `$POL_LIB`, the copy beside the binary, then `./core/stdlib`); set
+`POL_TRACE_LOADS=1` to print which file each load actually resolved to. Remove a
+`make install-pol` with `make uninstall-pol`, an opam install with
 `make opam-uninstall`.
 
-## The examples
+## Three repositories
 
-The worked scenarios live in **[pol-problems](https://github.com/sajonaro/pol-problems)**
-now — the models, their questions, and a runner that checks the answers. They
-need an installed `pol` rather than this checkout:
+| | |
+|---|---|
+| **pol** (this one) | the language, the engine, the CLI, `pol-lsp`, `pol-mcp`, the standard library |
+| **[pol-problems](https://github.com/sajonaro/pol-problems)** | worked models — puzzles, scheduling, institutional scenarios — and a runner that checks the answers |
+| **[pol-vscode](https://github.com/sajonaro/pol-vscode)** | the VS Code client |
+
+The other two need an installed `pol`, not a checkout of this one.
+
+### The examples
 
 ```sh
-make install-pol                       # pol, pol-lsp and pol-mcp onto PATH
+make install-pol
 git clone https://github.com/sajonaro/pol-problems && cd pol-problems
 ./run-tests.sh                         # 80 checks over every scenario
 ```
 
-What is there:
+The spec's Prologue puzzles (river, knights & knaves) and its §3 institutional
+scenarios, plus eight queens and a blocking job shop asked twice — can every job
+finish, and which schedule is shortest. Every scenario also carries a `.rules`
+file re-asking its `.claims` properties as derivations, and a **cross-check**
+scenario runs both instruments over all sixteen: `pol check`'s CTL reading
+against `pol derive`'s rules encoding. Two independent implementations of one
+question, so a disagreement is a bug in one of them rather than a number to
+adjust — the only test whose oracle its author did not choose.
 
-- **river**, **island** (knights & knaves) — the spec's Prologue puzzles, each
-  with its solution path shown.
-- **oversight**, **workflow**, **access** — the spec's §3 institutional
-  scenarios, exercising `equation` laws, `accept` acknowledgments, `pol compare`,
-  a declared `gap`, and a privilege **latch**.
-- **queens**, **jobshop-possible**, **jobshop-best** — eight queens in fifteen
-  lines over a domain library, and a blocking job shop asked twice: can every
-  job finish, and which schedule is shortest.
-- **control**, **gitcompare** — `pol control` and `pol compare --git`.
-- **crosscheck** — the modality cross-check. Each of the five scenarios above
-  also carries a `.rules` file that re-asks its `.claims` properties as
-  derivations, and this scenario runs both instruments over all 11 of them:
-  `pol check`'s CTL reading against `pol derive`'s rules encoding. Two
-  independent implementations of one question, so a disagreement is a bug in
-  one of them rather than a number to adjust — the only test here whose oracle
-  its author did not choose.
+### Editor support
 
-## Editor support
-
-A VS Code extension — syntax highlighting, live diagnostics from the real
-engine, completion, hover and an outline, all served by the same code the CLI
-runs. It lives in **[pol-vscode](https://github.com/sajonaro/pol-vscode)**:
+Syntax highlighting, live diagnostics from the real engine, completion, hover
+and an outline — all served by `pol-lsp`, the same code the CLI runs.
 
 ```sh
 make install-pol      # puts pol-lsp on PATH
 git clone https://github.com/sajonaro/pol-vscode && cd pol-vscode && ./install.sh
 ```
 
-The server is `pol-lsp`, built here and installed alongside `pol`. The client
-finds it on `PATH` with nothing to configure.
+The client finds the server on `PATH` with nothing to configure.
 
-## Use it from an AI assistant
+### From an AI assistant
 
-`pol-mcp` is an MCP server over the same engine, installed alongside `pol`. It
-exposes three tools — `pol_check`, `pol_query` and `pol_derive` — so an
-assistant can model a problem and get an answer with a **witness route** rather
-than a plausible guess.
+`pol-mcp` is an MCP server over the same engine, exposing `pol_check`,
+`pol_query` and `pol_derive` — so an assistant can model a problem and get an
+answer with a **witness route** rather than a plausible guess.
 
 ```jsonc
 // .mcp.json — this repository ships one already
 { "mcpServers": { "pol": { "command": "pol-mcp" } } }
 ```
 
-A failing call answers with the parser's own message rather than dying, which
-is usually enough for the caller to fix the file and retry. There is a Claude
-skill in [`.claude/skills/pol/`](.claude/skills/pol/) that knows when Pol is
-the right tool and how to read a report.
+A failing call answers with the parser's own `file:line:col` message rather than
+dying, which is usually enough for the caller to fix the file and retry. A Claude
+skill that knows when Pol is the right tool — and when it is the wrong one —
+ships in [`.claude/skills/pol/`](.claude/skills/pol/).
 
 ## Documentation
 
-- **The language** (normative): [`docs/kernel-spec.md`](docs/kernel-spec.md) — the
-  single normative document: the twenty-eight words, the meaning of a model, the
-  standard tool interface, and the worked examples in its appendices.
+- **The language** (normative): [`docs/kernel-spec.md`](docs/kernel-spec.md) —
+  the twenty-seven words, the meaning of a model, the standard tool interface,
+  and worked examples in its appendices.
 - **The standard library:** [`core/stdlib/stdlib.pol`](core/stdlib/stdlib.pol) —
-  42 lines, and the only `.pol` the tool ships. A **domain** library (a
+  25 lines of code, and the only `.pol` the tool ships. A **domain** library (a
   vocabulary for one subject, e.g.
   [`tests/models/politics.lib.pol`](tests/models/politics.lib.pol)) is ordinary
   user code and lives beside the models that load it.
@@ -187,37 +185,50 @@ the right tool and how to read a report.
   partly built. The `.rules` file, the built-in relations that expose the
   derived state category, and `pol derive` (§0–§2, §4, §5) ship; `pol solve`,
   the search for structure-preserving maps (§3), does not.
+- **Design notes** in [`docs/`](docs/) record the changes that were argued
+  before they were made — and, where the argument turned out wrong, say so.
 
 ## Building from source
 
 ```sh
-make build   # compile the engine, CLI and language server
+make build   # compile the engine, the CLI, and the two servers
 make test    # the unit suites
 make lint    # ocamlformat check + warnings-as-errors typecheck
 ```
 
-OCaml + dune, **stdlib only** — no external libraries (the JSON and JSON-RPC for
-the language server are hand-written). The layering is enforced by dune's own
-dependency graph, split into three libraries: `pol_data` (`core/data/` — the
-data model, a leaf with no dependencies), `pol_syntax` (`core/syntax/` — the
-front end, depends on `pol_data`), and `pol_runtime` (`runtime/` — the
-interrogator, depends on `pol_data` *only*, so it is structurally incapable of
-reaching the front end). All three are pure and IO-free; the only IO lives in
-the CLI (`tooling/cli/`) and the language-server process (`tooling/lsp/bin/`) —
-a rule the dependency graph cannot express, so it is held by convention and by
-review. The toolchain is resolved by
+OCaml + dune, **stdlib only** — no external libraries (JSON, JSON-RPC and the
+MCP protocol are hand-written). The layering is enforced by dune's own
+dependency graph. Three **engine** libraries, each a strict layer:
+
+| | |
+|---|---|
+| `pol_data` (`core/data/`) | the data model — a leaf, no dependencies |
+| `pol_syntax` (`core/syntax/`) | the front end — depends on `pol_data` |
+| `pol_runtime` (`runtime/`) | the interrogator — depends on `pol_data` **only**, so it is structurally incapable of reaching the front end |
+
+Around them: `pol_loadpath` (the `(load …)` search order, shared so the CLI and
+both servers can never disagree about where a library lives), `pol_json`, and a
+pure library per server — `pol_lsp` and `pol_mcp`, each a function from messages
+to messages.
+
+All of those are IO-free. IO lives in exactly three executables — `tooling/cli/`,
+`tooling/lsp/bin/` and `tooling/mcp/bin/` — a rule the dependency graph cannot
+express, so two fitness gates check it instead — one over the engine
+libraries, one over the servers and the shared JSON. The toolchain is resolved by
 `scripts/with-ocaml.sh` (dune on `PATH`, else a central `pol` opam switch).
 
 ## Status
 
 Built: the full language (schema / instance / transitions / equations / forms),
 the interrogator (state-space enumeration, the three modalities with witnesses,
-queries, equation observation), and the tool interface `pol check` / `query` /
-`compare` (+ `--git`) / `control` / `derive` — the last being the relational
-extension's rules engine over the enumerated universe. Deferred: the §16.4
-schema dictionaries (`functor` / `check … via`), §17 fiber reporting, and the
-extension's own `pol solve` (its §3), which searches for functors and
-simulations rather than deriving facts.
+queries, equation observation), the tool interface `pol check` / `query` /
+`compare` (+ `--git`) / `control` / `schema` / `derive` — the last being the
+relational extension's rules engine over the enumerated universe — and two
+servers, `pol-lsp` and `pol-mcp`.
+
+Deferred: the §16.4 schema dictionaries (`functor` / `check … via`), §17 fiber
+reporting, and the extension's own `pol solve` (its §3), which searches for
+functors and simulations rather than deriving facts.
 
 ## License
 
