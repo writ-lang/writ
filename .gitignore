@@ -41,15 +41,6 @@ bisect*.coverage
 # to some future subproject is that subproject's business.
 /dist/
 
-# ── VS Code extension (now github.com/sajonaro/pol-vscode) ───
-# Fetched by `npm install`; never committed. The lockfile IS committed.
-node_modules/
-# Packaged extension bundles.
-*.vsix
-# npm debug output.
-npm-debug.log*
-yarn-error.log*
-
 # ── Python bytecode ──────────────────────────────────────────
 __pycache__/
 *.py[cod]
@@ -65,8 +56,7 @@ Thumbs.db
 *.swp
 *~
 .idea/
-# Personal editor settings at the ROOT only — the extension is its own repo
-# source and has no leading dot, so it is untouched by this.
+# Personal editor settings. Anchored to the root: nothing here nests one.
 /.vscode/
 
 # ── Local tooling and environment state (not project source) ─

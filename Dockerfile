@@ -1,20 +1,27 @@
-# Build pol from source and ship a slim runtime carrying it. Two stages: stage 1
-# compiles with dune; stage 2 is a minimal Debian with `pol` on PATH and the
-# stdlib bundled at ../share/pol/lib, so `(load "stdlib.pol")` resolves from
-# anywhere.
+# The pol runtime image: `pol`, the standard library, and git.
 #
-# The CLI ONLY — not pol-lsp, not pol-mcp. Stage 1 copies just the libraries
+# WHAT IT IS FOR, since a Dockerfile in a compiler repository is a fair thing to
+# ask about. It is this repository's distributable — `make image` tags it
+# locally and .github/workflows/image.yml publishes it as
+# ghcr.io/sajonaro/pol on a version tag. github.com/sajonaro/pol-problems
+# builds FROM it, which is how the worked scenarios run with nothing installed
+# on the host but Docker. It is a product, not a test rig.
+#
+# It used to BE a test rig — it copied the examples in and ran them as its
+# entrypoint. They live in their own repository now, so this ships the tool and
+# nothing else, and its smoke check uses a model written inline below rather
+# than a file that could move again.
+#
+# Two stages: stage 1 compiles with dune; stage 2 is a minimal Debian carrying
+# the result. The stdlib lands at ../share/pol/lib relative to the binary, which
+# is where the resolver looks, so `(load "stdlib.pol")` works from any
+# directory.
+#
+# The CLI ONLY — not pol-lsp, not pol-mcp. Stage 1 copies exactly the libraries
 # `tooling/cli/pol.exe` links, and that list is itself the check that `pol` is a
-# small closed set (see below); pulling the servers in would cost that check to
-# ship two binaries nothing in a container asks for. An editor and an MCP client
-# both run on the host, where `opam install pol` puts all three.
-#
-# It used to end by running the worked examples. Those live in
-# github.com/sajonaro/pol-problems now, and this image is what they build FROM
-# — so it ships the TOOL and nothing else, and its smoke check uses a model
-# written inline here.
-#
-# Tag it with `make image`, which is what pol-problems expects to find.
+# small closed set; pulling the servers in would spend that check to ship two
+# binaries nothing in a container asks for. An editor and an MCP client both run
+# on the host, where installing pol puts all three.
 
 # ---- stage 1: build ---------------------------------------------------------
 FROM ocaml/opam:debian-12-ocaml-5.2 AS build

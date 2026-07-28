@@ -5,7 +5,11 @@
 #   make test      # run the test suite
 #   make lint      # format check + warnings-as-errors typecheck
 #   make run FILE=tests/models/any_model.pol
-#   make example T=river      # run one scenario by name …
+#   make image     # the runtime image, tagged pol:latest
+#
+# The worked scenarios and the editor client are their own repositories now —
+# github.com/sajonaro/pol-problems and .../pol-vscode — so there is no target
+# here that runs them; each needs an installed pol, or the image above.
 #
 # Three ways to get a `pol` you can run anywhere:
 #   make install-pol   # this checkout -> ~/.local (plain cp; no opam needed)

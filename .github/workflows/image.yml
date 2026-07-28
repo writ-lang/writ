@@ -30,7 +30,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The version dune-project holds is the one `pol --version` prints and
       # `make release` names its tarball with. Read it rather than repeating
@@ -38,13 +38,13 @@ jobs:
       - id: v
         run: echo "version=$(sed -n 's/^(version \(.*\))/\1/p' dune-project)" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           push: true
