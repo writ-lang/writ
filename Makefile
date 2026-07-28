@@ -17,7 +17,7 @@
 
 DUNE = scripts/with-ocaml.sh dune
 
-.PHONY: build test lint fmt run \
+.PHONY: build test lint fmt run image \
         install-pol uninstall-pol opam-install opam-uninstall release \
         clean
 build:
@@ -146,6 +146,16 @@ release:
 # Each needs an installed pol rather than this checkout — `make install-pol`, or
 # `opam install .`, puts pol, pol-lsp and pol-mcp on PATH — so neither can be a
 # target here without this repository reaching into another one.
+
+# The runtime image: `pol` and the stdlib on a slim Debian. pol-problems builds
+# FROM it, which is how those scenarios run with nothing installed on the host
+# but Docker. Tagged twice — the version for reproducibility, `latest` because
+# that is what a downstream Dockerfile defaults to.
+image:
+	docker build -t pol:$(VERSION) -t pol:latest .
+	@echo
+	@echo "built pol:$(VERSION) (also tagged pol:latest)"
+	@echo "  try it:  docker run --rm pol:latest --version"
 
 clean:
 	$(DUNE) clean

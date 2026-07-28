@@ -134,6 +134,14 @@ git clone https://github.com/sajonaro/pol-problems && cd pol-problems
 ./run-tests.sh                         # 80 checks over every scenario
 ```
 
+Or with nothing installed on the host but Docker — `make image` here tags
+`pol:latest`, which is what pol-problems builds from:
+
+```sh
+make image                             # in this checkout, once
+cd ../pol-problems && docker compose up
+```
+
 The spec's Prologue puzzles (river, knights & knaves) and its §3 institutional
 scenarios, plus eight queens and a blocking job shop asked twice — can every job
 finish, and which schedule is shortest. Every scenario also carries a `.rules`
@@ -185,8 +193,6 @@ ships in [`.claude/skills/pol/`](.claude/skills/pol/).
   partly built. The `.rules` file, the built-in relations that expose the
   derived state category, and `pol derive` (§0–§2, §4, §5) ship; `pol solve`,
   the search for structure-preserving maps (§3), does not.
-- **Design notes** in [`docs/`](docs/) record the changes that were argued
-  before they were made — and, where the argument turned out wrong, say so.
 
 ## Building from source
 

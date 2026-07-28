@@ -10,9 +10,11 @@
 # both run on the host, where `opam install pol` puts all three.
 #
 # It used to end by running the worked examples. Those live in
-# github.com/sajonaro/pol-problems now, and this image is what they will
-# eventually install rather than compile — so it ships the TOOL and nothing
-# else, and its smoke check uses a model written inline here.
+# github.com/sajonaro/pol-problems now, and this image is what they build FROM
+# — so it ships the TOOL and nothing else, and its smoke check uses a model
+# written inline here.
+#
+# Tag it with `make image`, which is what pol-problems expects to find.
 
 # ---- stage 1: build ---------------------------------------------------------
 FROM ocaml/opam:debian-12-ocaml-5.2 AS build
@@ -47,8 +49,14 @@ RUN opam install -y dune \
 
 # ---- stage 2: runtime -------------------------------------------------------
 FROM debian:12-slim
-# git is needed only by the `gitcompare` test (pol compare --git over a
-# throwaway two-commit history); pol itself has no runtime deps.
+
+# git is a RUNTIME dependency of the tool, not of anyone's tests. `pol compare
+# --git R1 R2 MODEL` shells out to read two revisions of a model
+# (tooling/cli/cmd_compare.ml), so an image without git ships a verb that
+# cannot work. Nothing else pol does needs anything.
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /tmp/out/bin/ /usr/local/bin/
 COPY --from=build /tmp/out/share/pol/lib /usr/local/share/pol/lib
 
