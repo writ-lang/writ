@@ -1,0 +1,61 @@
+# Publish the runtime image to GHCR.
+#
+# WHY A WORKFLOW AND NOT A LOCAL `docker push`. GHCR is a container registry
+# speaking the Docker Registry HTTP API, so it authenticates with a bearer
+# token — an SSH key pushes git, and cannot push an image. A personal access
+# token with `write:packages` would work; the built-in GITHUB_TOKEN below does
+# too, and is scoped to this repository and this run rather than to a person.
+# Nothing has to be stored anywhere.
+#
+# NOT ON EVERY PUSH, deliberately. Publishing is outward-facing and the version
+# it carries comes from dune-project, so it fires on a tag — the moment a
+# version means something — or by hand from the Actions tab.
+
+name: image
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Extra tag to publish alongside the version (e.g. latest)"
+        default: "latest"
+
+permissions:
+  contents: read
+  packages: write          # what lets GITHUB_TOKEN push to ghcr.io
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The version dune-project holds is the one `pol --version` prints and
+      # `make release` names its tarball with. Read it rather than repeating
+      # it: a hand-kept copy of a version number is one that goes wrong.
+      - id: v
+        run: echo "version=$(sed -n 's/^(version \(.*\))/\1/p' dune-project)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }}
+            ghcr.io/${{ github.repository }}:${{ inputs.tag || 'latest' }}
+
+      # The image exists to be USED, so prove it runs before calling the
+      # publish a success. A registry full of images nobody smoke-tested is how
+      # a broken tag survives to the first person who pulls it.
+      - run: |
+          docker run --rm ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} --version
+          docker run --rm --entrypoint sh ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} \
+            -c 'command -v git >/dev/null || { echo "no git: pol compare --git would not run" >&2; exit 1; }'
