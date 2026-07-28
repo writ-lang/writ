@@ -118,8 +118,8 @@ let () =
     (reparses_with_fresh_names out)
 
 (* THE ROUND TRIP THAT MATTERS: olog describing itself, emitted rather than
-   hand-written. docs/schema-as-data.md claims the encoding closes; this is the
-   claim as a test. *)
+   hand-written. The encoding CLOSES — a schema can describe the schema of
+   schemas — and this is that claim as a test rather than an assertion. *)
 let () =
   let dom = arrow "dom" "hom" "ob" and cod = arrow "cod" "hom" "ob" in
   let olog : Schema.t =

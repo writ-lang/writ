@@ -4,10 +4,10 @@
    from disk and needs a resolver, these need none — and because the two
    together crossed the 300-line cap.
 
-   Every group closes a gap recorded in docs/conformance-gaps.md, where every
-   case below is a verbatim reproduction that used to build cleanly. The suite
-   has outgrown its name: it started on §7's namespace (gap 1) and now covers
-   §8's and §10.1's declaration constraints too (gap 6), which belong here for
+   Every case below is a verbatim reproduction of a model that used to build
+   cleanly and should not have. The suite has outgrown its name: it started on
+   §7's namespace and now covers §8's and §10.1's declaration constraints too,
+   which belong here for
    the same reason — a source string, the real front end, and one line:col. *)
 
 open Pol_data
@@ -23,8 +23,8 @@ let check name cond =
 
 (* --- §8.3: an arrow's endpoints must be declared types ---------------------- *)
 
-(* The gap this closes (docs/conformance-gaps.md #2) was not that the model was
-   accepted — it failed eventually — but that it failed at the wrong stage, in
+(* What was wrong here was not that the model was accepted — it failed
+   eventually — but that it failed at the wrong stage, in
    the wrong file, with no position, complaining about a *cell* and never naming
    the type that does not exist. So each case asserts the position and the
    offending name, not merely that something went wrong. *)
@@ -73,8 +73,8 @@ let () =
 
 (* --- §7: one namespace across the loaded universe --------------------------- *)
 
-(* The five cases are docs/conformance-gaps.md #1's own reproductions, which all
-   built cleanly and reported `states: 1  edges: 0` before this. Each asserts the
+(* Five models that all built cleanly and reported `states: 1  edges: 0`
+   before this rule existed. Each asserts the
    position, because the point of the rule is that the SECOND declaration is
    blamed — an error naming the first would send the author to the line that was
    fine. *)

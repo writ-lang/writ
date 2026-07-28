@@ -14,7 +14,7 @@ open Pol_data
    checks this export exists to collapse — totality and shape — read only
    [dom] and [cod]. The third, equation preservation, is semantic (§16.4
    evaluates it against the target's instance), so no structural encoding
-   would make it structural. See docs/schema-as-data.md. *)
+   would make it structural. *)
 
 (* Arrow names are scoped to their dom (§7), so two types may each own a
    [status] and the schema is still legal. Entity names in the emitted instance
