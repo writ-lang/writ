@@ -1,26 +1,54 @@
 #!/bin/sh
 # Find the pol MCP server and become it.
 #
-# The plugin ships the SKILL and the server DECLARATION; it does not ship a
-# compiled binary, and deliberately. pol-mcp is native code, so bundling it
-# would mean a binary per platform, kept in step with a version this file
-# cannot see — and a stale one would answer questions with an old engine, which
-# is the failure this project has spent real time avoiding elsewhere.
+# The plugin ships the SKILL and the server DECLARATION. It does not ship a
+# compiled binary: pol-mcp is native code, so bundling would mean one build per
+# platform kept in step with a version this file cannot see, and a stale one
+# would answer questions with an old engine.
 #
-# So: use whatever pol the machine already has. In order —
-#   1. $POL_MCP, for an operator who means one particular build;
-#   2. `pol-mcp` on PATH, which every install route provides;
-#   3. a sibling of `pol`, if pol is on PATH but pol-mcp somehow is not
-#      (an old install predating the server, which has happened).
+# So it finds a server, in this order:
 #
-# Nothing is written to STDOUT here: stdout is the protocol stream, and a stray
-# line is a message the client cannot parse. Diagnostics go to stderr, where the
-# client surfaces them — this is the only place a human learns why the server
-# did not start.
+#   1. $POL_MCP            — an operator who means one particular build
+#   2. `pol-mcp` on PATH   — every install route provides it
+#   3. a sibling of `pol`  — an install predating the MCP server
+#   4. DOCKER              — nothing native on this machine at all
+#
+# Set POL_MCP_DOCKER=1 to skip 2 and 3 and go straight to the container.
+#
+# Nothing is written to STDOUT: stdout is the protocol stream and a stray line
+# is a message the client cannot parse. Diagnostics go to stderr, which is the
+# only place a human learns why the server did not start.
 set -eu
+
+POL_IMAGE=${POL_IMAGE:-ghcr.io/sajonaro/pol:latest}
+
+run_docker() {
+  # -i, never -t: the protocol is a pipe, and a TTY would rewrite the bytes.
+  #
+  # THE MOUNT IS THE WHOLE TRICK. The tools take PATHS, and a path from the
+  # host means nothing inside a container. Mounting the working directory AT
+  # ITS OWN PATH makes both absolute and relative paths resolve to the same
+  # files the caller meant — anything under the directory Claude was started
+  # in. Read-only, because every tool here only reads.
+  #
+  # The consequence, and it is a real limit: a model OUTSIDE that directory is
+  # invisible. Native routes above have no such restriction, which is why they
+  # come first.
+  exec docker run --rm -i \
+    -v "$PWD:$PWD:ro" -w "$PWD" \
+    --entrypoint pol-mcp "$POL_IMAGE" "$@"
+}
 
 if [ -n "${POL_MCP:-}" ]; then
   exec "$POL_MCP" "$@"
+fi
+
+if [ "${POL_MCP_DOCKER:-0}" = "1" ]; then
+  command -v docker >/dev/null 2>&1 || {
+    echo "POL_MCP_DOCKER=1 but docker is not on PATH." >&2
+    exit 127
+  }
+  run_docker "$@"
 fi
 
 if command -v pol-mcp >/dev/null 2>&1; then
@@ -32,19 +60,25 @@ if [ -n "$pol_path" ] && [ -x "$(dirname "$pol_path")/pol-mcp" ]; then
   exec "$(dirname "$pol_path")/pol-mcp" "$@"
 fi
 
-cat >&2 <<'MSG'
-pol-mcp is not installed.
+if command -v docker >/dev/null 2>&1; then
+  # Say which way it went. Choosing the slower, more restricted route silently
+  # would leave a confusing gap between "works" and "cannot see my file".
+  echo "pol-mcp not installed; using $POL_IMAGE (only files under $PWD are visible)." >&2
+  run_docker "$@"
+fi
 
-The pol plugin ships the skill and wires the server up, but the server itself
-is part of pol and has to be installed once:
+cat >&2 <<'MSG'
+pol-mcp is not available, and neither is docker.
+
+The pol plugin ships the skill and wires the server up; the server itself is
+part of pol. Either install it —
 
     opam install pol                       # or, from a checkout of
     make install-pol                       # github.com/sajonaro/pol
 
-Either puts `pol`, `pol-lsp` and `pol-mcp` on your PATH. If yours lives
-somewhere unusual, set POL_MCP to it.
+— or install Docker, and the plugin will run the server in a container with
+nothing native on this machine.
 
-(If `pol` is installed but `pol-mcp` is not, the install predates the MCP
-server — re-run the install above.)
+If your pol-mcp lives somewhere unusual, set POL_MCP to it.
 MSG
 exit 127

@@ -188,9 +188,20 @@ in [`plugins/pol/`](plugins/pol/).
 
 It does **not** bundle a binary. `pol-mcp` is native code, so shipping it would
 mean one build per platform kept in step with a version the plugin cannot see —
-and a stale one would answer with an old engine. The plugin's launcher finds the
-`pol-mcp` you already installed (or `$POL_MCP`), and if there is none it says so
-on stderr rather than failing silently.
+and a stale one would answer with an old engine. Instead the launcher finds a
+server, in order: `$POL_MCP`, then `pol-mcp` on `PATH`, then a sibling of `pol`,
+then **Docker**.
+
+That last one is why nothing native has to be installed at all: with Docker
+present and no `pol` on the machine, the plugin runs the server in a container
+and works out of the box. `POL_MCP_DOCKER=1` forces that route even when a host
+binary exists.
+
+The container mounts your working directory **at its own path**, read-only, so
+absolute and relative paths both resolve to the files you meant. The limit is
+the mount: a model *outside* the directory Claude started in is invisible to
+the container, which is why the native routes are tried first. The launcher
+says on stderr which route it took.
 
 A failing call answers with the parser's own `file:line:col` message rather than
 dying, which is usually enough for the caller to fix the file and retry. A Claude

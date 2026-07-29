@@ -17,11 +17,18 @@
 # is where the resolver looks, so `(load "stdlib.pol")` works from any
 # directory.
 #
-# The CLI ONLY — not pol-lsp, not pol-mcp. Stage 1 copies exactly the libraries
-# `tooling/cli/pol.exe` links, and that list is itself the check that `pol` is a
-# small closed set; pulling the servers in would spend that check to ship two
-# binaries nothing in a container asks for. An editor and an MCP client both run
-# on the host, where installing pol puts all three.
+# It carries `pol` and `pol-mcp`, and NOT pol-lsp.
+#
+# pol-mcp is here so the Claude plugin can run the server in a container and
+# never put native code on the host — the platform problem that stopped the
+# plugin bundling a binary. It reads models from a mount; see plugins/pol/bin/.
+#
+# pol-lsp stays out because an editor extension spawns its server locally and
+# gains nothing from a container.
+#
+# Stage 1 lists every library each binary links, and that list is still the
+# check that they are a small closed set — it is simply a longer list now than
+# when only the CLI shipped.
 
 # ---- stage 1: build ---------------------------------------------------------
 FROM ocaml/opam:debian-12-ocaml-5.2 AS build
@@ -48,10 +55,13 @@ COPY --chown=opam:opam core ./core
 COPY --chown=opam:opam runtime ./runtime
 COPY --chown=opam:opam tooling/cli ./tooling/cli
 COPY --chown=opam:opam tooling/loadpath ./tooling/loadpath
+COPY --chown=opam:opam tooling/json ./tooling/json
+COPY --chown=opam:opam tooling/mcp ./tooling/mcp
 RUN opam install -y dune \
- && opam exec -- dune build tooling/cli/pol.exe \
+ && opam exec -- dune build tooling/cli/pol.exe tooling/mcp/bin/pol_mcp.exe \
  && mkdir -p /tmp/out/bin /tmp/out/share/pol/lib \
  && cp _build/default/tooling/cli/pol.exe /tmp/out/bin/pol \
+ && cp _build/default/tooling/mcp/bin/pol_mcp.exe /tmp/out/bin/pol-mcp \
  && cp core/stdlib/*.pol /tmp/out/share/pol/lib/
 
 # ---- stage 2: runtime -------------------------------------------------------
@@ -79,6 +89,8 @@ RUN printf '%s\n' \
       '(transition raise (when (is b.f lo)) (do (set b.f hi)))' \
       > /tmp/smoke.pol \
  && cd /tmp && pol check /tmp/smoke.pol | grep -q 'states: 2' \
+ && printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+      | pol-mcp | grep -q '"protocolVersion"' \
  && rm -f /tmp/smoke.pol
 
 ENTRYPOINT ["pol"]
