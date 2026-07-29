@@ -1,0 +1,22 @@
+{
+  "name": "pol",
+  "version": "0.1.0",
+  "description": "Answer questions about rule-governed worlds by exhaustive search: deadlock, reachability, scheduling feasibility and optimality \u2014 with a witness route, not a guess. Bundles the pol skill and wires up the pol-mcp server.",
+  "author": {
+    "name": "Alex Kunich"
+  },
+  "repository": "https://github.com/sajonaro/pol",
+  "homepage": "https://github.com/sajonaro/pol",
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "pol",
+    "olog",
+    "modelling",
+    "formal methods",
+    "state machine",
+    "verification"
+  ],
+  "skills": [
+    "./skills/pol/"
+  ]
+}

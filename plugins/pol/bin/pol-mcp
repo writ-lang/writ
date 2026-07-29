@@ -1,0 +1,50 @@
+#!/bin/sh
+# Find the pol MCP server and become it.
+#
+# The plugin ships the SKILL and the server DECLARATION; it does not ship a
+# compiled binary, and deliberately. pol-mcp is native code, so bundling it
+# would mean a binary per platform, kept in step with a version this file
+# cannot see — and a stale one would answer questions with an old engine, which
+# is the failure this project has spent real time avoiding elsewhere.
+#
+# So: use whatever pol the machine already has. In order —
+#   1. $POL_MCP, for an operator who means one particular build;
+#   2. `pol-mcp` on PATH, which every install route provides;
+#   3. a sibling of `pol`, if pol is on PATH but pol-mcp somehow is not
+#      (an old install predating the server, which has happened).
+#
+# Nothing is written to STDOUT here: stdout is the protocol stream, and a stray
+# line is a message the client cannot parse. Diagnostics go to stderr, where the
+# client surfaces them — this is the only place a human learns why the server
+# did not start.
+set -eu
+
+if [ -n "${POL_MCP:-}" ]; then
+  exec "$POL_MCP" "$@"
+fi
+
+if command -v pol-mcp >/dev/null 2>&1; then
+  exec pol-mcp "$@"
+fi
+
+pol_path=$(command -v pol 2>/dev/null || true)
+if [ -n "$pol_path" ] && [ -x "$(dirname "$pol_path")/pol-mcp" ]; then
+  exec "$(dirname "$pol_path")/pol-mcp" "$@"
+fi
+
+cat >&2 <<'MSG'
+pol-mcp is not installed.
+
+The pol plugin ships the skill and wires the server up, but the server itself
+is part of pol and has to be installed once:
+
+    opam install pol                       # or, from a checkout of
+    make install-pol                       # github.com/sajonaro/pol
+
+Either puts `pol`, `pol-lsp` and `pol-mcp` on your PATH. If yours lives
+somewhere unusual, set POL_MCP to it.
+
+(If `pol` is installed but `pol-mcp` is not, the install predates the MCP
+server — re-run the install above.)
+MSG
+exit 127

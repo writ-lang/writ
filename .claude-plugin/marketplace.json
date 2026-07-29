@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "pol",
+  "description": "Partial Olog \u2014 a language for modelling rule-governed worlds, and a tool that proves facts about them by exhaustive search.",
+  "owner": {
+    "name": "Alex Kunich",
+    "url": "https://github.com/sajonaro"
+  },
+  "plugins": [
+    {
+      "name": "pol",
+      "source": "./plugins/pol",
+      "description": "The pol skill plus the pol-mcp server: model a world, ask whether it can reach a situation, get the route that proves it.",
+      "homepage": "https://github.com/sajonaro/pol",
+      "license": "AGPL-3.0-or-later",
+      "keywords": [
+        "modelling",
+        "formal methods",
+        "verification",
+        "scheduling"
+      ]
+    }
+  ]
+}

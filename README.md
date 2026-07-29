@@ -174,6 +174,24 @@ answer with a **witness route** rather than a plausible guess.
 { "mcpServers": { "pol": { "command": "pol-mcp" } } }
 ```
 
+**Or install it as a plugin**, which brings the skill and the server together:
+
+```
+/plugin marketplace add sajonaro/pol
+/plugin install pol@pol
+```
+
+A *skill* is prose — it cannot install anything. A **plugin** can: it carries
+skills and an `.mcp.json` in one manifest, so installing it registers the tools
+and teaches the model when to reach for them in a single step. The plugin lives
+in [`plugins/pol/`](plugins/pol/).
+
+It does **not** bundle a binary. `pol-mcp` is native code, so shipping it would
+mean one build per platform kept in step with a version the plugin cannot see —
+and a stale one would answer with an old engine. The plugin's launcher finds the
+`pol-mcp` you already installed (or `$POL_MCP`), and if there is none it says so
+on stderr rather than failing silently.
+
 A failing call answers with the parser's own `file:line:col` message rather than
 dying, which is usually enough for the caller to fix the file and retry. A Claude
 skill that knows when Pol is the right tool — and when it is the wrong one —
