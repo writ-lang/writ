@@ -186,22 +186,20 @@ skills and an `.mcp.json` in one manifest, so installing it registers the tools
 and teaches the model when to reach for them in a single step. The plugin lives
 in [`plugins/pol/`](plugins/pol/).
 
-It does **not** bundle a binary. `pol-mcp` is native code, so shipping it would
-mean one build per platform kept in step with a version the plugin cannot see —
-and a stale one would answer with an old engine. Instead the launcher finds a
-server, in order: `$POL_MCP`, then `pol-mcp` on `PATH`, then a sibling of `pol`,
-then **Docker**.
+**It runs in Docker by default**, so installing the plugin installs nothing
+native. The image is pinned to the plugin's version, pulled once on first use,
+and the tools answer from it exactly as they would from a local build.
 
-That last one is why nothing native has to be installed at all: with Docker
-present and no `pol` on the machine, the plugin runs the server in a container
-and works out of the box. `POL_MCP_DOCKER=1` forces that route even when a host
-binary exists.
+It does not bundle a binary: `pol-mcp` is native code, so shipping one would
+mean a build per platform kept in step with a version the plugin cannot see,
+and a stale one would answer with an old engine. A container has neither
+problem.
 
 The container mounts your working directory **at its own path**, read-only, so
-absolute and relative paths both resolve to the files you meant. The limit is
-the mount: a model *outside* the directory Claude started in is invisible to
-the container, which is why the native routes are tried first. The launcher
-says on stderr which route it took.
+absolute and relative paths both resolve. The limit is that mount: a model
+*outside* the directory Claude started in is invisible to it. If you have pol
+installed and would rather use it, `POL_MCP_NATIVE=1`; `$POL_MCP` names one
+particular build; `$POL_IMAGE` names a different image.
 
 A failing call answers with the parser's own `file:line:col` message rather than
 dying, which is usually enough for the caller to fix the file and retry. A Claude
