@@ -53,13 +53,12 @@ let olog (name : string) (s : Schema.t) : string =
   (* The leading [(load "stdlib.pol")] makes the output a self-contained
      library, so [(of olog)] resolves when the string is re-parsed. *)
   add "(load \"stdlib.pol\")\n\n";
-  add ("(instance " ^ name ^ "-schema (of olog)\n");
+  add ("(instance " ^ name ^ "-schema olog\n");
   let joined f xs = String.concat "" (List.map f xs) in
   add
     ("  (ob"
     ^ joined (fun (t : Schema.ty) -> " " ^ t.Schema.name) s.Schema.types
     ^ ")\n");
-  if homs <> [] then add ("  (hom" ^ joined (fun (_, n) -> " " ^ n) homs ^ ")\n");
   if s.Schema.equations <> [] then
     add
       ("  (eqn"
@@ -67,19 +66,15 @@ let olog (name : string) (s : Schema.t) : string =
           (fun (e : Schema.equation) -> " " ^ e.Schema.name)
           s.Schema.equations
       ^ ")\n");
-  if homs <> [] then begin
-    add
-      ("  (dom"
-      ^ joined
-          (fun ((a : Schema.arrow), n) -> " (" ^ n ^ " " ^ a.Schema.dom ^ ")")
-          homs
-      ^ ")\n");
-    add
-      ("  (cod"
-      ^ joined
-          (fun ((a : Schema.arrow), n) -> " (" ^ n ^ " " ^ a.Schema.cod ^ ")")
-          homs
-      ^ ")")
-  end;
+  (* One clause per arrow, endpoints beside the name. The old shape put `dom`
+     and `cod` in two parallel lists that the reader had to join by name — the
+     very defect entity-major clauses exist to remove. *)
+  add
+    (String.concat "\n"
+       (List.map
+          (fun ((a : Schema.arrow), n) ->
+            "  (hom " ^ n ^ " (dom " ^ a.Schema.dom ^ ") (cod " ^ a.Schema.cod
+            ^ "))")
+          homs));
   add ")\n";
   Buffer.contents buf

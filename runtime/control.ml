@@ -52,13 +52,16 @@ let quiver (name : string) (m : Model.t) : string =
   let buf = Buffer.create 256 in
   let add = Buffer.add_string buf in
   (* The leading [(load "stdlib.pol")] makes the output a self-contained
-     library, so [(of quiver)] resolves when the string is re-parsed. *)
+     library, so [quiver] resolves when the string is re-parsed. *)
   add "(load \"stdlib.pol\")\n\n";
-  add ("(instance " ^ name ^ "-control (of quiver)\n");
+  add ("(instance " ^ name ^ "-control quiver\n");
   add ("  (node " ^ node ^ ")\n");
-  let joined f = String.concat "" (List.map f edges) in
-  add ("  (edge" ^ joined (fun e -> " " ^ e) ^ ")\n");
-  let loop e = " (" ^ e ^ " " ^ node ^ ")" in
-  add ("  (src" ^ joined loop ^ ")\n");
-  add ("  (tgt" ^ joined loop ^ "))\n");
+  (* One clause per edge, endpoints beside the name — the same entity-major
+     shape a hand-written instance now takes. *)
+  add
+    (String.concat "\n"
+       (List.map
+          (fun e -> "  (edge " ^ e ^ " (src " ^ node ^ ") (tgt " ^ node ^ "))")
+          edges));
+  add ")\n";
   Buffer.contents buf

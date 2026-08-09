@@ -86,18 +86,22 @@ let () =
       ]
   in
   let out = Control.quiver "ctrlfix" m in
-  check "control: emits (of quiver)" (contains ~sub:"(of quiver)" out);
+  check "control: names its schema positionally"
+    (contains ~sub:"-control quiver" out);
   check "control: self-contained via (load \"stdlib.pol\")"
     (contains ~sub:"(load \"stdlib.pol\")" out);
   check "control: instance is NAME-control"
     (contains ~sub:"(instance ctrlfix-control " out);
-  (* one edge entity per transition: two named + [move-3] for the unnamed one *)
+  (* One clause per edge, carrying its own endpoints: two named transitions
+     plus [move-3] for the unnamed one. *)
   check "control: one edge per transition, unnamed -> move-3"
-    (contains ~sub:"(edge raise lower move-3)" out);
-  check "control: every src is a self-loop on the single node"
-    (contains ~sub:"(src (raise n0) (lower n0) (move-3 n0))" out);
-  check "control: every tgt is a self-loop on the single node"
-    (contains ~sub:"(tgt (raise n0) (lower n0) (move-3 n0))" out);
+    (contains ~sub:"(edge raise " out
+    && contains ~sub:"(edge lower " out
+    && contains ~sub:"(edge move-3 " out);
+  check "control: every edge is a self-loop on the single node"
+    (contains ~sub:"(edge raise (src n0) (tgt n0))" out
+    && contains ~sub:"(edge lower (src n0) (tgt n0))" out
+    && contains ~sub:"(edge move-3 (src n0) (tgt n0))" out);
   check "control: the emitted library re-parses" (reparses out)
 
 (* --- fresh names (§7): entities share one namespace ------------------------- *)
@@ -107,7 +111,8 @@ let () =
   let m = mk [ flip "n0" "down" "up"; anon (is "s" "pos" "up") [] ] in
   let out = Control.quiver "fresh" m in
   check "control: node dodges a transition named n0"
-    (contains ~sub:"(node n0_)" out && contains ~sub:"(n0 n0_)" out);
+    (contains ~sub:"(node n0_)" out
+    && contains ~sub:"(edge n0 (src n0_) (tgt n0_))" out);
   (* A real [move-2] forces the synthesised name for the unnamed 2nd move off
      it, so no two edge entities collide. *)
   let m2 =
@@ -115,15 +120,18 @@ let () =
   in
   let out2 = Control.quiver "fresh2" m2 in
   check "control: synthesised move name dodges a real move-2"
-    (contains ~sub:"(edge move-2 move-2_)" out2 && reparses out2)
+    (contains ~sub:"(edge move-2 " out2
+    && contains ~sub:"(edge move-2_ " out2
+    && reparses out2)
 
 (* --- zero transitions: a valid quiver instance with no edges ---------------- *)
 
 let () =
   let out = Control.quiver "empty" (mk []) in
   check "control: zero transitions emits an empty edge roster"
-    (contains ~sub:"(edge)" out && contains ~sub:"(src)" out
-   && contains ~sub:"(tgt))" out && reparses out)
+    (contains ~sub:"(node n0)" out
+    && (not (contains ~sub:"(edge " out))
+    && reparses out)
 
 (* --- the source → control → source round-trip (gap 6, §10.1 NAME fresh) ------ *)
 

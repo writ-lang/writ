@@ -71,9 +71,11 @@ let () =
     (contains ~sub:"(ob indep-status bureau case)" out);
   check "an arrow's hom entity is named dom-arrow"
     (contains ~sub:"bureau-independence" out);
+  (* Entity-major: an arrow's endpoints sit beside its name in one clause,
+     rather than in two parallel lists the reader must join by name. *)
   check "dom and cod carry the arrow's endpoints"
-    (contains ~sub:"(bureau-independence bureau)" out
-    && contains ~sub:"(bureau-independence indep-status)" out);
+    (contains ~sub:"(hom bureau-independence (dom bureau) (cod indep-status))"
+       out);
   check "a law appears by name" (contains ~sub:"(eqn same-agency)" out);
   (* Its BODY does not: since §8.6 a law holds a guard, and the checks this
      export exists to collapse read only dom and cod. *)
@@ -134,7 +136,8 @@ let () =
   check "olog's own types are ob, hom, eqn"
     (contains ~sub:"(ob ob hom eqn)" out);
   check "olog's own arrows are dom and cod"
-    (contains ~sub:"(hom hom-dom hom-cod)" out);
+    (contains ~sub:"(hom hom-dom (dom hom) (cod ob))" out
+    && contains ~sub:"(hom hom-cod (dom hom) (cod ob))" out);
   check "self-description re-parses through §7" (reparses_with_fresh_names out)
 
 let () =
