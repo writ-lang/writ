@@ -63,6 +63,18 @@ A rules file is a third file type alongside `.pol`
   (subordinate Z Y))              ; exclude; the tool is where it belongs
 ```
 
+**The standard rules library.** `ct.rules` ships beside `stdlib.pol` and is
+loaded the same way — `(load "ct.rules")`, resolved by the search order of
+design D3. It names the derived state category's own structure, which every
+scenario otherwise rebuilds: `reach` (the hom-sets, and the three lines every
+`.rules` file in the corpus opens with), `mutual` (isomorphic situations — the
+strongly connected classes), `before` and `one-way` (the posetal reflection,
+by situation and by move: which decisions cannot be taken back), `final-phase`
+(the terminal classes), and `dead-end`. It costs those eight names in any file
+that loads it. What it deliberately does *not* contain — arrow properties, and
+forms taking a guard — is recorded in the file itself, with the mechanical
+reason each is unwritable.
+
 - A **declaration** is `(relation NAME ARITY)` — as above, and the common
   case — or `(relation NAME (T1 … Tn))`, which gives a **sort per column**:
   `Situation`, `Edge`, or a schema type name. Arity is then the list's length.

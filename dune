@@ -29,4 +29,5 @@
  (section share)
  (package pol)
  (files
-  (core/stdlib/stdlib.pol as lib/stdlib.pol)))
+  (core/stdlib/stdlib.pol as lib/stdlib.pol)
+  (core/stdlib/ct.rules as lib/ct.rules)))

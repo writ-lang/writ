@@ -1,0 +1,123 @@
+; ct.rules — the derived state category, given its own vocabulary.
+;
+; A model's meaning IS a category (kernel Appendix I.1): objects are the
+; reachable situations, morphisms are move sequences, composition is
+; concatenation, identities are "do nothing". `pol check` asks three questions
+; about it — `possible`, `live`, `never` — and the interrogator extension is
+; explicit that those three are the common case rather than the instrument
+; (extension §2). This file is the instrument's vocabulary: the structure of
+; that category, named, so a model can be asked what the three modalities have
+; no spelling for.
+;
+; WHERE IT LIVES. It is a RULES library — it declares relations, never types —
+; so `(load "ct.rules")` belongs in a .rules file and nowhere else. Loading it
+; into a .pol model would be accepted and useless: nothing here is a declaration
+; a model's universe can hold.
+;
+; THE COST, stated as stdlib.pol states its own. Eight relation names: a .rules
+; file that loads this one gives up `reach`, `mutual`, `before`, `one-way`,
+; `escapes`, `final-phase`, `moves` and `dead-end`, and may not redeclare any of
+; them — which is exactly what the corpus's existing files do with the first,
+; and why the migration is a deletion.
+
+; 1. Hom-sets — the free category on the reachable graph
+;
+; WHY IT EARNS ITS PLACE, and it is the plainest case in the file: every worked
+; scenario's .rules file opens with these three lines, character for character.
+; Ten copies of one definition is the thing a standard library exists to end.
+;
+; `reach S T` is the hom-set of the state category made a relation: non-empty
+; exactly when some move sequence runs from S to T. The first rule is the
+; identity morphism, the second is composition — the free category, stated as
+; the two clauses that generate it.
+;
+; No `init` premise is needed and none is wanted: the built-ins range over
+; REACHABLE situations only (§12.3), so the space the engine enumerated is
+; already the space that exists.
+(relation reach (Situation Situation))
+(rule (reach S S) (situation S))
+(rule (reach S T) (edge E S M) (reach M T))
+
+; 2. Isomorphism — the maximal subgroupoid
+;
+; Two situations are isomorphic in the state category when each reaches the
+; other, and `mutual` is that relation: an equivalence, whose classes a graph
+; tool would call strongly connected components. The categorical name is the one
+; worth keeping, because it says what the classes MEAN — inside one, nothing has
+; been spent; every arrangement in it is recoverable from every other.
+(relation mutual (Situation Situation))
+(rule (mutual S T) (reach S T) (reach T S))
+
+; 3. The posetal reflection — what a move costs
+;
+; Quotient the state category by §2 and what is left is a POSET: the same order,
+; every cycle collapsed to a point. `before` is that order, strictly — S can
+; become T, and T can never become S again.
+;
+; WHY IT EARNS ITS PLACE. This is what most models are actually for, and it is
+; the question the modalities cannot put. `live G` failing says a trap exists
+; and prints one route into it; `before` is the whole trap structure, and it is
+; asked WITHOUT naming a goal — which is what makes it answerable of a model
+; nobody has yet written the claims for.
+(relation before (Situation Situation))
+(rule (before S T) (reach S T) (not (reach T S)))
+
+; 4. One-way doors — irreversibility, per move
+;
+; §3 in the form an author can act on: a NAMED move, and the situation it leaves
+; for good. §15 reports which moves can break a law; this reports which moves
+; break a return. A model with no one-way rows is fully reversible, and that is
+; worth being able to state rather than believe.
+(relation one-way (Edge Situation Situation))
+(rule (one-way E S T) (edge E S T) (not (reach T S)))
+
+; 5. Final phases — where a model ends up
+;
+; A situation in a TERMINAL class of §3's poset. It may still move, perhaps
+; forever, but everything it reaches reaches it back: nothing further is
+; decided. Endgames, absorbed states, the emergency nobody can lift.
+;
+; `escapes` is scaffolding rather than vocabulary, and is named instead of
+; hidden because it costs a name either way: a variable inside `not` must be
+; bound elsewhere in the body (range restriction, extension §1), so "there is no
+; T with (before S T)" has to become a relation before it can be negated.
+(relation escapes (Situation))
+(rule (escapes S) (before S T))
+(relation final-phase (Situation))
+(rule (final-phase S) (situation S) (not (escapes S)))
+
+; 6. Dead ends
+;
+; A situation with no move at all — the degenerate final phase, a class of one
+; object carrying nothing but its identity. §15 already reports these, and the
+; reason to have them HERE is that a relation JOINS: "which one-way move leads
+; straight into one" is then a query, instead of two reports read side by side.
+(relation moves (Situation))
+(rule (moves S) (edge E S T))
+(relation dead-end (Situation))
+(rule (dead-end S) (situation S) (not (moves S)))
+
+; WHAT IS NOT HERE, and why — both limits are mechanical, and both are recorded
+; so the next reader does not spend an afternoon rediscovering them.
+;
+; THE ARROW PROPERTIES OF A SCHEMA. An arrow being injective or surjective, a
+; span being the whole pullback and not merely a sound part of it — these belong
+; to this file by subject, and cannot be written in it. A rule reads an arrow by
+; naming it inside a chain (`X.stands`), and a form substitutes only a path's
+; ROOT segment (`Expander.subst`, and deliberately: it is why `maybe` sugars a
+; whole declaration rather than part of one). So no template can be generic over
+; the arrow, and each such question stays one rule per arrow, written where the
+; arrow is known — the model's own .rules file. What the kernel refuses to a LAW
+; here is a second, independent limit: §10.2 decides the right of `is`
+; lexically, so two bound variables cannot be compared in a guard at all, which
+; is why injectivity is a rules question and never an `equation`.
+;
+; A FORM TAKING A GUARD. `(satisfies R G)` — the situations where G holds — and
+; its complement, the trap set for a stated goal, is the shape every scenario in
+; the corpus writes by hand, and a guard datum does travel as a form slot. What
+; stops it is the template check: a head in a form template must be a reserved
+; word, a slot, or an earlier form (`Forms.check`), and the extension's built-in
+; relations — `situation`, `edge`, `holds` — are none of the three. Reserving
+; them would point the kernel's expander at an extension a conforming processor
+; need not implement (`Forms.is_slot`'s own note), so the block is left standing.
+; Naming a goal is model vocabulary in any case; only the plumbing is missing.

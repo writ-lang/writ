@@ -30,11 +30,12 @@
   test_forms_position
   test_set_as_chain
   test_law_as_guard
+  test_ct_rules
   test_facts)
  (deps
   (glob_files fixtures/*.{pol,claims,rules})
   (glob_files %{workspace_root}/tests/models/*.{pol,claims})
-  (glob_files %{workspace_root}/core/stdlib/*.pol))
+  (glob_files %{workspace_root}/core/stdlib/*.{pol,rules}))
  (libraries pol_data pol_syntax pol_runtime pol_loadpath))
 
 ; The language-server tests drive [Server.handle] (pure: JSON in, JSON out), so
