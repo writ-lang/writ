@@ -95,7 +95,7 @@ for exe in pol pol-lsp pol-mcp; do \
   cp -fL "_build/install/default/bin/$exe" "/root/.local/bin/$exe"; \
   chmod u+w "/root/.local/bin/$exe"; \
 done
-cp -f core/stdlib/*.pol "/root/.local/share/pol/lib/" from a checkout of
+cp -f core/stdlib/* "/root/.local/share/pol/lib/" from a checkout of
                                 # github.com/sajonaro/pol
 
 If your pol-mcp lives somewhere unusual, set POL_MCP to it.

@@ -41,15 +41,17 @@ for exe in pol pol-lsp pol-mcp; do
   chmod 755 "$prefix/bin/$exe"
 done
 
-# The .pol standard library goes where the resolver looks: <bin>/../share/pol/lib.
+# The standard library goes where the resolver looks: <bin>/../share/pol/lib.
 # That is what lets `(load "stdlib.pol")` work from any directory, unset $POL_LIB.
-cp "$here/share/pol/lib/"*.pol "$prefix/share/pol/lib/"
+# Copied whole rather than by extension: `ct.rules` is a library too, and the
+# resolver matches a load on the NAME, never on the suffix.
+cp "$here/share/pol/lib/"* "$prefix/share/pol/lib/"
 
 echo "installed:"
 echo "  $prefix/bin/pol"
 [ -f "$prefix/bin/pol-lsp" ] && echo "  $prefix/bin/pol-lsp  (language server)"
 [ -f "$prefix/bin/pol-mcp" ] && echo "  $prefix/bin/pol-mcp  (MCP server)"
-echo "  $prefix/share/pol/lib/*.pol"
+echo "  $prefix/share/pol/lib/"
 
 case ":${PATH:-}:" in
 *":$prefix/bin:"*) ;;

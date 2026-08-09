@@ -61,7 +61,7 @@ install-pol: build
 	  cp -fL "_build/install/default/bin/$$exe" "$(PREFIX)/bin/$$exe"; \
 	  chmod u+w "$(PREFIX)/bin/$$exe"; \
 	done
-	cp -f core/stdlib/*.pol "$(PREFIX)/share/pol/lib/"
+	cp -f core/stdlib/* "$(PREFIX)/share/pol/lib/"
 	@case ":$$PATH:" in *":$(PREFIX)/bin:"*) ;; \
 	  *) printf 'note: add %s to your PATH to run `pol`\n' "$(PREFIX)/bin" ;; esac
 
@@ -119,7 +119,7 @@ release:
 	cp -L _build/install/default/bin/pol-lsp "$(DIST)/$(RELNAME)/bin/pol-lsp"
 	cp -L _build/install/default/bin/pol-mcp "$(DIST)/$(RELNAME)/bin/pol-mcp"
 	chmod 755 "$(DIST)/$(RELNAME)/bin/"*
-	cp core/stdlib/*.pol "$(DIST)/$(RELNAME)/share/pol/lib/"
+	cp core/stdlib/* "$(DIST)/$(RELNAME)/share/pol/lib/"
 	cp scripts/release-install.sh "$(DIST)/$(RELNAME)/install.sh"
 	chmod 755 "$(DIST)/$(RELNAME)/install.sh"
 	cp README.md LICENSE CHANGELOG.md "$(DIST)/$(RELNAME)/"

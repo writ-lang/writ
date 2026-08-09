@@ -1,11 +1,21 @@
-; The .pol standard library ships WITH the binary. Installed into the `share`
+; The standard library ships WITH the binary. Installed into the `share`
 ; section it lands at <prefix>/share/pol/lib/, the fourth entry of the `(load
 ; "FILE")` search order in tooling/cli/cli_io.ml — so an installed `pol`, run from
 ; any directory, resolves (load "stdlib.pol") without $POL_LIB being set.
 ;
-; This stanza lives in the ROOT dune rather than core/stdlib/dune so that
-; core/stdlib/ stays what its name says: .pol data, and nothing else (the
-; `stdlib-is-pol-data` fitness check enforces that).
+; TWO files, and the second is not .pol: `ct.rules` is a library of RELATIONS
+; (interrogator extension §1), loaded by a .rules file rather than a model. It
+; resolves by the same search order, because the resolver matches on the NAME
+; and never on the extension.
+;
+; This list is explicit while every other shipping path — the Makefile's two,
+; the Dockerfile's, the tarball installer's — copies core/stdlib/* whole. That
+; asymmetry is dune's: an install stanza takes files, not globs. A new library
+; file therefore ships everywhere EXCEPT opam until it is named here, which is
+; the one place to remember.
+;
+; The stanza lives in the ROOT dune rather than core/stdlib/dune so that
+; core/stdlib/ stays what its name says: pol data, and nothing else.
 
 ; The `static` profile is what `make release` builds with. A dynamically linked
 ; binary carries its build machine's glibc version as a floor — a tarball built

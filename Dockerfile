@@ -62,7 +62,7 @@ RUN opam install -y dune \
  && mkdir -p /tmp/out/bin /tmp/out/share/pol/lib \
  && cp _build/default/tooling/cli/pol.exe /tmp/out/bin/pol \
  && cp _build/default/tooling/mcp/bin/pol_mcp.exe /tmp/out/bin/pol-mcp \
- && cp core/stdlib/*.pol /tmp/out/share/pol/lib/
+ && cp core/stdlib/* /tmp/out/share/pol/lib/
 
 # ---- stage 2: runtime -------------------------------------------------------
 FROM debian:12-slim
@@ -80,18 +80,22 @@ COPY --from=build /tmp/out/share/pol/lib /usr/local/share/pol/lib
 # Prove the image is wired before anyone uses it: a model written HERE, so the
 # check depends on nothing that could be removed from somewhere else. It also
 # exercises the load path — `(load "stdlib.pol")` must resolve from a directory
-# that is not the install prefix.
+# that is not the install prefix — and it does that TWICE, once for a model and
+# once for a .rules file, because the two libraries ship by the same copy and a
+# glob narrowed back to *.pol would drop the second silently.
 RUN printf '%s\n' \
       '(load "stdlib.pol")' \
       '(schema s (type v (lo hi)) (type box (arrow f (to v))))' \
-      '(instance i (of s) (box b) (f (b lo)))' \
+      '(instance i s (box b (f lo)))' \
       '(use s)' '(initial i)' \
       '(transition raise (when (is b.f lo)) (do (set b.f hi)))' \
       > /tmp/smoke.pol \
  && cd /tmp && pol check /tmp/smoke.pol | grep -q 'states: 2' \
+ && printf '%s\n' '(load "ct.rules")' > /tmp/smoke.rules \
+ && pol derive /tmp/smoke.pol /tmp/smoke.rules reach | grep -q '(3 rows)' \
  && printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
       | pol-mcp | grep -q '"protocolVersion"' \
- && rm -f /tmp/smoke.pol
+ && rm -f /tmp/smoke.pol /tmp/smoke.rules
 
 ENTRYPOINT ["pol"]
 CMD ["--help"]
