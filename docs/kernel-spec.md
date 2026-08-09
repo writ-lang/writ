@@ -174,7 +174,7 @@ derivable from the rest — is Appendix E.
 7. **Vocabulary grows; meaning does not.** *(grants wish 11)*
    The extension mechanism (§11) can only rename and paste — it cannot
    compute. Entire domain vocabularies are libraries built from it,
-   while the semantic core stays at twenty-seven words (Appendix B),
+   while the semantic core stays at twenty-six words (Appendix B),
    and every error still points at a line the author wrote. It shrinks:
    `=` was a kernel word until a law could hold a guard (§8.6), and is a
    library form now.
@@ -387,7 +387,7 @@ nothing to translate, and nowhere to drift.
 
 Which is why:
 
-- **The kernel can stay at twenty-seven words.** A new vocabulary is new
+- **The kernel can stay at twenty-six words.** A new vocabulary is new
   *heads*, not new grammar — so an entire domain language (ordering,
   quantifier duals, constitutional verbs) is a library of forms (§11),
   and Part II does not change to admit it. With a bespoke grammar per
@@ -500,16 +500,14 @@ agencies, one case, one (possibly vacant) judge.
   (equation same-agency
     (= case.investigator.independence case.prosecutor.independence)))
 
-(instance day-one (of oversight)
-  (bureau watchdog prosecutions)
-  (person alice)
-  (case docket)
-  (employer      (alice watchdog))
-  (investigator  (docket watchdog))
-  (prosecutor    (docket prosecutions))
-  (independence  (watchdog independent) (prosecutions independent))
-  (stage         (docket open))
-  (judge         (docket vacant)))
+(instance day-one oversight
+  (bureau watchdog (independence independent))
+  (bureau prosecutions (independence independent))
+  (person alice (employer watchdog))
+  (case docket (investigator watchdog)
+               (prosecutor prosecutions)
+               (stage open)
+               (judge vacant)))
 
 (use oversight)
 (initial day-one)
@@ -691,8 +689,7 @@ types plus library forms spelling out their comparisons (§11, Example).
 ### 8.3 `arrow`, `to`, `of`, `fixed`, `vacatable`
 
 - **Syntax**
-  - in a type body: `(arrow NAME (to TYPE) FLAG…)`
-  - at schema top: `(arrow NAME (of TYPE) (to TYPE) FLAG…)`
+  - in the body of the type that owns it: `(arrow NAME (to TYPE) FLAG…)`
   - FLAG is `fixed` or `vacatable`, each at most once.
 - **Constraints**
   - The `to` TYPE must be a *named*, declared type.
@@ -766,7 +763,7 @@ form, and its *Kleene* reading — vacuously satisfied where either side has
 no answer — is spelled out of the strict primitives §10.2 provides:
 
 ```lisp
-(form (= A B) => (not (and (defined A) (defined B) (not (is A B)))))
+(form (= A B) (not (and (defined A) (defined B) (not (is A B)))))
 ```
 
 There is no implicit prelude (§0.7), so a model that writes `(= …)` must
@@ -817,7 +814,7 @@ relation and none can be `accept`ed.*
 
 ### 9.1 `instance`
 
-- **Syntax** — `(instance NAME (of SCHEMA) CLAUSE…)`; each CLAUSE is a
+- **Syntax** — `(instance NAME SCHEMA CLAUSE…)`; each CLAUSE is a
   roster clause or a valuation clause.
 - **Constraints** — NAME fresh; SCHEMA declared.
 - **Meaning** — one concrete filling of the schema: every open type
@@ -942,7 +939,7 @@ each other by a form, because the De Morgan rewrite would wrap `not`
 around each item of a captured list, and forms cannot transform
 captures (§11). "For all" *is* buildable at fixed shape and lives in
 the standard library:
-`(form (all (X T) G) => (not (some (X T) (not G))))`. `some` is the one
+`(form (all (X T) G) (not (some (X T) (not G))))`. `some` is the one
 quantifier, and `defined` is not a disjunction over values: for open-type
 targets the possible values are the roster — instance data no schema form
 can see.
@@ -1016,8 +1013,8 @@ do-nothing moves; a gap has no next situation at all.
 ### 11.1 `form`, `=>`, `&rest`, `@`
 
 - **Syntax**
-  - `(form PATTERN => TEMPLATE…)`
-  - nullary: `(form NAME => DATUM)`, referenced as the bare atom NAME.
+  - `(form PATTERN TEMPLATE…)`
+  - nullary: `(form NAME DATUM)`, referenced as the bare atom NAME.
 - **PATTERN** — a literal list headed by the form's name:
   - ALL-CAPS atoms are **blanks** (slots);
   - at most one `&rest SLOT`, in last position, captures the remainder;
@@ -1042,7 +1039,7 @@ do-nothing moves; a gap has no next situation at all.
 *Example — nullary.*
 
 ```lisp
-(form oversight-blocked =>
+(form oversight-blocked 
   (and (is watchdog.independence captured)
        (is prosecutions.independence captured)))
 
@@ -1053,7 +1050,7 @@ do-nothing moves; a gap has no next situation at all.
 
 ```lisp
 (form (captured-by SUBJECT HOLDER)
-  => (transition (when (is SUBJECT.independence independent))
+  (transition (when (is SUBJECT.independence independent))
        (do (set SUBJECT.independence captured))))
 
 (captured-by prosecutions assembly)
@@ -1066,7 +1063,7 @@ do-nothing moves; a gap has no next situation at all.
 *Example — `&rest` and paste.*
 
 ```lisp
-(form (does &rest ES) => (do @ES))
+(form (does &rest ES) (do @ES))
 (does (set docket.stage concluded) (vacate docket.judge))
 ; expands to: (do (set docket.stage concluded) (vacate docket.judge))
 ```
@@ -1083,7 +1080,7 @@ do-nothing moves; a gap has no next situation at all.
 *Design note.* Whole domain vocabularies — ordering comparisons,
 quantifier duals, constitutional verbs — are libraries of forms;
 because a form can only rename and paste, every error still points at a
-line the author wrote, and the semantic core stays at twenty-seven
+line the author wrote, and the semantic core stays at twenty-six
 words — one fewer than it began with, since `=` became one of these
 libraries the moment §8.6 let a law hold a guard.
 
@@ -1301,7 +1298,7 @@ captured-bureaus  (at state 7)
 ```lisp
 (functor NAME (from SCHEMA) (to SCHEMA)
   [(over TYPE…)]
-  (map X => Y)…)
+  (map X Y)…)
 
 (check SCHEMA.PROPERTY via NAME)
 ```
@@ -1334,7 +1331,7 @@ the arrow.*
 
 - **`pol compare OLD NEW [--map M]`** — builds both models and reports
   each equation and property **preserved / lost / gained** across the
-  pair. Where schemas differ, M contains bare `(map X => Y)` datums;
+  pair. Where schemas differ, M contains bare `(map X Y)` datums;
   identity is assumed where names coincide; the pair is given by the
   invocation (old → new).
 
@@ -1468,14 +1465,13 @@ schema-d    ::= (schema NAME (type-d | arrow-d | equation-d)…)
 type-d      ::= (type NAME)
               | (type NAME (VALUE…))
               | (type NAME arrow-d…)
-arrow-d     ::= (arrow NAME (to TYPE) flag…)              ; in a type body
-              | (arrow NAME (of TYPE) (to TYPE) flag…)    ; at schema top
+arrow-d     ::= (arrow NAME (to TYPE) flag…)              ; owned by the enclosing type
 flag        ::= fixed | vacatable
 equation-d  ::= (equation NAME guard)                      ; §8.6, one free root
 
-instance-d  ::= (instance NAME (of SCHEMA) clause…)
-clause      ::= (TYPE ENTITY…)                            ; roster
-              | (ARROW (ENTITY value)…)                   ; valuation
+instance-d  ::= (instance NAME SCHEMA clause…)
+clause      ::= (TYPE ENTITY… slot…)                      ; entities are atoms, slots lists
+slot        ::= (ARROW value)                            ; slots need exactly one entity
 value       ::= VALUE | ENTITY | vacant
 rhs         ::= CHAIN | VALUE | ENTITY               ; CHAIN iff it has a dot
 
@@ -1486,8 +1482,8 @@ guard       ::= (and guard…) | (or guard…) | (not guard)
               | NAME                                      ; nullary form
 effect      ::= (set CHAIN rhs) | (vacate CHAIN) | (gap "MSG")
 
-form-d      ::= (form PATTERN => TEMPLATE…)
-              | (form NAME => DATUM)
+form-d      ::= (form PATTERN TEMPLATE…)
+              | (form NAME DATUM)
 PATTERN     ::= (NAME pat-item…)
 pat-item    ::= SLOT | &rest SLOT | literal-datum
 TEMPLATE    ::= datum with SLOT substitution and @SLOT splice
@@ -1506,16 +1502,18 @@ CHAIN       ::= ATOM.ATOM[.ATOM…]                         ; lexical (§5.2)
 | `type`      | §8.2   | `vacate`             | §10.3  |
 | `arrow`     | §8.3   | `gap`                | §10.4  |
 | `to`        | §8.3   | `and` `or` `not` | §10.2  |
-| `of`        | §8.3   | `is`                 | §10.2  |
-| `fixed`     | §8.3   | `defined`            | §10.2  |
-| `vacatable` | §8.3   | `some`               | §10.2  |
-| `equation`  | §8.6   | `form`               | §11.1  |
-| `instance`  | §9.1   | `&rest`              | §11.1  |
-| `vacant`    | §9.3   |                        |          |
+| `fixed`     | §8.3   | `is`                 | §10.2  |
+| `vacatable` | §8.3   | `defined`            | §10.2  |
+| `equation`  | §8.6   | `some`               | §10.2  |
+| `instance`  | §9.1   | `form`               | §11.1  |
+| `vacant`    | §9.3   | `&rest`              | §11.1  |
 
-Twenty-seven words. `=` was the twenty-eighth until §8.6 let a law hold a
-guard, which made equality expressible as a standard-library form; it is
-one now, and the kernel is a word lighter for it. The Part III vocabulary — `property`, `never`,
+Twenty-six words, and the count has only ever gone down. `=` was the
+twenty-eighth until §8.6 let a law hold a guard, which made equality
+expressible as a standard-library form. `of` was the twenty-seventh until
+the instance header became positional and the schema-top arrow form — which
+nothing used, and which could reach no type its owner's schema did not
+already hold — was deleted. The Part III vocabulary — `property`, `never`,
 `possible`, `live`, `query`, `where`, `accept`, `check`, `via`,
 `functor`, `from`, `over`, `map` — belongs to tool file formats, not to
 the language. Ordering, quantifier duals, relations, and domain words
@@ -1534,10 +1532,11 @@ version control.
   (type cargo
     (arrow at (to bank) vacatable)))     ; eaten: nowhere — Wish 2
 
-(instance start (of river)
-  (traveler farmer)
-  (cargo wolf goat cabbage)
-  (at (farmer left) (wolf left) (goat left) (cabbage left)))
+(instance start river
+  (traveler farmer (at left))
+  (cargo wolf (at left))
+  (cargo goat (at left))
+  (cargo cabbage (at left)))
 
 (use river)
 (initial start)
@@ -1547,7 +1546,7 @@ version control.
 ; only from a safe arrangement; strand prey and he is frozen, leaving the eat as
 ; the only move. (Without this guard `(possible solvable)` "solves" the puzzle by
 ; a shorter path that merely never *chooses* to let anything be eaten.)
-(form safe =>
+(form safe 
   (not (or (and (is wolf.at left)  (is goat.at left)     (is farmer.at right))
            (and (is wolf.at right) (is goat.at right)    (is farmer.at left))
            (and (is goat.at left)  (is cabbage.at left)  (is farmer.at right))
@@ -1555,10 +1554,10 @@ version control.
 
 ; compound moves, named once — Wish 11
 (form (row FROM TO)
-  => (transition (when (and safe (is farmer.at FROM))) (do (set farmer.at TO))))
+  (transition (when (and safe (is farmer.at FROM))) (do (set farmer.at TO))))
 
 (form (ferry C FROM TO)
-  => (transition
+  (transition
        (when (and safe (is farmer.at FROM) (is C.at FROM)))
        (do (set farmer.at TO) (set C.at TO))))
 
@@ -1570,7 +1569,7 @@ version control.
 ; nature's move: on a bank the farmer has left, appetite acts — and from an
 ; unsafe arrangement it is the ONLY enabled move, so it fires.
 (form (eats P Q BANK OTHER)
-  => (transition
+  (transition
        (when (and (is P.at BANK) (is Q.at BANK) (is farmer.at OTHER)))
        (do (vacate Q.at))))              ; the eaten piece is gone
 
@@ -1635,10 +1634,13 @@ was gained.*
     (arrow claims (to claim-t) fixed)      ; the recorded utterance
     (arrow kind   (to kind-t) vacatable))) ; unclassified until read
 
-(instance census (of island)
-  (native abe bea cal)
-  (claims (abe said-knight) (bea said-knight) (cal said-knave))
-  (kind   (abe vacant) (bea vacant) (cal vacant)))
+(instance census island
+  (native abe (claims said-knight)
+              (kind vacant))
+  (native bea (claims said-knight)
+              (kind vacant))
+  (native cal (claims said-knave)
+              (kind vacant)))
 
 (use island)
 (initial census)
@@ -1646,7 +1648,7 @@ was gained.*
 ; the island's law, applied as moves:
 ; "I am a knight" is consistent with either kind — two readings, two moves
 (form (read-knight-sayer N)
-  => (transition
+  (transition
        (when (and (is N.claims said-knight) (not (defined N.kind))))
        (do (set N.kind knight)))
      (transition
@@ -1655,7 +1657,7 @@ was gained.*
 
 ; "I am a knave" is consistent with neither — the rules are silent
 (form (read-knave-sayer N)
-  => (transition
+  (transition
        (when (and (is N.claims said-knave) (not (defined N.kind))))
        (do (gap "no consistent kind exists for this speaker: the island's rules are silent"))))
 
@@ -1948,14 +1950,14 @@ already captured — no arrow leaves them.)
 **Functors 3–5 — the interrogator's.** Between *schemas*, functors are
 declared in claims files (§16.4) and used three ways: **transport** (pull
 a reference schema's properties back along the map), **compare** (a map
-file of bare `(map X => Y)` datums relating two versions' schemas, §17),
+file of bare `(map X Y)` datums relating two versions' schemas, §17),
 and **solve** (search for the maps rather than write them, §17):
 
 ```lisp
 (functor eu-view (from oversight) (to eu-accession)
   (over bureau case)
-  (map bureau => watchdog-body)
-  (map independence => autonomy))
+  (map bureau watchdog-body)
+  (map independence autonomy))
 
 (check eu-accession.accountability via eu-view)
 ```
@@ -2100,4 +2102,4 @@ this adjunction, stated as semantics.
 Reading the table columnwise is reading the design: the *language* column
 contains only what defines a model; the *tool* column contains every
 question and every search; and no row needed a new kernel word — the
-twenty-seven are enough.
+twenty-six are enough.

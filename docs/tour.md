@@ -14,14 +14,6 @@ Every block carries **line numbers, restarting at 1 in each block**, so a line
 can be named — "step 7, line 12". They are not part of the source; strip the
 leading number and two spaces before running.
 
-> **Status — instance syntax is ahead of the binary.** The instances below use
-> the entity-major clause from
-> [the 2026-08-09 design](superpowers/specs/2026-08-09-entity-major-instances-design.md),
-> which is **not implemented yet**: these files will not parse with a current
-> `pol`. The reported output is unaffected — byte-identical output across the
-> migration is that design's acceptance test — so the console blocks remain
-> what you will get. The listings are the shape you will write.
-
 ---
 
 ## 1. A thing exists
@@ -31,7 +23,7 @@ leading number and two spaces before running.
  2  (schema library
  3    (type book))
  4
- 5  (instance shelf (of library)
+ 5  (instance shelf library
  6    (book hamlet))
  7
  8  (use library)
@@ -46,12 +38,11 @@ leading number and two spaces before running.
  5    reached by: (initial)
 ```
 
-**Six words — 6 of 27.**
+**Five words — 5 of 26.**
 
 - `schema` — declares a map: what kinds of things exist, and how they point.
 - `type` — one kind of thing. `book` is now a kind.
 - `instance` — one concrete filling of that map.
-- `of` — which schema this instance fills.
 - `use` — which schema the model runs on.
 - `initial` — which filling it starts from.
 
@@ -71,7 +62,7 @@ One situation, because nothing can vary; no moves, so it is a dead end.
  3    (type book
  4      (arrow status (to shelf-state))))
  5
- 6  (instance shelf (of library)
+ 6  (instance shelf library
  7    (book hamlet (status available)))
  8
  9  (use library)
@@ -86,7 +77,7 @@ One situation, because nothing can vary; no moves, so it is a dead end.
  5    reached by: (initial)
 ```
 
-**Two more — 8 of 27.**
+**Two more — 7 of 26.**
 
 - `arrow` — how one kind of thing points at another. Every `book` has a
   `status`.
@@ -105,8 +96,7 @@ one *state*. A state is one the model can reach, and nothing yet moves.
  1  ;; added after (initial shelf)
  2  (transition lend
  3    (when (is hamlet.status available))
- 4    (do  (set hamlet.status lent)))
-```
+ 4    (do  (set hamlet.status lent)))```
 
 ```console
  1  $ pol check library.pol
@@ -116,7 +106,7 @@ one *state*. A state is one the model can reach, and nothing yet moves.
  5    reached by: lend
 ```
 
-**Five more — 13 of 27.**
+**Five more — 12 of 26.**
 
 - `transition` — a move: a condition and a change.
 - `when` — the condition, called a **guard**.
@@ -139,8 +129,7 @@ why step 6 needs forms.
 ```lisp
  1  (transition return
  2    (when (is hamlet.status lent))
- 3    (do  (set hamlet.status available)))
-```
+ 3    (do  (set hamlet.status available)))```
 
 ```console
  1  $ pol check library.pol
@@ -173,7 +162,7 @@ models.
  7  holds  always-lendable
 ```
 
-**No new language words — still 13 of 27.** `property`, `possible` and `live`
+**No new language words — still 12 of 26.** `property`, `possible` and `live`
 belong to the claims file, not to the language. A model cannot see them, which
 is why one set of questions can be put to many models.
 
@@ -208,7 +197,7 @@ and nobody is not a person.
  5      (arrow status (to shelf-state))
  6      (arrow holder (to person) vacatable)))
  7
- 8  (instance shelf (of library)
+ 8  (instance shelf library
  9    (book   hamlet (status available) (holder vacant))
 10    (person ana ben))
 11
@@ -246,7 +235,7 @@ and nobody is not a person.
  6  holds  shelved-means-nobody
 ```
 
-**Six more — 19 of 27.**
+**Six more — 18 of 26.**
 
 - `vacatable` — a schema flag: this slot is allowed to be empty.
 - `vacant` — an instance value: it *is* empty to begin with.
@@ -276,7 +265,7 @@ closed — name the shape once:
 
 ```lisp
  1  (form (lend-to NAME WHO)
- 2    => (transition NAME
+ 2    (transition NAME
  3         (when (is hamlet.status available))
  4         (do  (set hamlet.status lent) (set hamlet.holder WHO))))
  5
@@ -293,10 +282,9 @@ closed — name the shape once:
  6  holds  shelved-means-nobody
 ```
 
-**One more — 20 of 27.**
+**One more — 19 of 26.**
 
 - `form` — declares a pattern and what it expands into.
-- `=>` — separates the two. Punctuation, not one of the 27.
 - `NAME`, `WHO` — ALL-CAPS atoms in the pattern are **blanks**, filled by
   whatever the invocation puts there. A convention, not a keyword.
 
@@ -329,7 +317,7 @@ which is what an `equation` is.
 12    (equation borrow-local
 13      (= book.holder.member-of book.home)))
 14
-15  (instance shelf (of library)
+15  (instance shelf library
 16    (branch north south)
 17    (person ana (member-of north))
 18    (person ben (member-of south))
@@ -350,7 +338,7 @@ which is what an `equation` is.
  9  1
 ```
 
-**Three more — 23 of 27.**
+**Three more — 22 of 26.**
 
 - `equation` — declares a law: an arrow-chain identity that must hold.
 - `fixed` — marks an arrow as **wiring**: set once by the instance, never
@@ -389,8 +377,7 @@ Two honest answers. Acknowledge the breakage:
 
 ```lisp
  1  ;; library.claims
- 2  (accept lend-ben borrow-local)
-```
+ 2  (accept lend-ben borrow-local)```
 
 ```console
  1  $ pol check library.pol --claims library.claims
@@ -404,7 +391,7 @@ Two honest answers. Acknowledge the breakage:
  9  unadmitted  return may break borrow-local
 ```
 
-**No new language words — still 23 of 27.**
+**No new language words — still 22 of 26.**
 
 - `accept` — claims-file vocabulary: "this move is known to be able to break
   that law." Every move that can break it and is *not* accepted is reported
@@ -414,11 +401,10 @@ Or fix the rule, by tightening the guard:
 
 ```lisp
  1  (form (lend-to NAME WHO)
- 2    => (transition NAME
+ 2    (transition NAME
  3         (when (and (is hamlet.status available)
  4                    (is WHO.member-of hamlet.home)))
- 5         (do  (set hamlet.status lent) (set hamlet.holder WHO))))
-```
+ 5         (do  (set hamlet.status lent) (set hamlet.holder WHO))))```
 
 ```console
  1  $ pol check library.pol
@@ -443,8 +429,7 @@ Some questions the rules simply do not answer. Say so:
 ```lisp
  1  (transition lose
  2    (when (is hamlet.status lent))
- 3    (do  (gap "the rules do not say what happens to a lost book")))
-```
+ 3    (do  (gap "the rules do not say what happens to a lost book")))```
 
 ```console
  1  $ pol check library.pol
@@ -456,7 +441,7 @@ Some questions the rules simply do not answer. Say so:
  7    can be broken by: lend-ana, lend-ben, return   (acknowledge in claims)
 ```
 
-**One more — 24 of 27.**
+**One more — 23 of 26.**
 
 - `gap` — an effect: end the model here, with a message, instead of inventing
   a successor.
@@ -511,7 +496,7 @@ One more move — withdrawing a book from circulation, with no way back:
 15    p = ana
 ```
 
-**No new language words — 24 of 27, and that is where the tour ends.**
+**No new language words — 23 of 26, and that is where the tour ends.**
 
 - `query` — claims-file vocabulary: answer with the satisfying bindings rather
   than yes or no.
@@ -546,7 +531,7 @@ Assembled, this is what you have been building:
 13    (equation borrow-local
 14      (= book.holder.member-of book.home)))
 15
-16  (instance shelf (of library)
+16  (instance shelf library
 17    (branch north south)
 18    (person ana (member-of north))
 19    (person ben (member-of south))
@@ -558,7 +543,7 @@ Assembled, this is what you have been building:
 25  (initial shelf)
 26
 27  (form (lend-to NAME WHO)
-28    => (transition NAME
+28    (transition NAME
 29         (when (and (is hamlet.status available)
 30                    (is WHO.member-of hamlet.home)))
 31         (do  (set hamlet.status lent) (set hamlet.holder WHO))))
@@ -586,7 +571,7 @@ is the same words applied to bigger worlds.
 
 # Cheat sheet
 
-## The 27 words
+## The 26 words
 
 | Group              | Words                                                                            | What they do                                                           |
 | ------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -598,9 +583,9 @@ is the same words applied to bigger worlds.
 | **Guards**   | `is` `defined` `and` `or` `not` `some`                               | the whole logic — one syntax, used by a move, a law and a claim alike |
 | **Forms**    | `form` `&rest`                                                               | rename and paste, nothing more                                         |
 
-`=>` and `@` are punctuation, not words. ALL-CAPS slots are a convention, not
+`@` is punctuation, not a word. ALL-CAPS slots are a convention, not
 syntax. Everything else — ordering, `=`, "for all", entire domain
-vocabularies — is a library of forms written in these 27. The kernel does not
+vocabularies — is a library of forms written in these 26. The kernel does not
 grow.
 
 ## The shape of a file
@@ -618,7 +603,7 @@ grow.
 10    FLAG ::= fixed        ; wiring — set once, never varies
 11           | vacatable    ; the slot may be empty
 12
-13  (instance NAME (of SCHEMA) CLAUSE…)
+13  (instance NAME SCHEMA CLAUSE…)
 14
 15    CLAUSE ::= (TYPE ENTITY… SLOT…)               ; entities are atoms, slots are lists
 16    SLOT   ::= (ARROW value)                      ; value may be `vacant`
@@ -636,8 +621,8 @@ grow.
 28    EFFECT ::= (set CHAIN rhs) | (vacate CHAIN) | (gap "MSG")
 29    CHAIN  ::= entity.arrow.arrow…                ; follow arrows; literal, finite
 30
-31  (form (NAME SLOT… [&rest SLOT]) => TEMPLATE…)   ; ALL-CAPS slots; @SLOT splices
-32  (form NAME => DATUM)                            ; nullary, used as a bare atom
+31  (form (NAME SLOT… [&rest SLOT]) TEMPLATE…)   ; ALL-CAPS slots; @SLOT splices
+32  (form NAME DATUM)                            ; nullary, used as a bare atom
 ```
 
 ## The claims file

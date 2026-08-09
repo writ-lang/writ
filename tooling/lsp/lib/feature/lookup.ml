@@ -18,12 +18,11 @@ let reserved_desc =
     ("type", "(type NAME …) — an object of the world category");
     ("arrow", "(arrow NAME (to TYPE) [fixed] [vacatable]) — a morphism");
     ("to", "(to TYPE) — an arrow's codomain");
-    ("of", "(of TYPE) — a top-level arrow's domain");
     ("fixed", "fixed — set once by the instance, then immutable (wiring)");
     ("vacatable", "vacatable — a partial arrow; its cell may be vacant");
     ("equation", "(equation NAME (= PATH PATH)) — a law two routes must obey");
     ("=", "(= PATH PATH) — Kleene equality of two paths");
-    ("instance", "(instance NAME (of SCHEMA) …) — rosters and a valuation");
+    ("instance", "(instance NAME SCHEMA CLAUSE…) — one clause per entity");
     ("initial", "(initial INSTANCE) — the starting state");
     ("vacant", "vacant — the empty cell of a vacatable arrow");
     ("transition", "(transition [NAME] (when G) (do E…)) — one control edge");
@@ -32,7 +31,7 @@ let reserved_desc =
     ("set", "(set PATH VALUE) — write a mutable cell");
     ("vacate", "(vacate PATH) — empty a vacatable cell");
     ("gap", "(gap \"MSG\") — the rules run out; the move has no successor");
-    ("form", "(form PATTERN => TEMPLATE…) — the one extension mechanism");
+    ("form", "(form PATTERN TEMPLATE…) — the one extension mechanism");
     ("&rest", "&rest SLOT — captures the remaining pattern items");
     ("and", "(and G…) — conjunction (vacuously true)");
     ("or", "(or G…) — disjunction (vacuously false)");
@@ -57,7 +56,7 @@ let interrogator_desc =
     ("functor", "(functor NAME (from S) (to T) …) — a schema map");
     ("from", "(from SCHEMA) — a functor's source schema");
     ("over", "(over TYPE…) — the objects a functor is defined over");
-    ("map", "(map ARROW => ARROW) — a functor's action on an arrow");
+    ("map", "(map ARROW ARROW) — a functor's action on an arrow");
   ]
 
 let describe_word resolve src w =

@@ -74,8 +74,8 @@ and named t d head rest =
   (* An unnamed transition — [(transition (when …) …)] — yields no symbol. *)
   | _ -> []
 
-(* A form names itself in its PATTERN: [(form NAME => …)] (nullary) or
-   [(form (NAME …) => …)] (with slots). The name token is inside the form's
+(* A form names itself in its PATTERN: [(form NAME …)] (nullary) or
+   [(form (NAME …) …)] (with slots). The name token is inside the form's
    parens either way, so the selectionRange is contained. *)
 and form_sym t d rest =
   match rest with

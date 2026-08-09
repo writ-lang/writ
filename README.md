@@ -10,7 +10,7 @@ must obey), an **instance** (one starting configuration), and **transitions**
 and answers the questions you put to it *by exhaustion*, with a concrete route as
 evidence.
 
-The whole language is **twenty-seven words**; everything else — ordering,
+The whole language is **twenty-six words**; everything else — ordering,
 quantifiers, equality, entire domain vocabularies — is a library of **forms**
 over those words. Questions live *apart* from models, in `.claims` files, so one
 question suite can be asked of many models, and comparing two versions of a model
@@ -125,7 +125,7 @@ presented category: labelled nodes, each with a head naming its kind, a body
 naming its parts, and containment where one thing belongs to another. `(arrow
 independence (to indep-status))` inside `(type bureau …)` does not *encode*
 ownership — the nesting **is** the ownership. Hence the kernel can stay at
-twenty-seven words, a new vocabulary being new heads rather than new grammar;
+twenty-six words, a new vocabulary being new heads rather than new grammar;
 hence the extension mechanism can be *weaker* than a macro system and therefore
 safe — `form` renames and pastes, it cannot compute, so every error still points
 at a line you wrote; and hence a model can be **data** for another model, with
@@ -356,11 +356,11 @@ ships in
 
 - **Start here:** [`docs/tour.md`](docs/tour.md) — ten steps from a three-line
   model to one using every idea in the language, each step runnable and each
-  output the real one, ending in a **one-page cheat sheet**: the 27 words
+  output the real one, ending in a **one-page cheat sheet**: the 26 words
   grouped, the grammar, the claims vocabulary, and the things that catch
   everyone once.
 - **The language** (normative): [`docs/kernel-spec.md`](docs/kernel-spec.md) —
-  the twenty-seven words, the meaning of a model, the standard tool interface,
+  the twenty-six words, the meaning of a model, the standard tool interface,
   and worked examples in its appendices.
 - **The standard library:** [`core/stdlib/stdlib.pol`](core/stdlib/stdlib.pol) —
   25 lines of code, and the only `.pol` the tool ships. A **domain** library (a

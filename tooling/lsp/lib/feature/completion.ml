@@ -32,7 +32,6 @@ let reserved =
     "type";
     "arrow";
     "to";
-    "of";
     "fixed";
     "vacatable";
     "equation";

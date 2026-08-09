@@ -20,9 +20,8 @@ let rec iter_r f = function
       let* () = f x in
       iter_r f xs
 
-(* [(arrow NAME (to COD) FLAGS…)] — dom is the enclosing type by default, or an
-   [(of TYPE)] clause when the arrow is declared at schema top level. The
-   positions the §8.3 checks need travel beside the arrow as a
+(* [(arrow NAME (to COD) FLAGS…)] — the dom is the enclosing type, always: an
+   arrow is declared in the body of the type that owns it. The positions the §8.3 checks need travel beside the arrow as a
    [Decl_checks.arrow_at], exactly as [decode_equation] already does for a
    path. *)
 let decode_arrow ~(dom : string) (d : Reader.t) :
@@ -189,7 +188,7 @@ let decode_schema (d : Reader.t) : (Schema.t, Errors.t) result =
       go [] [] [] clauses
   | _ -> Reader.err_at d "expected a (schema …) declaration"
 
-(* [(instance N (of SCHEMA) (TYPE e…)… (ARROW (E V)…)…)]. The schema tells a
+(* [(instance N SCHEMA (TYPE e… (ARROW V)…)…)]. The schema tells a
    roster clause (head is a type) from a valuation clause (head is an arrow). *)
 let decode_instance (schemas : Schema.t list) (d : Reader.t) :
     (Instance.t, Errors.t) result =
