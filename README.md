@@ -56,6 +56,71 @@ shows its solution) — the real safe crossing, right down to bringing the goat
 *back* on move 4. It also finds the blunder: one careless crossing strands a
 predator with its prey, and from there the crossing can never succeed.
 
+## What an answer costs
+
+Enumerating *every* situation invites one question ahead of all others: how big
+does that get?
+
+**Where the number above comes from.** The river is 36 situations, and that is
+just the count of arrangements the pieces can be in — the product of every cell
+a move can write. The farmer stands on one of two banks; the wolf, the goat and
+the cabbage are each on a bank or eaten. Fifty-four combinations on paper, of
+which 36 can actually be reached.
+
+Products grow fast, and that is the standing worry about exhaustive search. But
+it is a worry about one *kind* of model, and there is another kind where the
+product never forms at all.
+
+**The other kind: a move commits a choice, and nothing revisits it.** Suppose
+three slots to be filled in a fixed order, and suppose the guards leave 2
+candidates for the first slot, 3 for the second, 2 for the third. Count the
+situations by hand:
+
+| once you have chosen | situations |
+| --- | --- |
+| nothing yet | 1 |
+| the first slot | 2 |
+| the first two | 2 × 3 = 6 |
+| all three | 2 × 3 × 2 = 12 |
+
+**21 situations in total, of which 12 are finished designs.** Nothing else is
+reachable: there is no situation with the second slot filled and the first
+empty, because the order forbids one. Every situation is a *prefix* of some
+design.
+
+**That generalises.** Write `aᵢ` for how many candidates survive the guards at
+step `i`:
+
+```
+situations = Σ(k=0..n) Π(i≤k) aᵢ            designs = Π(i≤n) aᵢ
+```
+
+The sum's last term **is** the design count, and every earlier term is the one
+after it divided by a step's candidate count. So where each step admits two or
+more, all the earlier terms together cannot even double the last:
+
+> **situations < 2 × designs** — and never more than `(n+1) ×`, even where some
+> step is forced to a single candidate.
+
+**Which inverts the worry.** Adding to the catalogue is free: a part the guards
+reject costs one transition and *no situations at all*. Tightening a constraint
+makes the search **smaller**. The price is set by how many answers there are —
+not by how much vocabulary was on offer.
+
+The practical reading: **a model is too big precisely when its answer set is too
+big to have wanted.** A brief admitting a million designs was never a question
+enumeration could answer; it was a brief needing more constraints.
+
+Measured rather than argued, in the worked models next door: nineteen components
+filling seven stages enumerate 96 designs in 184 situations; forbid one more
+coupling and it is 144 in 232; demand one more property of a stage and it is 48
+in 94 — each the formula's exact prediction.
+
+**And the river is the other kind** — which is the contrast worth keeping. The
+farmer can row back, so a crossing can be undone and made again, and no move
+settles anything for good. There the product of the cells is real, and 36 is
+what it costs.
+
 ## The CLI
 
 | Command | Does |
@@ -131,7 +196,7 @@ The other two need an installed `pol`, not a checkout of this one.
 ```sh
 make install-pol
 git clone https://github.com/sajonaro/pol-problems && cd pol-problems
-./run-tests.sh                         # 80 checks over every scenario
+./run-tests.sh                         # 98 checks over every scenario
 ```
 
 Or with nothing installed on the host but Docker — `make image` here tags
@@ -144,9 +209,12 @@ cd ../pol-problems && docker compose up
 
 The spec's Prologue puzzles (river, knights & knaves) and its §3 institutional
 scenarios, plus eight queens and a blocking job shop asked twice — can every job
-finish, and which schedule is shortest. Every scenario also carries a `.rules`
-file re-asking its `.claims` properties as derivations, and a **cross-check**
-scenario runs both instruments over all sixteen: `pol check`'s CTL reading
+finish, and which schedule is shortest — and `arch`, which turns the tool
+around and *designs* rather than checks: a bank of components, a brief, and
+every architecture the constraints permit, enumerated. Every scenario also
+carries a `.rules` file re-asking its `.claims` properties as derivations, and a
+**cross-check** scenario runs both instruments over all twenty: `pol check`'s
+CTL reading
 against `pol derive`'s rules encoding. Two independent implementations of one
 question, so a disagreement is a bug in one of them rather than a number to
 adjust — the only test whose oracle its author did not choose.
@@ -204,7 +272,8 @@ particular build; `$POL_IMAGE` names a different image.
 A failing call answers with the parser's own `file:line:col` message rather than
 dying, which is usually enough for the caller to fix the file and retry. A Claude
 skill that knows when Pol is the right tool — and when it is the wrong one —
-ships in [`.claude/skills/pol/`](.claude/skills/pol/).
+ships in
+[`plugins/pol/skills/pol/`](plugins/pol/skills/pol/), carried by the plugin.
 
 ## Documentation
 

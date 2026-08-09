@@ -48,7 +48,7 @@ asked of it, and derivations over it are three documents.
 `a.uses.held-by` is a **chain**: follow `uses` from `a`, then `held-by`. Chains
 are how everything is said.
 
-## The five things that trip people up
+## The six things that trip people up
 
 **A move that cannot fire is ABSENT, not failed.** `when` states the situations
 the move exists in. There is no error, no exception, no rollback.
@@ -67,6 +67,13 @@ constraint you want *enforced* goes in a `when`.
 **Effects are simultaneous.** Every effect of one move reads the situation the
 move started from, so `(do (set a.x b.y) (set b.y a.x))` is a swap and the order
 of effects cannot be observed.
+
+**A guard TESTS a cell; it cannot ASK what a cell holds.** The right of `is` is
+a literal or another chain — never a variable to be bound. So a query like
+`(query pick (where (k slot) (c part)) (is k.chosen c))` answers **empty**, in
+silence, rather than reading off each slot's part. To read a mutable cell, use
+the rules engine, where `holds` binds: `(rule (pick K C) (situation S) (holds S
+(is K.chosen C)))`, then `pol derive`. See `references/interrogator.md` §2.
 
 ## Guards
 
@@ -100,13 +107,17 @@ walker stops at the end of a ladder with no guard needed.
 (property never-stuck "from anywhere, it can still finish"
   (live (is a.stage done)))
 
-(query where-is "which machine holds what"
+(query where-is
   (where (m machine)) (defined m.held-by))
 ```
 
 `possible` / `never` / `live`. **`live` is the trap detector**: it asks whether
 F stays reachable from *every* reachable situation, which is what "cannot paint
 itself into a corner" means.
+
+**A `property` carries a description string; a `query` does NOT** (§16.2 —
+`(query NAME (where (x TYPE)…) GUARD)`). Writing one is `malformed query`, and
+the whole claims file is rejected.
 
 ## Forms — the only way to abstract
 
@@ -118,6 +129,12 @@ itself into a corner" means.
 A form is **rename-and-paste**: no recursion, no computation, and it cannot map
 over its `&rest`. At top level it may expand to several datums; *inside* a list
 it must expand to exactly one.
+
+**A form cannot introduce a bound variable.** An undeclared symbol in a template
+is read as a form name, so writing `(form (deps-met C) => (all (R req) …))`
+fails with *"template of `deps-met` mentions `R`, a form not yet declared"*.
+Thread the binder in as a parameter — `(form (deps-met C R) => (all (R req) …))`
+— and pass a name at each call site.
 
 A **domain library** is declarations only — a schema, an instance, forms — and
 no `use`/`initial`/`transition`. Load it by relative path.
