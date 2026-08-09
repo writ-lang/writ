@@ -193,13 +193,21 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
   match d with
   | Reader.List
       (Reader.Atom ("instance", _) :: Reader.Atom (name, np) :: clauses, _) ->
+      (* The schema is named positionally — (instance NAME SCHEMA CLAUSE…) —
+         since the name and the schema are atoms while every clause is a list.
+         The older (of SCHEMA) spelling is still read, and goes away with the
+         corpus migration. *)
       let sname =
-        List.find_map
-          (function
-            | Reader.List ([ Reader.Atom ("of", _); Reader.Atom (sn, _) ], _) ->
-                Some sn
-            | _ -> None)
-          clauses
+        match clauses with
+        | Reader.Atom (sn, _) :: _ -> Some sn
+        | _ ->
+            List.find_map
+              (function
+                | Reader.List ([ Reader.Atom ("of", _); Reader.Atom (sn, _) ], _)
+                  ->
+                    Some sn
+                | _ -> None)
+              clauses
       in
       let* sname =
         match sname with
@@ -253,17 +261,69 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
             match c with
             | Reader.List ([ Reader.Atom ("of", _); Reader.Atom (_, _) ], _) ->
                 go rosters valu rest
+            (* the positional schema name, consumed above *)
+            | Reader.Atom (_, _) -> go rosters valu rest
             | Reader.List (Reader.Atom (h, hp) :: tl, _) -> (
                 match Schema.type_of schema h with
                 | Some _ ->
-                    let* entities =
-                      map_r
-                        (function
-                          | Reader.Atom (e, _) -> Ok e
-                          | Reader.List (_, p) ->
-                              Errors.err ~pos:p
-                                "a roster entity must be an atom")
-                        tl
+                    (* Entity-major clause: (TYPE ENTITY… SLOT…). Atoms are
+                       entities, lists are slots, and atoms come first — the
+                       same atoms-versus-lists rule the rest of the grammar
+                       uses. A bare roster is this with no slots. *)
+                    let rec split ents = function
+                      | Reader.Atom (e, _) :: more -> split (e :: ents) more
+                      | more -> (List.rev ents, more)
+                    in
+                    let entities, slots = split [] tl in
+                    let* () =
+                      match
+                        List.find_opt
+                          (function Reader.Atom _ -> true | _ -> false)
+                          slots
+                      with
+                      | Some (Reader.Atom (e, p)) ->
+                          Errors.err ~pos:p
+                            ("entity `" ^ e
+                           ^ "` must come before this clause's slots")
+                      | _ -> Ok ()
+                    in
+                    (* A slot needs exactly one entity to belong to: a
+                       broadcast over several would be silent, so it is an
+                       error the author can see. *)
+                    let* () =
+                      match (slots, entities) with
+                      | [], _ | _, [ _ ] -> Ok ()
+                      | _, [] ->
+                          Errors.err ~pos:hp
+                            "a clause with slots needs an entity to own them"
+                      | _, _ ->
+                          Errors.err ~pos:hp
+                            "a clause with slots names exactly one entity — \
+                             repeat the clause to fill several"
+                    in
+                    let slot_cell e slot =
+                      match slot with
+                      | Reader.List
+                          ([ Reader.Atom (a, _); Reader.Atom ("vacant", _) ], p)
+                        ->
+                          Ok ({ Instance.arrow = a; src = e }, Value.Vacant, p)
+                      | Reader.List
+                          ([ Reader.Atom (a, _); Reader.Atom (v, _) ], p) ->
+                          Ok ({ Instance.arrow = a; src = e }, Value.Filled v, p)
+                      | _ -> Reader.err_at slot "expected a slot (ARROW value)"
+                    in
+                    let* valu =
+                      match entities with
+                      | [ e ] when slots <> [] ->
+                          let* cells = map_r (slot_cell e) slots in
+                          let rec add valu = function
+                            | [] -> Ok valu
+                            | ((c, v, _) as cell) :: more ->
+                                let* () = fresh_cell valu cell in
+                                add ((c, v) :: valu) more
+                          in
+                          add valu cells
+                      | _ -> Ok valu
                     in
                     go ({ Instance.ty = h; entities } :: rosters) valu rest
                 | None ->
