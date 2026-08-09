@@ -56,10 +56,10 @@ let decode_arrow ~(dom : string) (d : Reader.t) :
         | Reader.List (Reader.Atom ("to", tp) :: _, _) ->
             Errors.err ~pos:tp
               "an arrow codomain must be a named type, not an inline set"
-        | Reader.List ([ Reader.Atom ("of", _); Reader.Atom (dm, dp) ], _) ->
-            dom := dm;
-            dom_at := Some dp;
-            Ok ()
+        | Reader.List (Reader.Atom ("of", op) :: _, _) ->
+            Errors.err ~pos:op
+              "an arrow is declared inside the type that owns it; there is no \
+               (of TYPE) domain clause"
         | Reader.Atom ("fixed", p) -> once "fixed" fixed p
         | Reader.Atom ("vacatable", p) -> once "vacatable" vacatable p
         | other -> Reader.err_at other "unknown arrow clause"
@@ -173,11 +173,14 @@ let decode_schema (d : Reader.t) : (Schema.t, Errors.t) result =
             | Reader.List (Reader.Atom ("type", _) :: _, _) ->
                 let* ty, ars = decode_type c in
                 go (ty :: types) (List.rev_append ars arrows) eqs rest
+            (* An arrow belongs to the type that owns it, and is declared in
+               that type's body. The schema-top alternative had no expressive
+               power the body form lacks — it could not even reach a type from
+               another loaded schema — and no shipped model used it. *)
             | Reader.List (Reader.Atom ("arrow", _) :: _, _) ->
-                let* a, at = decode_arrow ~dom:"" c in
-                if a.Schema.dom = "" then
-                  Reader.err_at c "a top-level arrow needs an (of TYPE) domain"
-                else go types ((a, at) :: arrows) eqs rest
+                Reader.err_at c
+                  "an arrow is declared inside the (type …) that owns it, not \
+                   at schema top"
             | Reader.List (Reader.Atom ("equation", _) :: _, _) ->
                 let* eq = decode_equation c in
                 go types arrows (eq :: eqs) rest
@@ -198,21 +201,15 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
          The older (of SCHEMA) spelling is still read, and goes away with the
          corpus migration. *)
       let sname =
-        match clauses with
-        | Reader.Atom (sn, _) :: _ -> Some sn
-        | _ ->
-            List.find_map
-              (function
-                | Reader.List ([ Reader.Atom ("of", _); Reader.Atom (sn, _) ], _)
-                  ->
-                    Some sn
-                | _ -> None)
-              clauses
+        match clauses with Reader.Atom (sn, _) :: _ -> Some sn | _ -> None
       in
       let* sname =
         match sname with
         | Some sn -> Ok sn
-        | None -> Errors.err ~pos:np "an instance needs an (of SCHEMA)"
+        | None ->
+            Errors.err ~pos:np
+              "an instance names its schema after its own name: (instance NAME \
+               SCHEMA CLAUSE…)"
       in
       let* schema =
         match List.find_opt (fun s -> s.Schema.name = sname) schemas with
@@ -259,8 +256,6 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
               }
         | c :: rest -> (
             match c with
-            | Reader.List ([ Reader.Atom ("of", _); Reader.Atom (_, _) ], _) ->
-                go rosters valu rest
             (* the positional schema name, consumed above *)
             | Reader.Atom (_, _) -> go rosters valu rest
             | Reader.List (Reader.Atom (h, hp) :: tl, _) -> (

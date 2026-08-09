@@ -58,10 +58,6 @@ let () =
   rejects_at "an arrow's codomain must be a declared type"
     (model "(schema m (type v (a b)) (type box (arrow f (to nosuchtype))))")
     ~line:1 ~col:49 ~sub:"undeclared type `nosuchtype`";
-  rejects_at "an explicit (of TYPE) domain must be a declared type too"
-    (model
-       "(schema m (type v (a b)) (type box) (arrow f (of nosuchdom) (to v)))")
-    ~line:1 ~col:50 ~sub:"undeclared type `nosuchdom`";
   (* The control, and the reason the check cannot live in the arrow decoder: a
      type may be declared AFTER the arrow that points at it, so the schema has
      to be whole before any endpoint can be resolved. *)
@@ -156,11 +152,14 @@ let () =
           "(schema m (type v (a b)) (type box (arrow f (to v) fixed vacatable) \
            (arrow g (to v))))\n\
            (instance i m (box p (f a) (g a)) ) (use m) (initial i)"));
-  rejects_at "§8.3 freshness reaches across a top-level arrow and a type body"
-    "(schema m (type v (a b)) (type box (arrow f (to v)))\n\
-    \  (arrow f (of box) (to v)))\n\
-     (instance i m (box p (f a)) ) (use m) (initial i)"
-    ~line:2 ~col:10 ~sub:"arrow `f` is already declared on `box`"
+  (* Arrow freshness within one type body — the schema-top declaration site
+     the old case paired it with no longer exists. *)
+  check "two arrows of one name in one type body are still refused"
+    (Result.is_error
+       (decodes
+          "(schema m (type v (a b)) (type box (arrow f (to v)) (arrow f (to \
+           v))))\n\
+           (instance i m (box p (f a)) ) (use m) (initial i)"))
 
 (* --- §10.1: exactly one `when`, exactly one `do`, NAME fresh ---------------- *)
 

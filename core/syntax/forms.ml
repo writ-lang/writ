@@ -1,6 +1,6 @@
 open Pol_data
 
-(* Form declarations: [(form PATTERN => TEMPLATE…)] collected into a [form_def]
+(* Form declarations: [(form PATTERN TEMPLATE…)] collected into a [form_def]
    with hygiene checks (kernel §0.2, §6). Slot names are the ALL-CAPS words in
    the pattern; [&rest] names the single splice slot, in last position; the
    template may mention only reserved words, slots, and EARLIER forms. That last
@@ -17,7 +17,7 @@ type form_def = {
 
 let ( let* ) = Result.bind
 
-(* The 28 reserved words, plus the interrogator's file-format words (so a claims
+(* The 26 reserved words, plus the interrogator's file-format words (so a claims
    library's forms may head their templates with [property]/[query]/…, and a
    rules library's with [relation]/[rule]). A form may not be named a reserved
    word, a slot may not collide with one, and these are exactly the callable
@@ -36,7 +36,6 @@ let reserved =
     "type";
     "arrow";
     "to";
-    "of";
     "fixed";
     "vacatable";
     "equation";
@@ -123,21 +122,19 @@ let rec parse_items acc = function
 
 let collect (d : Reader.t) ~(earlier : form_def list) :
     (form_def, Errors.t) result =
-  match
-    (* `=>` was the language's only infix token; it carries no information the
-       position does not already give, since the pattern is element 2 and the
-       templates are the rest. Both spellings are read until the corpus has
-       migrated. *)
-    match d with
-    | Reader.List
-        ( Reader.Atom ("form", fp)
-          :: pattern
-          :: Reader.Atom ("=>", _)
-          :: template,
-          p ) ->
-        Reader.List (Reader.Atom ("form", fp) :: pattern :: template, p)
-    | other -> other
-  with
+  (* `=>` was the language's only infix token. It carried no information the
+     position does not already give — the pattern is element 2, the templates
+     are the rest — so removing it makes §2.5's "every datum is a parenthesised
+     list headed by a word" true without exception. *)
+  match d with
+  (* An un-migrated form would otherwise be READ, not refused: `=>` is now an
+     ordinary atom, so the old spelling parses as a form whose first template
+     is `=>` — a different form, accepted in silence. Name it instead. *)
+  | Reader.List (Reader.Atom ("form", _) :: _ :: Reader.Atom ("=>", ap) :: _, _)
+    ->
+      Errors.err ~pos:ap
+        "`=>` is no longer part of a form: write (form PATTERN TEMPLATE …), \
+         with the template following the pattern directly"
   | Reader.List (Reader.Atom ("form", _) :: pattern :: template, _)
     when template <> [] ->
       let* name, name_pos, slots, rest =
@@ -202,5 +199,5 @@ let collect (d : Reader.t) ~(earlier : form_def list) :
       let* () = scan_all template in
       Ok { name; pattern; template; slots; rest }
   | Reader.List (Reader.Atom ("form", _) :: _, p) ->
-      Errors.err ~pos:p "malformed form: expected (form PATTERN => TEMPLATE …)"
+      Errors.err ~pos:p "malformed form: expected (form PATTERN TEMPLATE …)"
   | _ -> Reader.err_at d "expected a (form …) declaration"
