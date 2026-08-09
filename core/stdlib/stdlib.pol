@@ -142,8 +142,7 @@
 
 ; 8. Optional arrows
 ; `(maybe A T)` declares a vacatable arrow: exactly `(arrow A (to T)
-; vacatable)`, which is far and away the most-written arrow shape in every
-; model here.
+; vacatable)`.
 ;
 ; WHY IT EARNS ITS PLACE, and why it is spelled this way. The instinct is to
 ; sugar the *inside* of the declaration — `(arrow held-by *(to job))`, some
@@ -161,14 +160,29 @@
 ;
 ; ITS LIMIT, worth not hiding: `maybe` covers the PLAIN vacatable arrow, and
 ; there is no spelling here for `fixed vacatable` — an arrow that never rewires
-; but may run off the end. jobshop-best's tick ladder is the one place that
-; still wants it:
+; but may run off the end:
 ;
 ;   (type tick (arrow next (to tick) fixed vacatable))
 ;
-; Eight arrows across the shipped models take `maybe`; that one does not.
-; Covering it means either a second name — and `fixed-maybe` is a worse name
-; than the thing it abbreviates — or flags as slots, which hands a form a
-; keyword position and is a bigger change than the saving is worth. Two shapes,
-; one abbreviated, is the honest state.
+; COUNTED 2026-08-09 across pol, pol-problems and pol-arch — 125 arrow
+; declarations, comments excluded:
+;
+;   fixed              56
+;   plain mutable      37
+;   fixed vacatable    18
+;   vacatable          14   (7 of them written as `maybe`)
+;
+; Two of those numbers argue against the choice made here, and are left
+; standing rather than tidied away. `fixed vacatable` is MORE common than the
+; plain vacatable arrow this form abbreviates — 18 against 14 — so `maybe`
+; sugars the rarer of the two shapes. It is also no longer confined to a tick
+; ladder: 17 of the 18 are the capability flags in `arch.lib.pol` (both
+; copies), and only one is scheduling's ladder.
+;
+; The reasoning for covering only one shape therefore rests on a frequency that
+; has since inverted. The objections to the alternatives have not changed — a
+; second name (`fixed-maybe`) is still a worse name than the thing it
+; abbreviates, and flags-as-slots still hands a form a keyword position — but
+; "the rare shape stays long" is no longer the argument it was. Whether the
+; common shape deserves a spelling is OPEN, not settled.
 (form (maybe A T) => (arrow A (to T) vacatable))

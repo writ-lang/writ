@@ -56,16 +56,93 @@ shows its solution) — the real safe crossing, right down to bringing the goat
 *back* on move 4. It also finds the blunder: one careless crossing strands a
 predator with its prey, and from there the crossing can never succeed.
 
+**Want to write one?** [The tour](docs/tour.md) goes from a three-line model to
+the whole language in ten runnable steps, and ends in a one-page cheat sheet.
+The rest of this page is why the language is shaped the way it is.
+
+## Language design
+
+Four decisions shape the language, and all four answer to one demand: **a model
+must denote a finite object the tool can hold entire** — one that can be built,
+walked, exported and diffed. Each is worked through in
+[kernel-spec §2](docs/kernel-spec.md#2-language-design); in brief:
+
+**The state machine is generated, not written.** Nothing you write is a state,
+and nothing you write is an edge. The *schema* decides what a state **is**: an
+arrow marked `fixed` is wiring, set once and never varying, and a state is one
+filling of all the other arrows at once — so the state set is the product of
+their targets, settled before a single move exists. The *instance* says which
+state is initial. A *transition* is a guard and a change, **not** an edge: it
+contributes one from every state its guard admits, so one datum can mean
+thousands of edges, or none. The machine is the initial state closed under
+them. The river: 54 arrangements on paper, twelve transitions, 76 edges over
+the 36 reachable — and the file names none of those numbers. "Written down"
+means *presented*, not enumerated.
+
+**The arrows are partial** — which is what *Partial Olog* records. An olog's
+arrows must answer, for every thing; Pol's may be `vacatable` and answer
+nothing. The alternative is to totalise — add a member meaning *none* — and the
+river prices it: give `bank` a third member `eaten` and `bank` has stopped
+meaning a bank, since the *farmer*'s arrow points at the same type and
+`farmer.at = eaten` becomes representable; the space grows 54 → 81, the 27 new
+arrangements meaning nothing and needing guards to exclude; and in an
+institutional model the same move drops a `nobody` into the box marked *a
+person*, where it answers `nobody.employer`. Keeping the arrow partial buys
+three things a total map cannot state:
+
+- **Absence you can ask about.** A chain through an empty slot has no answer
+  from that step on, so with the bench unstaffed `(is docket.judge.employer
+  watchdog)` and `(is docket.judge.employer prosecutions)` are *both* false —
+  the signature of an empty slot, not a contradiction — while `(defined …)`
+  tells the cases apart. "The bench must always be staffable" is then a
+  property the tool decides: `(live (defined docket.judge))`.
+- **Moves that are undefined, not merely unused.** A guard is a move's *domain
+  of definition*; a transition is a partial map of the state space, not a total
+  one with a side condition attached.
+- **Rules that admit where they run out.** `gap` ends the model rather than
+  inventing a successor, so the native who says "I am a knave" is reported as a
+  hole with the shortest route in.
+
+Vacancy, non-applicability and silence are the ordinary case in these domains —
+an office is empty, a clause does not apply, a statute says nothing. A total map
+misreports all three.
+
+**The language stops short of computation.** No numbers, no recursion, no
+iteration, no unbounded chains; every list is finite, so termination is a
+property of the grammar rather than something a model can lose. What that buys
+is the **negative** answer. By Rice's theorem every non-trivial semantic
+question about a Turing-complete language is undecidable, leaving a tool two
+options: ask the author to supply the proof, or search and report what it found
+— and the second cannot tell *no counterexample exists* from *none found within
+the bound*. "One lawful move destroys accountability forever" is worth nothing
+from a tool that might merely have looked less far. Here `never` is a census and
+every verdict carries a route. The cost: no arithmetic, no unbounded
+populations, no "for every *n*" — a domain that cannot be honestly reduced to
+finitely many named distinctions is one this tool should not be pointed at.
+
+**The notation is s-expressions** because the object written down is a finitely
+presented category: labelled nodes, each with a head naming its kind, a body
+naming its parts, and containment where one thing belongs to another. `(arrow
+independence (to indep-status))` inside `(type bureau …)` does not *encode*
+ownership — the nesting **is** the ownership. Hence the kernel can stay at
+twenty-seven words, a new vocabulary being new heads rather than new grammar;
+hence the extension mechanism can be *weaker* than a macro system and therefore
+safe — `form` renames and pastes, it cannot compute, so every error still points
+at a line you wrote; and hence a model can be **data** for another model, with
+`pol control` and `pol schema` emitting its moves and its map as ordinary
+instances. That the fit is good is checkable rather than tasteful: `=` moved
+from kernel word to library form without the grammar changing by a line; no
+construct ever needed an operator or a precedence rule, guards included; the
+notation states its own structure; and every worked model's properties are read
+twice — once in branching time, once relationally — by two engines that agree.
+
 ## What an answer costs
 
 Enumerating *every* situation invites one question ahead of all others: how big
 does that get?
 
-**Where the number above comes from.** The river is 36 situations, and that is
-just the count of arrangements the pieces can be in — the product of every cell
-a move can write. The farmer stands on one of two banks; the wolf, the goat and
-the cabbage are each on a bank or eaten. Fifty-four combinations on paper, of
-which 36 can actually be reached.
+**The river's 36 is a product**, counted above: every cell a move can write,
+multiplied out to 54 arrangements on paper, of which 36 are reachable.
 
 Products grow fast, and that is the standing worry about exhaustive search. But
 it is a worry about one *kind* of model, and there is another kind where the
@@ -277,6 +354,11 @@ ships in
 
 ## Documentation
 
+- **Start here:** [`docs/tour.md`](docs/tour.md) — ten steps from a three-line
+  model to one using every idea in the language, each step runnable and each
+  output the real one, ending in a **one-page cheat sheet**: the 27 words
+  grouped, the grammar, the claims vocabulary, and the things that catch
+  everyone once.
 - **The language** (normative): [`docs/kernel-spec.md`](docs/kernel-spec.md) —
   the twenty-seven words, the meaning of a model, the standard tool interface,
   and worked examples in its appendices.

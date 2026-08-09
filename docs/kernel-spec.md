@@ -1,11 +1,20 @@
 # Pol — Language Specification
 
+*New to Pol? Start with **[the tour](tour.md)** — ten runnable steps, each a
+complete model, ending in a one-page cheat sheet of all 27 words. This document
+is the reference: precise, normative, and not meant to be read front to back
+first.*
+
 ## Contents
 
 - [**Prologue**](#prologue)
 - [**Part I — Introduction**](#part-i--introduction)
   1. [Pivotal ideas](#1-pivotal-ideas)
-  2. [Ologs, and what Pol adds](#2-ologs-and-what-pol-adds)
+  2. [Language design](#2-language-design) — [the olog](#21-the-starting-point-an-olog) ·
+     [generated meaning](#22-the-meaning-is-generated-not-written) ·
+     [partial arrows](#23-the-arrows-are-partial) ·
+     [no computation](#24-the-language-stops-short-of-computation) ·
+     [s-expressions](#25-the-notation-is-s-expressions)
   3. [Three scenarios](#3-three-scenarios)
   4. [The running example](#4-the-running-example)
 - [**Part II — The language**](#part-ii--the-language-normative) *(normative)*
@@ -170,7 +179,22 @@ derivable from the rest — is Appendix E.
    `=` was a kernel word until a law could hold a guard (§8.6), and is a
    library form now.
 
-## 2. Ologs, and what Pol adds
+## 2. Language design
+
+The seven ideas say what Pol commits to; this section says why the
+language has the shape it does. Everything follows from one demand: **a
+model must denote a finite object the tool can hold entire** — one that
+can be built, walked, exported and diffed.
+
+Four decisions carry it. Pol inherits an olog and makes the map move
+(§2.2); it makes the olog's arrows partial (§2.3); it refuses to compute
+(§2.4); it writes everything in one datum shape (§2.5). They depend on
+each other. Refusing computation keeps the object finite; partial arrows
+keep it honest at that size, since totalising a map corrupts its types
+and inflates the object at once; the uniform datum shape lets the
+vocabulary grow without the object's definition changing.
+
+### 2.1 The starting point: an olog
 
 Pol's map layer is an **Olog** ("ontology log") — a notation from
 category theory for writing ontologies as boxes and arrows. Ologs are
@@ -206,9 +230,210 @@ An Olog is a photograph:
 - **no evidence** — a failed law has no counterexample artifact
   *(witnesses, §15–16)*.
 
-Pol is the Olog kept whole, plus exactly these five additions, and
-nothing else. The wish-by-wish map from the Prologue to the constructs
-is Appendix F.
+Pol is the Olog kept whole, plus exactly these five changes and nothing
+else; the wish-by-wish map from the Prologue to the constructs is
+Appendix F.
+
+Four of the five are genuine **additions** — structure an olog does not
+carry. The third is not: it is a **subtraction**, since an olog's arrows
+must answer and Pol's need not. The sections below take the additions
+first (§2.2, where the photograph starts to move) and the subtraction
+second (§2.3, which is what the language is named for).
+
+### 2.2 The meaning is generated, not written
+
+Nothing in a model is a situation, and nothing in it is an edge. Both
+follow from the three documents:
+
+| What is written | What it determines |
+| --- | --- |
+| `schema` | what a situation *is*: one filling of every non-`fixed` arrow, so the situation space is the product of those arrows' targets — fixed before a single move is written (§12.1) |
+| `instance` | which situation is initial, and the wiring every situation shares (§9, §12.1) |
+| `transition` | not an edge but a *rule* for edges — one from every situation its guard admits, so a single datum may mean thousands of edges, or none (§12.2) |
+
+The meaning is the initial situation closed under those edges (§12.3).
+Appendix C's river: the schema admits 2 × 3 × 3 × 3 = 54 arrangements
+(the farmer on a bank; each cargo on a bank *or nowhere*), the twelve
+transitions generate 76 edges over the 36 reachable ones, and no line of
+the file mentions 54, 76 or 36.
+
+So "a model is a state machine" and "a model is a page of declarations"
+are one statement: questions are answered against the object, never
+against the page — idea 3 of §1, read operationally. The object is also
+*fully* known rather than sampled — no depth bound to raise, no seed to
+vary, no coverage figure.
+
+### 2.3 The arrows are partial
+
+An olog's arrows are total: every arrow answers, for every thing. A Pol
+arrow may be declared `vacatable`, and then answer nothing (§8.3). That
+relaxation is what the language is named for.
+
+The alternative is to **totalise** — add a member meaning *none*: a
+`nobody` person, a third bank for the eaten goat. The river prices it.
+An eaten cargo is `at` nothing; give `bank` a third member `eaten`
+instead, and:
+
+- **the type stops meaning what it says.** `bank` no longer means a
+  bank, because the *farmer*'s `at` points at the same type — so
+  `farmer.at = eaten` becomes a representable arrangement, and only a
+  guard written by hand keeps it out;
+- **the object being enumerated grows.** 2 × 3 × 3 × 3 = 54 becomes
+  3⁴ = 81, and the 27 new arrangements carry no information: the object
+  of §2.2 inflated by the device meant to simplify it;
+- **the placeholder answers questions it has no business answering.**
+  `nobody.employer` returns a bureau. This is the general form: a
+  placeholder leaks into every type a chain can reach, and a box that
+  says *a person* while meaning *a person or nothing* has stopped saying
+  what it contains (§8.3, design note).
+
+Partiality buys three statements a total map cannot make:
+
+1. **Absence becomes askable, not merely encodable.** A chain through an
+   empty slot has no answer from that step on (§8.5), so with the bench
+   unstaffed `(is docket.judge.employer watchdog)` and
+   `(is docket.judge.employer prosecutions)` are *both* false — the
+   signature of an empty slot, not a contradiction — while
+   `(defined docket.judge.employer)` separates the two cases. "The bench
+   must always be staffable" is then a property the tool decides:
+   `(live (defined docket.judge))`.
+2. **A move is undefined, not merely unused.** A guard *is* a move's
+   domain of definition: a transition denotes a **partial** endo-map of
+   the situation space (§12.2, Appendix I.2). Availability is structure,
+   not a side condition — which is why the move list can be exported and
+   mapped as data (§17) without the guards being left behind.
+3. **The rules themselves may run out.** `gap` (§10.4) ends the model
+   instead of inventing a successor, so the native who says "I am a
+   knave" is reported as a hole with the shortest route into it.
+   Partiality of the *arrows* fits a world with vacancies; partiality of
+   the *dynamics* fits a rulebook with silences.
+
+*In mathematical terms: instances live in Par(FinSet) — finite sets and
+partial functions — rather than in FinSet, and the dynamics functor
+lands in partial endo-maps (Appendix I.2).*
+
+Vacancy, non-applicability and silence are the ordinary case in the
+domains this language is for: an office is empty, a clause does not
+apply, a statute says nothing. A total map misreports all three.
+
+### 2.4 The language stops short of computation
+
+Pol is not Turing-complete, and not by oversight. There are no numbers
+and no arithmetic; no recursion and no iteration; no unbounded chains —
+a chain is a literal finite word (§8.5); `some` ranges over a roster;
+and forms expand once, against earlier forms only (§11.1). Every list in
+the language is finite, so the situation space is bounded by a product
+of finite domains (§12.4). **Termination is not a property a model can
+lose. It is a property of the grammar** — there is no such thing as a
+Pol model that fails to have a meaning.
+
+**What that buys is the negative answer.** By Rice's theorem every
+non-trivial semantic question about a Turing-complete language is
+undecidable, which leaves a tool two options: ask the author to supply
+the proof (a proof assistant), or search and report what it found (a
+bounded checker, which cannot distinguish *no counterexample exists*
+from *none found within the bound*). "One lawful move can destroy
+accountability forever" is worth nothing from a tool that might merely
+have looked less far. Because the object of §2.2 is finite and fully
+generated, `never` is a census, `possible` prints its route, and "no
+solution exists" is a proved fact rather than a failure to find one
+(wish 4).
+
+Three further returns, none available over an unbounded space:
+
+- **Cost is legible, and inverted.** What an answer costs is set by how
+  many answers there are, not by how much vocabulary was on offer: a
+  guard that rejects candidates makes the search *smaller*. A model is
+  too big precisely when its answer set was too big to have wanted.
+- **The meaning is an artifact.** A finite object can be emitted as data
+  (`pol control`, `pol schema`), diffed against another version
+  (`pol compare`, §17), and re-derived by a second engine — one
+  question, two implementations, so a disagreement is a bug in one of
+  them rather than a number to adjust.
+- **Every verdict has evidence of one kind.** A route is the universal
+  currency: a holding `possible` shows its solution, a failing `live`
+  shows the move that ruined it, a violated law shows the situation and
+  the way in (§15).
+
+**What it costs:** no arithmetic, no unbounded structures, no
+quantification over infinitely many cases, no "for every *n*". A domain
+with genuine numeric content must be abstracted to the finitely many
+distinctions its questions turn on; where no such abstraction is honest,
+Pol is the wrong tool (Appendix G). The bet is that rule-governed
+worlds — statutes, architectures, protocols, procedures — are made of
+distinctions rather than of computation.
+
+*(This is idea 3 of §1. Appendix E names the language you get by
+dropping it: unbounded domains with bounded checking or sampling, and
+"no counterexample found" in place of "impossible".)*
+
+### 2.5 The notation is s-expressions
+
+Everything in Pol is one shape: a parenthesised list whose head is a
+word. There is no expression sub-language, no operator table, no
+precedence, no order of evaluation; the collected grammar is Appendix A,
+and it is a page. The one exception is `=>`, which sits *inside* a
+`form` datum rather than heading it (§11.1) — the language's only infix
+token, kept because a form's pattern and its template are both lists and
+nothing else would tell them apart to a reader.
+
+**The object being written down is a finitely presented category —
+generators and relations** (Appendix I.1): labelled nodes, each with a
+head naming its kind and a body naming its parts, plus containment where
+one thing belongs to another. That is what a datum is. `(arrow
+independence (to indep-status))` inside `(type bureau …)` does not
+*encode* ownership; the nesting **is** the ownership — so there is
+nothing to translate, and nowhere to drift.
+
+Which is why:
+
+- **The kernel can stay at twenty-seven words.** A new vocabulary is new
+  *heads*, not new grammar — so an entire domain language (ordering,
+  quantifier duals, constitutional verbs) is a library of forms (§11),
+  and Part II does not change to admit it. With a bespoke grammar per
+  construct, "vocabulary grows; meaning does not" (idea 7) would be an
+  aspiration; on a uniform tree surface it is mechanical.
+- **The extension mechanism can be weaker than a macro system, and is
+  therefore safe.** `form` renames and pastes; it cannot compute
+  (§11.1). A rewrite that weak is only *definable* over a uniform tree
+  surface, and its weakness is what keeps every error pointing at a line
+  the author wrote, with the expansion shown. Pol takes Lisp's surface
+  and refuses Lisp's power — Appendix E names computing macros as the
+  neighbour this declines.
+- **A model can be data for another model.** `pol control` emits the
+  move list as an instance of the standard library's `quiver` schema;
+  `pol schema` emits a model's map as an instance of the `olog` schema
+  (§17). These are not serialisers to be kept in step with the language:
+  they are the language describing itself, because presentation and data
+  already share one syntax.
+- **Authorship time stays outside the language.** A line-oriented,
+  parenthesis-delimited file diffs meaningfully, which is what lets
+  `pol compare --git` be a thin tool over an ordinary revision pair
+  (idea 5, §17) instead of a history feature built into the notation.
+
+**How do we know the fit is good?** Checkably, rather than by taste:
+
+- *A primitive left the kernel and the grammar did not notice.* `=` was
+  a kernel word until §8.6 let a law hold a guard; it became a
+  standard-library form, and not a line of Appendix A changed.
+- *There is no shadow syntax.* No construct needed an operator, a
+  precedence rule, or a second parser — including guards, which are
+  exactly where a separate expression grammar appears in most
+  specification languages.
+- *It states its own structure.* The `olog` and `quiver` exports above
+  are ordinary instances read by the ordinary grammar; a notation unable
+  to describe its own shape would need a second format.
+- *One text, two readings, agreeing.* Every scenario in the worked-models
+  suite states its properties twice — once as claims read in branching
+  time, once relationally as rules — and a cross-check runs both
+  instruments over all of them.
+
+The cost is familiarity: a reader new to parenthesised notation sees the
+parentheses before the sentences. Against that, there is nothing else to
+learn — no precedence, no grammar beyond Appendix A — and the form layer
+lets a domain read in its own words: `(ferry goat left right)` is one
+sentence, and expands to a transition without author or reader meeting
+the machinery.
 
 ## 3. Three scenarios
 
