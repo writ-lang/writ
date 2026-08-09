@@ -219,5 +219,6 @@ let parse_model (datums : Reader.t list) : (Model.t, Errors.t) result =
         "the initial instance is of a different schema than (use …)"
   in
   let env = env_of_instance initial in
+  let* () = Decl_checks.check_equations_in schema env in
   let* transitions = map_r (decode_transition schema env) trs in
   Ok { Model.schema; initial; transitions }

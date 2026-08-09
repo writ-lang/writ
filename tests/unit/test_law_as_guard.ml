@@ -165,6 +165,87 @@ let () =
      (use office) (initial i)"
     ~sub:"is not a declared type"
 
+(* --- §10.2: "A literal must lie in the chain's target domain" ------------- *)
+
+(* The rule was stated and never enforced for [is] — only [set] checked its
+   literal. An out-of-domain literal therefore read as a guard that is FALSE
+   everywhere: a move that silently never fires, and a law reported as violated
+   in every situation with no witness. That is the failure mode [check_is]'s own
+   comment calls "the worst of both" for a mistyped chain; the literal side had
+   it too. *)
+let () =
+  rejects "a guard's literal must be an element of the arrow's codomain"
+    (office "(transition t (when (is c.stage ajar)) (do (set c.stage closed)))")
+    ~sub:"not in codomain";
+  rejects "a guard's literal must be an entity of an open codomain"
+    (office
+       "(transition t (when (is c.approver nobody)) (do (set c.stage closed)))")
+    ~sub:"not in codomain";
+  accepts "a legal entity literal still reads as it did"
+    (office
+       "(transition t (when (is c.approver ann)) (do (set c.stage closed)))")
+
+(* The same rule inside a law, which has no instance to consult: an enumerated
+   codomain is knowable from the schema alone, so a typo there is an error at
+   the equation. *)
+let () =
+  rejects "a law's literal must be an element of the arrow's codomain"
+    "(schema office\n\
+    \   (type stage-t (open closed))\n\
+    \   (type case (arrow stage (to stage-t)))\n\
+    \   (equation bogus (is case.stage ajar)))\n\
+     (instance i office (case c (stage open)) )\n\
+     (use office) (initial i)"
+    ~sub:"not in codomain";
+  (* An OPEN codomain's members are the instance's, which a schema does not
+     know (§8.2), so an entity literal must still be accepted here. *)
+  accepts "a law may name an entity of an open codomain"
+    "(schema office\n\
+    \   (type person)\n\
+    \   (type case (arrow approver (to person)))\n\
+    \   (equation only-ann (is case.approver ann)))\n\
+     (instance i office (person ann) (case c (approver ann)) )\n\
+     (use office) (initial i)"
+
+(* Two literals that are provably not values, whatever the roster holds, and
+   both are the traps §10.2's lexical rule sets: a name with no dot reads as a
+   literal, so a TYPE name written to mean "the subject" and a `some` binder
+   written to mean "that entity" each became a literal matching nothing.
+   §7 puts types and entities in one namespace, so neither can ever be a
+   value — which is what makes these decidable without an instance. *)
+let () =
+  rejects "a type name on the right of `is` is not a value"
+    "(schema office\n\
+    \   (type person (arrow spouse (to person)))\n\
+    \   (equation involution (is person.spouse.spouse person)))\n\
+     (instance i office (person ann (spouse bob)) (person bob (spouse ann)) )\n\
+     (use office) (initial i)"
+    ~sub:"names a type";
+  rejects "a `some` binder on the right of `is` is not comparable"
+    "(schema office\n\
+    \   (type person)\n\
+    \   (type case (arrow approver (to person)))\n\
+    \   (equation binder (some (p person) (is case.approver p))))\n\
+     (instance i office (person ann) (case c (approver ann)) )\n\
+     (use office) (initial i)"
+    ~sub:"is not comparable";
+  (* The last hole: an OPEN codomain and a literal that is neither a type nor a
+     binder — just a misspelt entity. Undecidable at the schema, decided at the
+     model, where the roster is finally in hand. *)
+  rejects "a law may not name an entity nobody rosters"
+    "(schema office\n\
+    \   (type person)\n\
+    \   (type case (arrow approver (to person)))\n\
+    \   (equation only-ann (is case.approver anne)))\n\
+     (instance i office (person ann) (case c (approver ann)) )\n\
+     (use office) (initial i)"
+    ~sub:"law `only-ann`";
+  rejects "a `some` binder is not comparable in a transition guard either"
+    (office
+       "(transition t (when (some (p person) (is c.approver p))) (do (set \
+        c.stage closed)))")
+    ~sub:"is not comparable"
+
 (* `=` is no longer a kernel word, so it must no longer be reserved against
    form names — otherwise the stdlib form that replaces it cannot be declared. *)
 let () =

@@ -918,8 +918,11 @@ filling is the start, are irreducible acts of naming.
 if the atom contains a dot and a **literal** otherwise, decided lexically
 (§5.2 splits a dotted atom already) — so a literal element or entity name,
 having no dot, reads as it always did, and a bare `some`-binder is not
-comparable. A literal must lie in the chain's target domain; two chains
-must land in one type. `is` is **strict on both sides**: no answer on
+comparable: it is **rejected**, not read as a literal nothing answers to.
+A literal must lie in the chain's target domain — an element of an
+enumerated one, an entity of an open one — and a type name is never
+either, since §7 gives types and entities one namespace. Two chains must
+land in one type. `is` is **strict on both sides**: no answer on
 either makes it false, never vacuously true — that reading is `=`'s
 (§8.6), and the two are deliberately distinct.
 

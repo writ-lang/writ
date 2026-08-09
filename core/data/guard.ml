@@ -18,7 +18,13 @@
    - a bare [some]-binder on the right stays uncomparable, since it has no dot
      either. That is the price of deciding lexically instead of inventing a
      sigil, and it is the cheap half of the trade: the chains that motivate
-     comparison at all — [c.approver] against [c.preparer] — are dotted. *)
+     comparison at all — [c.approver] against [c.preparer] — are dotted.
+
+   Uncomparable is not the same as unsaid: [Grammar.lit_fault] REFUSES a binder
+   written here, as it refuses any literal outside the chain's target domain.
+   The rule was §10.2's from the start and went unenforced for [is], so a wrong
+   literal was a guard false everywhere — a move that never fires and a law
+   violated in every situation, neither of them diagnosed. *)
 type rhs = Lit of string | Chain of Value.path
 
 type t =

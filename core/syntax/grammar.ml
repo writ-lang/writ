@@ -126,6 +126,51 @@ let effect (d : Reader.t) : (Model.effect, Errors.t) result =
 
 type env = (string * string) list
 
+(* §10.2: "A literal must lie in the chain's target domain." The rule was
+   written down and enforced for [set] only, so [is] took any atom at all and a
+   wrong one became a guard FALSE in every situation — a move that silently
+   never fires, and a law reported violated everywhere with no witness. That is
+   exactly what [check_is] below calls "the worst of both" for a mistyped chain;
+   the literal side had it too, and this is the one place both now ask.
+
+   [roster] is [None] where the caller has no instance to consult: a law is
+   checked against the schema alone (§8.6 puts equations in the schema, and a
+   schema may be used with several instances), and a claims query carries only
+   its own binders. An OPEN type's members are the instance's (§8.2), so with no
+   roster the membership question is unanswerable — but two answers are still
+   knowable, and they are the two traps the lexical rule sets. §7 gives types and
+   entities ONE namespace, so a type name is provably not an entity; and a
+   [some] binder is not comparable at all, having no dot either — the documented
+   cost of deciding lexically (§10.2's design note), which was silence until now.
+
+   The domain question is asked FIRST, so a legal value is never rejected for
+   sharing a spelling with something else. *)
+let lit_fault (s : Schema.t) ~(roster : env option) ~(binders : string list)
+    (cod : string) (v : string) : string option =
+  let fault () =
+    Some
+      (if List.mem v binders then
+         "`" ^ v
+         ^ "` is a `some` binder, and a bare binder is not comparable — §10.2 \
+            reads an atom with no dot as a literal, so this asks for an entity \
+            of that name"
+       else if Schema.type_of s v <> None then
+         "`" ^ v
+         ^ "` names a type, not a value — §7 gives types and entities one \
+            namespace, so nothing in a roster can be called this"
+       else "value " ^ v ^ " not in codomain " ^ cod)
+  in
+  match Schema.type_of s cod with
+  | Some { flavor = Enumerated _; _ } ->
+      if List.mem v (Schema.elements_of s cod) then None else fault ()
+  | Some { flavor = Open; _ } -> (
+      match roster with
+      | Some r -> if List.assoc_opt v r = Some cod then None else fault ()
+      | None ->
+          if List.mem v binders || Schema.type_of s v <> None then fault ()
+          else None)
+  | None -> None
+
 (* A checked path, and the type it lands in — the last arrow's cod, or the
    root's own type where the chain has no steps. Comparing two chains needs the
    landing type, which [check_path_at] used to discard. *)
@@ -146,19 +191,26 @@ let check_path_at (s : Schema.t) (env : env) (d : Reader.t) :
     (unit, Errors.t) result =
   Result.map (fun _ -> ()) (check_path_cod s env d)
 
-let rec check_guard (s : Schema.t) (env : env) (d : Reader.t) :
+(* [env] types every root a path may start from — roster entities and
+   [some]-bound variables alike, since [Schema.check_path] cannot tell them
+   apart and does not need to. [roster] and [binders] keep the two sorts
+   separable for [lit_fault], which does: an entity is a value, a binder never
+   is. *)
+let rec check_guard_in (s : Schema.t) ~(roster : env option)
+    ~(binders : string list) (env : env) (d : Reader.t) :
     (unit, Errors.t) result =
+  let recur = check_guard_in s ~roster ~binders in
   match d with
   | Reader.List (Reader.Atom (k, _) :: args, _) -> (
       match (k, args) with
-      | "and", gs | "or", gs -> check_each s env gs
-      | "not", [ g ] -> check_guard s env g
-      | "is", [ pd; vd ] -> check_is s env pd vd
+      | "and", gs | "or", gs -> check_each s ~roster ~binders env gs
+      | "not", [ g ] -> recur env g
+      | "is", [ pd; vd ] -> check_is s ~roster ~binders env pd vd
       | "is", pd :: _ -> check_path_at s env pd
       | "defined", [ pd ] -> check_path_at s env pd
       | "some", [ binder; body ] ->
           let* x, ty = binder_of binder in
-          check_guard s ((x, ty) :: env) body
+          check_guard_in s ~roster ~binders:(x :: binders) ((x, ty) :: env) body
       | _ -> Ok ())
   | _ -> Ok ()
 
@@ -166,9 +218,10 @@ let rec check_guard (s : Schema.t) (env : env) (d : Reader.t) :
    cells of one type — the chain analogue of §10.2's "V in the chain's target
    domain". Without this a mistyped comparison is not an error but a guard that
    is simply never true, which is the worst of both: no diagnostic, and a move
-   that silently never fires. A literal right side is left to [check_set]'s
-   sibling rules as before. *)
-and check_is s env pd vd =
+   that silently never fires. A literal right side asks [lit_fault], which is
+   the same rule [check_set] asks — the two used to differ only in that one of
+   them asked. *)
+and check_is s ~roster ~binders env pd vd =
   let* lcod = check_path_cod s env pd in
   match vd with
   | Reader.Atom (v, _) when String.contains v '.' ->
@@ -178,13 +231,30 @@ and check_is s env pd vd =
         Reader.err_at vd
           ("this chain lands in `" ^ rcod ^ "`, but the left one lands in `"
          ^ lcod ^ "` — comparing two chains needs a single target type")
-  | _ -> Ok ()
+  | _ -> (
+      let* v = target vd in
+      match lit_fault s ~roster ~binders lcod v with
+      | None -> Ok ()
+      | Some msg -> Reader.err_at vd msg)
 
-and check_each s env = function
+and check_each s ~roster ~binders env = function
   | [] -> Ok ()
   | g :: rest ->
-      let* () = check_guard s env g in
-      check_each s env rest
+      let* () = check_guard_in s ~roster ~binders env g in
+      check_each s ~roster ~binders env rest
+
+(* The two callers, and the difference between them is the roster. A model's
+   guard is checked against the initial instance's entities (§9.2); a claims
+   query has only its own [(where …)] binders, so an entity literal there stays
+   unjudged rather than wrongly rejected — claims resolve to `n/a` on an unknown
+   name by design (§16). *)
+let check_guard (s : Schema.t) (env : env) (d : Reader.t) :
+    (unit, Errors.t) result =
+  check_guard_in s ~roster:(Some env) ~binders:[] env d
+
+let check_query_guard (s : Schema.t) (binders : env) (d : Reader.t) :
+    (unit, Errors.t) result =
+  check_guard_in s ~roster:None ~binders:(List.map fst binders) binders d
 
 (* The arrow an effect writes to: the last of the path's arrows, with the path's
    own [line:col] to blame. [None] for a rootless path (no steps, so nothing is
@@ -245,17 +315,13 @@ let check_set (s : Schema.t) (env : env) (pd : Reader.t) (vd : Reader.t) :
             Reader.err_at vd
               ("this chain lands in `" ^ rcod ^ "`, but `" ^ last.Schema.name
              ^ "` takes `" ^ cod ^ "`")
-      | _ ->
+      | _ -> (
           let* v = target vd in
-          let ok =
-            match Schema.type_of s cod with
-            | Some { flavor = Enumerated _; _ } ->
-                List.mem v (Schema.elements_of s cod)
-            | Some { flavor = Open; _ } -> List.assoc_opt v env = Some cod
-            | None -> true
-          in
-          if ok then Ok ()
-          else Reader.err_at vd ("value " ^ v ^ " not in codomain " ^ cod))
+          (* No binders: a [some] binds inside the `when`, never across into the
+             `do`, so nothing here can be one. *)
+          match lit_fault s ~roster:(Some env) ~binders:[] cod v with
+          | None -> Ok ()
+          | Some msg -> Reader.err_at vd msg))
 
 (* §9.3 makes emptiness the privilege of a [vacatable] arrow, and
    [State.build_ctx] enforces it on an *instance*: an unset, non-vacatable cell

@@ -66,7 +66,7 @@ let decode_query (schema : Schema.t) (d : Reader.t) :
       | Reader.List (Reader.Atom ("where", _) :: binders, _) ->
           let* binders = map_r binder_of binders in
           let* guard = Grammar.guard g in
-          let* () = Grammar.check_guard schema binders g in
+          let* () = Grammar.check_query_guard schema binders g in
           Ok { Claims.name; binders; guard }
       | _ -> Reader.err_at where "a query needs a (where (VAR TYPE)…)")
   | _ -> Reader.err_at d "malformed query"
