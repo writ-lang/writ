@@ -57,12 +57,8 @@ let office body =
   \     (arrow preparer (to person) fixed)\n\
   \     (arrow stage (to stage-t))\n\
   \     (arrow approver (to person))))\n\
-   (instance i (of office)\n\
-  \   (person ann bob)\n\
-  \   (case c)\n\
-  \   (preparer (c ann))\n\
-  \   (stage (c open))\n\
-  \   (approver (c bob)))\n\
+   (instance i office  (person ann bob)  (case c (preparer ann) (stage open) \
+   (approver bob))    )\n\
    (use office)\n\
    (initial i)\n" ^ body
 
@@ -98,11 +94,8 @@ let () =
     \   (type case\n\
     \     (arrow preparer (to person) fixed)\n\
     \     (arrow approver (to person) vacatable)))\n\
-     (instance i (of office)\n\
-    \   (person ann)\n\
-    \   (case c)\n\
-    \   (preparer (c ann))\n\
-    \   (approver (c vacant)))\n\
+     (instance i office  (person ann)  (case c (preparer ann) (approver \
+     vacant))   )\n\
      (use office)\n\
      (initial i)\n\
      (transition t (when (is c.approver c.preparer)) (do (set c.approver ann)))"
@@ -124,20 +117,20 @@ let () =
    the breakage be acknowledged. *)
 let () =
   accepts "a law may be any guard, including a difference"
-    "(form (differ A B) => (not (is A B)))\n\
+    "(form (differ A B) (not (is A B)))\n\
      (schema office\n\
     \   (type person)\n\
     \   (type case\n\
     \     (arrow preparer (to person) fixed)\n\
     \     (arrow approver (to person)))\n\
     \   (equation sod (differ case.approver case.preparer)))\n\
-     (instance i (of office)\n\
-    \   (person ann bob) (case c) (preparer (c ann)) (approver (c bob)))\n\
+     (instance i office  (person ann bob) (case c (preparer ann) (approver \
+     bob)) )\n\
      (use office) (initial i)";
   (* The stdlib spelling of the kernel word that left: Kleene equality out of
      strict primitives. The spec's own §4 law, unchanged, must still decode. *)
   accepts "`=` as a form still reads the spec's own law"
-    "(form (= A B) => (not (and (defined A) (defined B) (not (is A B)))))\n\
+    "(form (= A B) (not (and (defined A) (defined B) (not (is A B)))))\n\
      (schema oversight\n\
     \   (type indep-status (independent captured))\n\
     \   (type bureau (arrow independence (to indep-status)))\n\
@@ -146,10 +139,9 @@ let () =
     \     (arrow prosecutor (to bureau) fixed))\n\
     \   (equation same-agency\n\
     \     (= case.investigator.independence case.prosecutor.independence)))\n\
-     (instance day-one (of oversight)\n\
-    \   (bureau watchdog prosecutions) (case docket)\n\
-    \   (investigator (docket watchdog)) (prosecutor (docket prosecutions))\n\
-    \   (independence (watchdog independent) (prosecutions independent)))\n\
+     (instance day-one oversight  (bureau watchdog (independence independent)) \
+     (bureau prosecutions (independence independent)) (case docket \
+     (investigator watchdog) (prosecutor prosecutions))   )\n\
      (use oversight) (initial day-one)"
 
 (* §8.6 gives a law one subject. Two free roots and there is no single type for
@@ -161,8 +153,7 @@ let () =
     \   (type person (arrow boss (to person) fixed))\n\
     \   (type case (arrow approver (to person)))\n\
     \   (equation confused (is case.approver person.boss)))\n\
-     (instance i (of office) (person ann) (case c) (boss (ann ann)) (approver \
-     (c ann)))\n\
+     (instance i office (person ann (boss ann)) (case c (approver ann)) )\n\
      (use office) (initial i)"
     ~sub:"ranges over two types";
   rejects "a law's subject must be a declared type"
@@ -170,7 +161,7 @@ let () =
     \   (type person)\n\
     \   (type case (arrow approver (to person)))\n\
     \   (equation nosuch (defined nothere.approver)))\n\
-     (instance i (of office) (person ann) (case c) (approver (c ann)))\n\
+     (instance i office (person ann) (case c (approver ann)) )\n\
      (use office) (initial i)"
     ~sub:"is not a declared type"
 

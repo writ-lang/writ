@@ -285,7 +285,7 @@ let () =
   (* declarations a loaded library brought in are skipped, not rejected *)
   let t =
     ok "library declarations"
-      "(schema s (type t (a b)))\n(instance i (of s))\n(relation p 1)"
+      "(schema s (type t (a b)))\n(instance i s)\n(relation p 1)"
   in
   check "parse: schema/instance declarations are skipped"
     (List.length t.Rules_parser.relations = 1 && t.Rules_parser.rules = []);

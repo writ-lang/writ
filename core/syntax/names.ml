@@ -56,14 +56,18 @@ let roster_entities (clauses : Reader.t list) : (string * Errors.pos) list =
   List.concat_map
     (function
       | Reader.List (Reader.Atom ("of", _) :: _, _) -> []
-      | Reader.List (Reader.Atom (_, _) :: args, _)
-        when args <> []
-             && List.for_all
-                  (function Reader.Atom _ -> true | _ -> false)
-                  args ->
-          List.filter_map
-            (function Reader.Atom (e, p) -> Some (e, p) | _ -> None)
-            args
+      | Reader.List (Reader.Atom (_, _) :: args, _) when args <> [] ->
+          (* An entity-major clause is (TYPE ENTITY… SLOT…): the LEADING RUN of
+             atoms are the entities, and the lists after them are slots, not
+             names. Demanding every arg be an atom — as this did while the only
+             shape was a bare roster — silently skipped any clause carrying a
+             slot, so its entities went unregistered and a binder could shadow
+             one undetected. *)
+          let rec leading acc = function
+            | Reader.Atom (e, p) :: rest -> leading ((e, p) :: acc) rest
+            | _ -> List.rev acc
+          in
+          leading [] args
       | _ -> [])
     clauses
 

@@ -43,9 +43,7 @@ let model_src =
   "(schema tiny\n\
   \  (type flag (lo hi))\n\
   \  (type box (arrow f (to flag))))\n\
-   (instance i (of tiny)\n\
-  \  (box b)\n\
-  \  (f (b lo)))\n\
+   (instance i tiny  (box b (f lo))  )\n\
    (use tiny)\n\
    (initial i)\n\
    (transition raise (when (is b.f lo)) (do (set b.f hi)))\n"
@@ -64,7 +62,7 @@ let claims_bad = "(query oops (where (x box)) (is x.ghost hi))\n"
 
 (* A library: declarations only, NO (use)/(initial)/transition. *)
 let library_src =
-  "(form (all (X T) G) => (not (some (X T) (not G))))\n\
+  "(form (all (X T) G) (not (some (X T) (not G))))\n\
    (schema quiver (type node))\n"
 
 (* A library with a fault of its own, on one long line: the [(equation …)] sits
@@ -244,7 +242,7 @@ let () =
   let src =
     "(load \"flaw.pol\")\n\
      (schema mine (type w (c d)))\n\
-     (instance i (of mine))\n\
+     (instance i mine)\n\
      (use mine)\n\
      (initial i)\n"
   in

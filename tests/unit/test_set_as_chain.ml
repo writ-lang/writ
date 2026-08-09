@@ -61,7 +61,7 @@ let space_of src =
    {a=q, b=q}, because the second [set] would see what the first wrote. *)
 let swap_src =
   "(schema s (type v (p q)) (type box (arrow x (to v))))\n\
-   (instance i (of s) (box a b) (v z) (x (a p) (b q)))\n\
+   (instance i s (box a (x p)) (box b (x q)) (v z) )\n\
    (use s)\n\
    (initial i)\n\
    (transition swap (when (is a.x p)) (do (set a.x b.x) (set b.x a.x)))\n"
@@ -99,8 +99,8 @@ let cursor_src order =
   "(schema s (type v (p q))\n\
   \          (type box (arrow x (to v)) (arrow nxt (to box) fixed))\n\
   \          (type cur-t (arrow b (to box))))\n\
-   (instance i (of s) (box b1 b2) (cur-t c) (v z)\n\
-  \  (x (b1 p) (b2 p)) (nxt (b1 b2) (b2 b1)) (b (c b1)))\n\
+   (instance i s (box b1 (x p) (nxt b2)) (box b2 (x p) (nxt b1)) (cur-t c (b \
+   b1)) (v z)  )\n\
    (use s)\n\
    (initial i)\n\
    (transition go (when (is c.b.x p)) (do " ^ order ^ "))\n"
@@ -132,8 +132,8 @@ let () =
 let ladder_src =
   "(schema s (type rung (arrow next (to rung) fixed vacatable))\n\
   \          (type walker (arrow at (to rung))))\n\
-   (instance i (of s) (rung r1 r2 r3 r4) (walker w)\n\
-  \  (next (r1 r2) (r2 r3) (r3 r4) (r4 vacant)) (at (w r1)))\n\
+   (instance i s (rung r1 (next r2)) (rung r2 (next r3)) (rung r3 (next r4)) \
+   (rung r4 (next vacant)) (walker w (at r1))  )\n\
    (use s)\n\
    (initial i)\n\
    (transition step (when (is w.at w.at)) (do (set w.at w.at.next)))\n"
@@ -169,7 +169,7 @@ let () =
   let src =
     "(schema s (type v (p q)) (type w (m n))\n\
     \          (type box (arrow x (to v)) (arrow y (to w))))\n\
-     (instance i (of s) (box a) (v z) (w u) (x (a p)) (y (a m)))\n\
+     (instance i s (box a (x p) (y m)) (v z) (w u) )\n\
      (use s)\n\
      (initial i)\n\
      (transition t (when (is a.x p)) (do (set a.x a.y)))\n"
@@ -185,7 +185,7 @@ let () =
 let () =
   let src =
     "(schema s (type v (p q)) (type box (arrow x (to v))))\n\
-     (instance i (of s) (box a) (v z) (x (a p)))\n\
+     (instance i s (box a (x p)) (v z) )\n\
      (use s)\n\
      (initial i)\n\
      (transition t (when (is a.x p)) (do (set a.x zzz)))\n"

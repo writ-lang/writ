@@ -166,7 +166,7 @@ let () =
 let () =
   List.iter
     (fun w ->
-      let src = "(form (" ^ w ^ " X) => (type X))" in
+      let src = "(form (" ^ w ^ " X) (type X))" in
       match Reader.read_string src with
       | Ok [ d ] -> (
           match Forms.collect d ~earlier:[] with
@@ -200,7 +200,7 @@ let () =
   let src =
     "(load \"stdlib.pol\")\n\
      (schema m (type hom (a b)))\n\
-     (instance i (of m))\n\
+     (instance i m)\n\
      (use m)\n\
      (initial i)"
   in

@@ -124,7 +124,7 @@ let () =
       [
         "(load \"lib.pol\")";
         "(schema mine (type w (c d)))";
-        "(instance i (of mine))";
+        "(instance i mine)";
         "(use mine)";
         "(initial i)";
       ]
@@ -162,7 +162,7 @@ let () =
       [
         "(schema mine (type v (a b)) (type box (arrow f (to v)) (equation e (= \
          box.f box.f))))";
-        "(instance i (of mine))";
+        "(instance i mine)";
         "(use mine)";
         "(initial i)";
       ]

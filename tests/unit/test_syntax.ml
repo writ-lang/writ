@@ -48,15 +48,13 @@ let () =
 (* --- Forms.collect: hygiene -------------------------------------------------- *)
 
 let () =
-  (match
-     Forms.collect (read_one "(form spiral => (and spiral))") ~earlier:[]
-   with
+  (match Forms.collect (read_one "(form spiral (and spiral))") ~earlier:[] with
   | Ok _ -> check "collect: a self-referencing template must be rejected" false
   | Error e ->
       check "collect: self-reference is positioned" (e.Errors.pos <> None);
       check "collect: self-reference says `recurs`"
         (contains_sub ~sub:"recurs" e.Errors.msg));
-  match Forms.collect (read_one "(form a => (b))") ~earlier:[] with
+  match Forms.collect (read_one "(form a (b))") ~earlier:[] with
   | Ok _ -> check "collect: a forward reference must be rejected" false
   | Error e ->
       check "collect: forward reference is positioned" (e.Errors.pos <> None);
@@ -66,17 +64,13 @@ let () =
 let () =
   let base =
     match
-      Forms.collect
-        (read_one "(form base => (is docket.stage open))")
-        ~earlier:[]
+      Forms.collect (read_one "(form base (is docket.stage open))") ~earlier:[]
     with
     | Ok fd -> fd
     | Error e -> failwith ("base form rejected: " ^ Errors.to_string e)
   in
   (match
-     Forms.collect
-       (read_one "(form (wrap G) => (or (base) G))")
-       ~earlier:[ base ]
+     Forms.collect (read_one "(form (wrap G) (or (base) G))") ~earlier:[ base ]
    with
   | Ok fd ->
       check "collect: an earlier-form template is accepted"
@@ -86,7 +80,7 @@ let () =
         ("collect: earlier form wrongly rejected: " ^ Errors.to_string e)
         false);
   match
-    Forms.collect (read_one "(form (wrap G) => (or (base) G))") ~earlier:[]
+    Forms.collect (read_one "(form (wrap G) (or (base) G))") ~earlier:[]
   with
   | Ok _ -> check "collect: a not-yet-declared head must be rejected" false
   | Error e ->
@@ -97,9 +91,8 @@ let () =
 
 let () =
   let src =
-    "(form (toggle P A B)\n\
-    \   => (transition (when (is P A)) (do (set P B)))\n\
-    \      (transition (when (is P B)) (do (set P A))))\n\
+    "(form (toggle P A B)  (transition (when (is P A)) (do (set P B)))  \
+     (transition (when (is P B)) (do (set P A))))\n\
      (toggle light.state on off)"
   in
   match Expander.expand (read_all src) with
@@ -118,8 +111,7 @@ let () =
 
 let () =
   match
-    Expander.expand
-      (read_all "(form ready => (is docket.stage open)) (and ready)")
+    Expander.expand (read_all "(form ready (is docket.stage open)) (and ready)")
   with
   | Ok [ d ] ->
       check "expand: a nullary form expands in expression position"
@@ -131,7 +123,7 @@ let () =
   match
     Expander.expand
       (read_all
-         "(form (does &rest ES) => (do @ES)) (does (set p.a x) (vacate q.b))")
+         "(form (does &rest ES) (do @ES)) (does (set p.a x) (vacate q.b))")
   with
   | Ok [ d ] ->
       check "expand: @SLOT splices the &rest binding"
@@ -147,9 +139,8 @@ let () =
 
 let () =
   let src =
-    "(form (accountability C)\n\
-    \   => (property accountability \"reachable\" (live (is C.stage \
-     concluded))))\n\
+    "(form (accountability C)  (property accountability \"reachable\" (live \
+     (is C.stage concluded))))\n\
      (accountability docket)"
   in
   match Expander.expand (read_all src) with
@@ -165,9 +156,7 @@ let () =
         false
 
 let () =
-  match
-    Forms.collect (read_one "(form spiral => (and spiral))") ~earlier:[]
-  with
+  match Forms.collect (read_one "(form spiral (and spiral))") ~earlier:[] with
   | Ok _ -> check "collect: nullary self-reference must still be rejected" false
   | Error e ->
       check "collect: nullary self-reference still says `recurs`"
@@ -182,12 +171,8 @@ let model_src =
   \   (type bureau (arrow independence (to indep-status)))\n\
   \   (type case (arrow stage (to stage-t)) (arrow judge (to bureau) \
    vacatable)))\n\
-   (instance day-one (of oversight)\n\
-  \   (bureau watchdog)\n\
-  \   (case docket)\n\
-  \   (independence (watchdog independent))\n\
-  \   (stage (docket open))\n\
-  \   (judge (docket vacant)))\n\
+   (instance day-one oversight  (bureau watchdog (independence independent))  \
+   (case docket (stage open) (judge vacant))    )\n\
    (use oversight)\n\
    (initial day-one)\n\
    (transition capture\n\
@@ -240,7 +225,7 @@ let () =
 let () =
   let bad =
     "(schema s (type v (a b)) (type e (arrow x (to v))))\n\
-     (instance i (of s) (e n1) (x (n1 a)))\n\
+     (instance i s (e n1 (x a)) )\n\
      (use s) (initial i)\n\
      (transition t (when (is n1.nope a)) (do))"
   in
@@ -257,7 +242,7 @@ let () =
 let () =
   let bad =
     "(schema s (type flag (lo hi)) (type box (arrow f (to flag))))\n\
-     (instance i (of s) (box b) (f (b lo)))\n\
+     (instance i s (box b (f lo)) )\n\
      (use s) (initial i)\n\
      (transition t (when (is b.f lo)) (do (set b.f pending)))"
   in

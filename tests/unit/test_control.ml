@@ -146,7 +146,7 @@ let parses src =
 let () =
   let src names =
     "(schema tg (type pos-t (down up)) (type sw (arrow pos (to pos-t))))\n\
-     (instance i (of tg) (sw s) (pos (s down)))\n\
+     (instance i tg (sw s (pos down)) )\n\
      (use tg) (initial i)\n"
     ^ String.concat "\n"
         (List.map

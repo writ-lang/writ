@@ -8,7 +8,7 @@
    That asymmetry is invisible until someone tries to sugar the inside of a
    declaration. The proposal was [(arrow held-by *(to job))] — some marker
    meaning "vacatable" — and its form-shaped version is
-   [(form (opt T) => (to T) vacatable)], a two-datum template invoked inside a
+   [(form (opt T) (to T) vacatable)], a two-datum template invoked inside a
    [(type …)]. It is refused, and no form can be written that is not. Sugaring
    the inside would have to be a READER change, so stdlib §8 wraps the WHOLE
    datum instead: [(maybe A T)] is one datum in, one datum out.
@@ -47,7 +47,7 @@ let contains_sub ~sub s =
    is where a modeller would meet it. *)
 let () =
   let src =
-    "(form (opt T) => (to T) vacatable)\n\
+    "(form (opt T) (to T) vacatable)\n\
      (schema shop (type job (j1 j2)) (type machine (arrow held-by (opt job))))"
   in
   match Expander.expand (read_all src) with
@@ -63,13 +63,13 @@ let () =
    about position, not about two-datum templates as such. *)
 let () =
   let src =
-    "(form (pair A B) => (schema A (type t)) (instance B (of A)))\n(pair s i)"
+    "(form (pair A B) (schema A (type t)) (instance B A))\n(pair s i)"
   in
   match Expander.expand (read_all src) with
   | Ok [ a; b ] ->
       check "the same shape splices at top level"
         (Reader.to_string a = "(schema s (type t))"
-        && Reader.to_string b = "(instance i (of s))")
+        && Reader.to_string b = "(instance i s)")
   | Ok ds ->
       check
         ("top-level splice produced "

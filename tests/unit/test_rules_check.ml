@@ -41,9 +41,9 @@ let org =
   model_of
     "(schema org (type stance (quiet vocal)) (type person (arrow reports-to \
      (to person) fixed) (arrow stands (to stance))))\n\
-     (instance chart (of org) (person nabu mid cabinet) (reports-to (nabu mid) \
-     (mid cabinet) (cabinet vacant)) (stands (nabu quiet) (mid quiet) (cabinet \
-     quiet)))\n\
+     (instance chart org (person nabu (reports-to mid) (stands quiet)) (person \
+     mid (reports-to cabinet) (stands quiet)) (person cabinet (reports-to \
+     vacant) (stands quiet)) )\n\
      (use org) (initial chart)\n\
      (transition speak (when (is nabu.stands quiet)) (do (set nabu.stands \
      vocal)))"
@@ -54,7 +54,7 @@ let acc =
   model_of
     "(schema acc (type role-t (admin user)) (type account (arrow role (to \
      role-t))))\n\
-     (instance camp (of acc) (account a1 a2) (role (a1 user) (a2 user)))\n\
+     (instance camp acc (account a1 (role user)) (account a2 (role user)) )\n\
      (use acc) (initial camp)\n\
      (transition promote (when (is a1.role user)) (do (set a1.role admin)))"
 

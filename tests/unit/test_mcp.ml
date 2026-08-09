@@ -45,9 +45,7 @@ let model_src =
   "(schema tiny\n\
   \  (type flag (lo hi))\n\
   \  (type box (arrow f (to flag))))\n\
-   (instance i (of tiny)\n\
-  \  (box b)\n\
-  \  (f (b lo)))\n\
+   (instance i tiny  (box b (f lo))  )\n\
    (use tiny)\n\
    (initial i)\n\
    (transition raise (when (is b.f lo)) (do (set b.f hi)))\n"

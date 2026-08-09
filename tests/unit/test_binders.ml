@@ -51,7 +51,7 @@ let rejects_at name src ~line ~col ~sub =
 let () =
   rejects_at "a binder may not shadow an entity"
     "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
-     (instance i (of m) (box lo) (f (lo a)))\n\
+     (instance i m (box lo (f a)) )\n\
      (transition t (when (some (lo box) (is lo.f a))) (do (set lo.f b)))\n\
      (use m) (initial i)"
     ~line:3 ~col:28 ~sub:"binder `lo`";
@@ -59,7 +59,7 @@ let () =
     (Result.is_ok
        (decodes
           "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
-           (instance i (of m) (box p q) (f (p a) (q a)))\n\
+           (instance i m (box p (f a)) (box q (f a)) )\n\
            (transition s (when (some (x box) (is x.f a))) (do (set p.f b)))\n\
            (transition t (when (some (x box) (is x.f b))) (do (set q.f b)))\n\
            (use m) (initial i)"))
@@ -83,7 +83,7 @@ let decodes_claims model_src claims_src =
 
 let model_src =
   "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
-   (instance i (of m) (box lo) (f (lo a)))\n\
+   (instance i m (box lo (f a)) )\n\
    (use m) (initial i)"
 
 let () =

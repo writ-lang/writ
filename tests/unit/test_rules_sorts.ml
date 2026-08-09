@@ -45,9 +45,9 @@ let org =
   model_of
     "(schema org (type stance (quiet vocal)) (type person (arrow reports-to \
      (to person) fixed) (arrow stands (to stance))))\n\
-     (instance chart (of org) (person nabu mid cabinet) (reports-to (nabu mid) \
-     (mid cabinet) (cabinet vacant)) (stands (nabu quiet) (mid quiet) (cabinet \
-     quiet)))\n\
+     (instance chart org (person nabu (reports-to mid) (stands quiet)) (person \
+     mid (reports-to cabinet) (stands quiet)) (person cabinet (reports-to \
+     vacant) (stands quiet)) )\n\
      (use org) (initial chart)\n\
      (transition speak (when (is nabu.stands quiet)) (do (set nabu.stands \
      vocal)))"
@@ -58,7 +58,7 @@ let amb =
   model_of
     "(schema amb (type bank (left right)) (type traveler (arrow at (to bank))) \
      (type cargo (arrow at (to bank))))\n\
-     (instance i (of amb) (traveler t1) (cargo c1) (at (t1 left) (c1 left)))\n\
+     (instance i amb (traveler t1 (at left)) (cargo c1 (at left)) )\n\
      (use amb) (initial i)\n\
      (transition move (when (is t1.at left)) (do (set t1.at right)))"
 
