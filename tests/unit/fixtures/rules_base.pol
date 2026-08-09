@@ -16,12 +16,16 @@
     (arrow reports-to (to person) fixed)   ; who reports to whom — the wiring
     (arrow stands (to stance))))           ; a person's current stance
 
-(instance org-chart (of org)
-  (person nabu mid cabinet)
+(instance org-chart org
+  (person nabu (reports-to mid)
+               (stands quiet))
+  (person mid (reports-to cabinet)
+              (stands quiet))
+  (person cabinet (reports-to vacant)
+                  (stands quiet))
   ; every fixed cell must be given a value (state.ml), and the top of a chart
   ; reports to nobody — so the cabinet's cell is explicitly vacant.
-  (reports-to (nabu mid) (mid cabinet) (cabinet vacant))
-  (stands (nabu quiet) (mid quiet) (cabinet quiet)))
+)
 
 (use org)
 (initial org-chart)

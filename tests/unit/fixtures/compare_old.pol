@@ -21,10 +21,9 @@
     (arrow shadow (to mode-t)))
   (equation mode-tracks-shadow (= machine.mode machine.shadow)))
 
-(instance day-one (of sys)
-  (machine m)
-  (mode   (m working))
-  (shadow (m working)))
+(instance day-one sys
+  (machine m (mode working)
+             (shadow working)))
 
 (use sys)
 (initial day-one)

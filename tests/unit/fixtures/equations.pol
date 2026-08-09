@@ -21,13 +21,12 @@
   (equation same-agency
     (= case.investigator.independence case.prosecutor.independence)))
 
-(instance day-one (of oversight)
-  (bureau watchdog prosecutions)
-  (case docket)
-  (investigator (docket watchdog))
-  (prosecutor   (docket prosecutions))
-  (independence (watchdog independent) (prosecutions independent))
-  (stage        (docket open)))
+(instance day-one oversight
+  (bureau watchdog (independence independent))
+  (bureau prosecutions (independence independent))
+  (case docket (investigator watchdog)
+               (prosecutor prosecutions)
+               (stage open)))
 
 (use oversight)
 (initial day-one)

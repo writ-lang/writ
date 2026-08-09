@@ -12,10 +12,11 @@
     (arrow kind (to kind-t) fixed)
     (arrow says (to kind-t))))
 
-(instance camp (of caps)
-  (islander alice bob)
-  (kind (alice KNIGHT) (bob KNAVE))
-  (says (alice KNIGHT) (bob KNIGHT)))
+(instance camp caps
+  (islander alice (kind KNIGHT)
+                  (says KNIGHT))
+  (islander bob (kind KNAVE)
+                (says KNIGHT)))
 
 (use caps)
 (initial camp)

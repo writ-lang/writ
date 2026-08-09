@@ -11,9 +11,8 @@
   (type flag (lo hi))
   (type box (arrow f (to flag))))
 
-(instance i (of toggle)
-  (box b)
-  (f (b lo)))
+(instance i toggle
+  (box b (f lo)))
 
 (use toggle)
 (initial i)

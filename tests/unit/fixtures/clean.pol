@@ -5,9 +5,8 @@
   (type flag (lo hi))
   (type box (arrow f (to flag))))
 
-(instance i (of tiny)
-  (box b)
-  (f (b lo)))
+(instance i tiny
+  (box b (f lo)))
 
 (use tiny)
 (initial i)

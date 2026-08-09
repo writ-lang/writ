@@ -6,9 +6,8 @@
   (type pos-t (down up))
   (type switch (arrow pos (to pos-t))))
 
-(instance i (of sw)
-  (switch s)
-  (pos (s down)))
+(instance i sw
+  (switch s (pos down)))
 
 (use sw)
 (initial i)

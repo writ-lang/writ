@@ -8,9 +8,9 @@
   (type bureau
     (arrow independence (to indep))))
 
-(instance i (of tiny)
-  (bureau watchdog prosecutions)
-  (independence (watchdog captured) (prosecutions independent)))
+(instance i tiny
+  (bureau watchdog (independence captured))
+  (bureau prosecutions (independence independent)))
 
 (use tiny)
 (initial i)

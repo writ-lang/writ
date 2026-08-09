@@ -13,23 +13,19 @@
 (load "politics.lib.pol")
 
 ; The starting configuration
-(instance day-one (of politics)
-  (chamber    assembly)
-  (people     electorate)
-  (bureau     watchdog prosecutions)
-  (case       docket)
-  (government gov)
-
-  (investigator   (docket watchdog))
-  (prosecutor     (docket prosecutions))
-  (independence   (watchdog independent) (prosecutions independent))
-  (stage          (docket investigating))
-
-  (executive-bloc (gov incumbent-party))
-  (bill           (gov none))
-  (mood           (gov favours-incumbent))
-  (support        (gov majority))
-  (regime         (gov normal)))
+(instance day-one politics
+  (chamber assembly)
+  (people electorate)
+  (bureau watchdog (independence independent))
+  (bureau prosecutions (independence independent))
+  (case docket (investigator watchdog)
+               (prosecutor prosecutions)
+               (stage investigating))
+  (government gov (executive-bloc incumbent-party)
+                  (bill none)
+                  (mood favours-incumbent)
+                  (support majority)
+                  (regime normal)))
 
 (use politics)
 (initial day-one)
