@@ -123,10 +123,22 @@ let rec parse_items acc = function
 
 let collect (d : Reader.t) ~(earlier : form_def list) :
     (form_def, Errors.t) result =
-  match d with
-  | Reader.List
-      ( Reader.Atom ("form", _) :: pattern :: Reader.Atom ("=>", _) :: template,
-        _ )
+  match
+    (* `=>` was the language's only infix token; it carries no information the
+       position does not already give, since the pattern is element 2 and the
+       templates are the rest. Both spellings are read until the corpus has
+       migrated. *)
+    match d with
+    | Reader.List
+        ( Reader.Atom ("form", fp)
+          :: pattern
+          :: Reader.Atom ("=>", _)
+          :: template,
+          p ) ->
+        Reader.List (Reader.Atom ("form", fp) :: pattern :: template, p)
+    | other -> other
+  with
+  | Reader.List (Reader.Atom ("form", _) :: pattern :: template, _)
     when template <> [] ->
       let* name, name_pos, slots, rest =
         match pattern with

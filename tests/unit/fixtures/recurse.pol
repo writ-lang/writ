@@ -3,6 +3,6 @@
 ; EARLIER forms), so `pol check recurse.pol` fails with a positioned
 ; "recurses" error before the model is ever parsed.
 
-(form (loop X) => (loop X))
+(form (loop X) (loop X))
 
 (loop hi)

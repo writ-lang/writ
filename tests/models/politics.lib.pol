@@ -49,37 +49,37 @@
 
 ; 2. Ordering, as forms
 (form (at-least-majority G)
-  => (or (is G.support majority) (is G.support supermajority)))
+  (or (is G.support majority) (is G.support supermajority)))
 (form (at-least-supermajority G)
-  => (is G.support supermajority))
+  (is G.support supermajority))
 
 ; 3. The constitutional surface — renames onto kernel words
-(form (does &rest ES)            => (do @ES))
-(form (power NAME &rest CLAUSES) => (transition NAME @CLAUSES))
+(form (does &rest ES)            (do @ES))
+(form (power NAME &rest CLAUSES) (transition NAME @CLAUSES))
 
 ; For .claims files — declaring a power's known breakage of a law:
-(form (unconstitutional T &rest EQS) => (accept T @EQS))
+(form (unconstitutional T &rest EQS) (accept T @EQS))
 
 ; 4. Verbs — constitution-style one-liners
 ; SUBJECT (a bureau) may be captured / restored; HOLDER is editorial.
 (form (captured-by SUBJECT HOLDER)
-  => (transition (when (is SUBJECT.independence independent))
+  (transition (when (is SUBJECT.independence independent))
        (do (set SUBJECT.independence captured))))
 
 (form (restored-by SUBJECT HOLDER)
-  => (transition (when (is SUBJECT.independence captured))
+  (transition (when (is SUBJECT.independence captured))
        (do (set SUBJECT.independence independent))))
 
 ; A headship, and its dismissal:
-(form (headship) => (maybe headed-by person))
+(form (headship) (maybe headed-by person))
 (form (dismissed-by SUBJECT HOLDER)
-  => (transition (when (defined SUBJECT.headed-by))
+  (transition (when (defined SUBJECT.headed-by))
        (do (vacate SUBJECT.headed-by))))
 
 ; 5. Behaviour batteries
 ; The bill life-cycle on a government G, with a supermajority override.
 (form (bill-cycle G)
-  => (transition (when (is G.bill none))    (do (set G.bill passed)))
+  (transition (when (is G.bill none))    (do (set G.bill passed)))
      (transition (when (is G.bill passed))  (do (set G.bill enacted)))
      (transition (when (is G.bill passed))  (do (set G.bill vetoed)))
      (transition (when (and (is G.bill vetoed) (at-least-supermajority G)))
@@ -88,7 +88,7 @@
 ; Investigate → prosecute → conclude for a case C, each step gated on the
 ; acting agency's independence: capture an agency, the pipeline stalls.
 (form (case-pipeline C)
-  => (transition (when (and (is C.investigator.independence independent)
+  (transition (when (and (is C.investigator.independence independent)
                             (is C.stage investigating)))
        (do (set C.stage prosecuting)))
      (transition (when (and (is C.prosecutor.independence independent)
@@ -96,32 +96,32 @@
        (do (set C.stage concluded))))
 
 ; The electorate's mood swing on a government G — stdlib's `toggle`.
-(form (swing G) => (toggle G.mood favours-incumbent favours-opposition))
+(form (swing G) (toggle G.mood favours-incumbent favours-opposition))
 
 ; 6. Exit guards, and the freeze idiom
 ; An exit guard says: this move is enabled AND would change the state.
-(form (capture-exit SUBJECT) => (is SUBJECT.independence independent))
-(form (restore-exit SUBJECT) => (is SUBJECT.independence captured))
-(form (dismiss-exit SUBJECT) => (defined SUBJECT.headed-by))
-(form (bill-exit G)          => (not (is G.bill enacted)))
+(form (capture-exit SUBJECT) (is SUBJECT.independence independent))
+(form (restore-exit SUBJECT) (is SUBJECT.independence captured))
+(form (dismiss-exit SUBJECT) (defined SUBJECT.headed-by))
+(form (bill-exit G)          (not (is G.bill enacted)))
 (form (pipeline-exit C)
-  => (or (and (is C.investigator.independence independent)
+  (or (and (is C.investigator.independence independent)
               (is C.stage investigating))
          (and (is C.prosecutor.independence independent)
               (is C.stage prosecuting))))
 
 ; 7. Reusable claims — for .claims files
 (form (conviction-reachable C)
-  => (property conviction-reachable
+  (property conviction-reachable
        "a conviction can be reached from the initial state"
        (possible (is C.stage concluded))))
 
 (form (accountability C)
-  => (property accountability
+  (property accountability
        "a high-level case can still reach a conviction"
        (live (is C.stage concluded))))
 
 (form (no-permanent-emergency G)
-  => (property no-permanent-emergency
+  (property no-permanent-emergency
        "emergency rule can always still be lifted"
        (live (is G.regime normal))))

@@ -6,7 +6,7 @@
 
 ; 1. Derived logic
 ; Universal roster quantification, from the kernel's `some`.
-(form (all (X T) G) => (not (some (X T) (not G))))
+(form (all (X T) G) (not (some (X T) (not G))))
 
 ; 2. Equality and difference
 ; `=` was a kernel word until laws became guards (§8.6). It is a form now, and
@@ -15,7 +15,7 @@
 ; KLEENE equality — vacuously satisfied where either side has no answer, which
 ; is what makes an unstaffed office break no seconding rule. Every law written
 ; before `=` moved here reads exactly as it did.
-(form (= A B) => (not (and (defined A) (defined B) (not (is A B)))))
+(form (= A B) (not (and (defined A) (defined B) (not (is A B)))))
 
 ; Strict difference. NOTE the asymmetry with `=` above, which is real and not
 ; an oversight: `is` is strict, so an undefined side makes `differ` TRUE — a
@@ -23,7 +23,7 @@
 ; write (and (defined A) (defined B) (differ A B)); the kernel will not guess
 ; which of the two you meant, and a library that hid the difference would be
 ; re-introducing exactly the confusion moving `=` out of the kernel removed.
-(form (differ A B) => (not (is A B)))
+(form (differ A B) (not (is A B)))
 
 ; 3. The quiver schema — dynamics as data
 ; `pol control MODEL.pol` exports a model's control quiver as an instance of
@@ -58,7 +58,7 @@
 ; every file type: a .rules file that loaded this one would have its
 ; declarations rewritten into types.
 (form (span R A B)
-  => (type R
+  (type R
        (arrow left  (to A) fixed)
        (arrow right (to B) fixed)))
 
@@ -66,17 +66,17 @@
 ; A two-state flip on path P between values A and B — two guarded moves,
 ; never a fake self-loop.
 (form (toggle P A B)
-  => (transition (when (is P A)) (do (set P B)))
+  (transition (when (is P A)) (do (set P B)))
      (transition (when (is P B)) (do (set P A))))
 
 ; A one-way latch: once P leaves A for B, no move here brings it back.
 (form (latch P A B)
-  => (transition (when (is P A)) (do (set P B))))
+  (transition (when (is P A)) (do (set P B))))
 
 ; 6. The phase idiom
 ; A model with modes declares an enumerated mode type, one mutable arrow to
 ; it, and conjoins each mode-restricted move's guard with the mode test.
-(form (phase-gated P V G) => (and (is P V) G))
+(form (phase-gated P V G) (and (is P V) G))
 
 ; 7. The olog schema — schemas as data
 ; The sibling of §3 one level up: an instance of `olog` IS a schema — its
@@ -185,4 +185,4 @@
 ; abbreviates, and flags-as-slots still hands a form a keyword position — but
 ; "the rare shape stays long" is no longer the argument it was. Whether the
 ; common shape deserves a spelling is OPEN, not settled.
-(form (maybe A T) => (arrow A (to T) vacatable))
+(form (maybe A T) (arrow A (to T) vacatable))
