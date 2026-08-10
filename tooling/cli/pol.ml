@@ -23,21 +23,20 @@
 
 open Cli_io
 
+(* The misuse message, derived from [Help.verbs] rather than written again:
+   the two lists had no way to stay in step except attention, which is the same
+   argument [Version] makes about a hand-kept version number. *)
 let usage =
   String.concat "\n"
-    [
-      "usage:";
-      "  pol check   MODEL [--claims FILE]";
-      "  pol query   MODEL NAME [--at STATE]";
-      "  pol compare OLD NEW [--map M]";
-      "  pol compare --git REV1 REV2 MODEL [--map M]";
-      "  pol control MODEL";
-      "  pol schema  MODEL";
-      "  pol sql     FILE.sql | FILE.pol [--with-data] [--strict]";
-      "  pol derive  MODEL RULES [--why] RELATION | \"(RELATION ARG…)\"";
-      "  pol --help | -h";
-      "  pol --version | -V";
-    ]
+    ("usage:"
+     :: List.concat_map
+          (fun (v : Help.verb) -> List.map (fun u -> "  " ^ u) v.usage)
+          Help.verbs
+    @ [
+        "  pol help VERB | pol VERB --help";
+        "  pol --help | -h";
+        "  pol --version | -V";
+      ])
 
 (* [pol], [pol -h], [pol --help] and [pol help] print the full help and exit 0;
    a misuse prints the short [usage] to stderr and exits 2. *)
@@ -56,10 +55,23 @@ let version () =
   say "There is NO WARRANTY, to the extent permitted by law.";
   exit 0
 
+(* One verb's help. Both spellings work because both are guessed: `pol help
+   sql` by anyone who read the usage line, `pol sql --help` by everyone else,
+   who tries it on the verb they are already typing. *)
+let verb_help (name : string) =
+  match Help.for_verb name with
+  | Some t ->
+      print_string t;
+      exit 0
+  | None -> die 2 ("no such verb `" ^ name ^ "`\n" ^ usage)
+
 let () =
   match Array.to_list Sys.argv with
   | [ _ ] | [ _; ("-h" | "--help" | "help") ] -> help ()
   | [ _; ("-V" | "--version" | "version") ] -> version ()
+  (* before the verbs, so `pol schema --help` is a question and not a file
+     named `--help` *)
+  | [ _; "help"; v ] | [ _; v; ("-h" | "--help") ] -> verb_help v
   | _ :: "check" :: model :: rest -> (
       match rest with
       | [] -> Cmd_check.run model None

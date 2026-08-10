@@ -213,6 +213,7 @@ what it costs.
 | `pol derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
 | `pol derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
 | `pol derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
+| `pol help VERB` · `pol VERB --help` | one verb's reference — usage, options, examples, exit status |
 | `pol --help` · `pol --version` | the full reference · the version this binary was built from |
 
 Exit status is the interface: **0** clean · **1** a finding (a failed property; a
@@ -221,8 +222,53 @@ unreadable input.
 
 ### Relational schemas
 
-A relational schema **is** a finitely presented category, so `pol sql` is a
-reading rather than a translation — and one mapping read in both directions.
+**One verb, both directions — the direction is the extension.** Output goes to
+stdout, like `pol schema` and `pol control`, so the ordinary use is a redirect:
+
+```console
+$ pol sql shop.sql > shop.pol        # a database, read as a model
+$ pol check shop.pol                 # ask it something
+$ pol sql shop.pol > back.sql        # and write it out again as CREATE TABLE
+```
+
+| | |
+|---|---|
+| `pol sql SCHEMA.sql` | read the DDL; print a model on stdout, the declines on stderr |
+| `pol sql MODEL.pol` | print `CREATE TABLE` for the model's schema |
+| `--with-data` | also read `INSERT`s, as the initial instance — **seed rows**, not a table dump |
+| `--strict` | exit 1 if anything was declined (the shape a CI check wants) |
+| `pol sql --help` | this, in the terminal |
+
+Nothing is installed or loaded: the emitted model is **kernel-only** — no
+`(load …)`, no prelude, nothing from the standard library.
+
+**The payoff is what a database cannot do.** A `CHECK` becomes an `equation`,
+and a law is a claim the world is measured against rather than a filter on it —
+so once you write the migration's `UPDATE` as a move, `pol check` answers a
+question the database never could:
+
+```console
+$ pol check shop.pol
+equation orders-shipped
+  can be broken by: ship   (acknowledge in claims)
+```
+
+A database tells you a constraint was violated *at runtime*. `pol` tells you
+**which operation can violate it**, by exhaustion, before it ships.
+
+**Why it is a reading rather than a translation.** A relational schema *is* a
+finitely presented category, so the olog was already in the DDL, spelled in a
+notation that cannot be interrogated:
+
+| SQL | Pol |
+|---|---|
+| table | `(type T …)` |
+| foreign key, `NOT NULL` / `NULL` | `(fk c T)` / `(fk? c T)` |
+| `PRIMARY KEY` | nothing — an entity **is** its identity |
+| `boolean`, enum, `CHECK … IN` | an enumerated type, members intact |
+| `varchar`, `int`, `timestamptz` | an arrow into a **one-member** domain |
+| single-row `CHECK` | `(equation …)` |
+
 The SQL vocabulary arrives as **forms over the 26 words**, generated for the
 database at hand rather than shipped, so a column is two tokens:
 
@@ -238,33 +284,23 @@ tokens possible: a form with slots only expands in list-head position, so the
 same word inside `(to …)` stays data.
 
 What crosses is decided by one line: **pol carries a column's value iff the
-column has finitely many values worth naming.** `boolean`, enums and `CHECK …
-IN` keep their members; `varchar`, `int` and `timestamptz` become arrows into a
-**one-member** domain — present, exportable, and *free*, since a total arrow
-into a one-member type has exactly one filling. Nullability costs a factor of
-two, which is the one distinction pol can decide about a `varchar`: whether it
-is there. A primary key emits nothing at all — an entity **is** its identity.
+column has finitely many values worth naming.** A `varchar` becomes an arrow
+into a one-member type, which is *free* — a total arrow into a one-member type
+has exactly one filling, so a `NOT NULL` scalar column costs the state space
+nothing. Nullability costs a factor of two, which is the one distinction pol
+can decide about a `varchar`: whether it is there.
 
-The payoff is what a database cannot do. A `CHECK` becomes an `equation`, and a
-law is a claim the world is measured against rather than a filter on it:
+**What is declined is said out loud**, by line and reason, on stderr — never
+dropped in silence, because a schema imported quietly would let "pol proved
+this safe" be a claim about a schema nobody has. `UNIQUE` is the interesting
+one: it is **unsayable**, not unimplemented, because a pol law ranges over one
+entity of its subject type and a bare `some` binder is not comparable, so "two
+distinct rows agree" has no spelling. Arithmetic in a `CHECK` is refused for
+the reason the whole language is: there are no numbers, and inventing them
+would cost the negative answer.
 
-```console
-$ pol sql schema.sql > shop.pol      # then write the migration's UPDATE as a move
-$ pol check shop.pol
-equation orders-shipped
-  can be broken by: ship   (acknowledge in claims)
-```
-
-A database tells you a constraint was violated *at runtime*. `pol` tells you
-**which operation can violate it**, by exhaustion, before it ships.
-
-What the DDL says and an olog cannot hold is reported on stderr by line and
-reason — never dropped in silence. `UNIQUE` is the interesting one: it is
-**unsayable**, not unimplemented, because a pol law ranges over one entity of
-its subject type and a bare `some` binder is not comparable, so "two distinct
-rows agree" has no spelling. Arithmetic in a `CHECK` is refused for the reason
-the whole language is: there are no numbers, and inventing them would cost the
-negative answer.
+pg_dump is the input that matters, so casts, `= ANY (ARRAY[…])`, `ALTER TABLE …
+ADD CONSTRAINT` and dollar-quoted function bodies all read correctly.
 
 Round-tripping is defined on the **model**, not the text — the export
 normalises spellings on purpose — and the two facts SQL cannot state (whether a

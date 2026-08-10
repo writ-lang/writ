@@ -1,14 +1,282 @@
-(* The `pol --help` text, as a plain string constant printed by the CLI.
+(* The help text.
 
-   It is a sibling module of [Pol] in tooling/cli/: the executable is named
-   [pol], and because the engine now lives in the separate libraries pol_data /
-   pol_syntax / pol_runtime (not a library named [pol]), the exe may carry more
-   than one module without [Pol] shadowing a library. This is IO-free data (no
-   print here; pol.ml prints it), so it crosses no layer or io-only gate. Keep it
-   in sync with the command dispatch in pol.ml. *)
+   It is DATA — one record per verb — rather than one string constant, because
+   there are now two renderings of the same knowledge: `pol --help`, the whole
+   reference, and `pol VERB --help`, one verb of it. Two hand-kept copies would
+   be two copies, and the one that drifts is always the one nobody reads to the
+   end. So a verb is described once, and both renderings are assembled from the
+   same list.
+
+   It is also why per-verb help is not a feature of `sql` alone. One verb
+   answering --help while six do not is a CLI that has to be learnt twice; the
+   cost of doing it uniformly, once the text is structured, is a fold.
+
+   This module is IO-free (no print here; pol.ml prints it), so it crosses no
+   layer or io-only gate. [Pol.usage] is DERIVED from the list below, so the
+   one thing left to keep in step is the argument dispatch itself — a verb
+   added here and not there answers --help and nothing else. *)
+
+type verb = {
+  name : string;
+  summary : string;  (** one line, the header of `pol VERB --help` *)
+  usage : string list;
+  body : string;  (** unindented; both renderings indent it themselves *)
+  options : string list;
+  examples : string list;
+}
+
+let verbs =
+  [
+    {
+      name = "check";
+      summary = "build the model and report its size, gaps, dead ends and laws";
+      usage = [ "pol check    MODEL.pol [--claims FILE.claims]" ];
+      body =
+        {|Build the model and print the report — the reachable state count and
+edges; the gaps (points where the rules are declared silent); the
+dead ends (situations with no move enabled); and, per equation,
+whether a move can break the law and where it is violated. With
+--claims it also checks each property and prints:
+  holds NAME   — the property is true (a holding `possible` prints its
+                 shortest satisfying route: the solution/example)
+  fails NAME   — with `stuck at:` and a numbered witness route
+  n/a   NAME   — the property names structure the schema lacks
+plus query answers and law acknowledgments (unadmitted / stale).|};
+      options =
+        [
+          "--claims FILE    the questions to ask (properties, queries, accepts)";
+        ];
+      examples =
+        [
+          "pol check   tests/models/any_model.pol --claims \
+           tests/models/any_model.claims";
+        ];
+    };
+    {
+      name = "query";
+      summary = "run one named query and print the satisfying bindings";
+      usage = [ "pol query    MODEL.pol NAME [--at STATE]" ];
+      body =
+        {|Run one named query from the model's sibling .claims file and print
+the satisfying variable bindings. --at STATE addresses a situation by
+its state index (default: the initial situation, index 0).|};
+      options = [ "--at STATE       address a situation by its state index" ];
+      examples = [ "pol query   tests/models/any_model.pol captured --at 7" ];
+    };
+    {
+      name = "compare";
+      summary =
+        "report each equation and property preserved / LOST / gained across \
+         two models";
+      usage =
+        [
+          "pol compare  OLD.pol NEW.pol [--map MAP.pol]";
+          "pol compare  --git REV1 REV2 MODEL.pol [--map MAP.pol]";
+        ];
+      body =
+        {|Build two models and report each equation and property as
+`preserved`, `LOST`, or `gained` across the pair (properties come
+from OLD's sibling .claims). --map carries `(map X => Y)` renames when
+the two schemas differ. The --git form compares two revisions of one
+file (`git show REV:MODEL`).|};
+      options =
+        [
+          "--map MAP.pol    `(map X => Y)` renames when two schemas differ";
+          "--git R1 R2 M    compare git revisions R1 and R2 of model M";
+        ];
+      examples =
+        [
+          "pol compare old.pol new.pol";
+          "pol compare --git HEAD~1 HEAD model.pol";
+        ];
+    };
+    {
+      name = "control";
+      summary =
+        "emit the move list as an instance of the stdlib's `quiver` schema";
+      usage = [ "pol control  MODEL.pol" ];
+      body =
+        {|Emit the model's move list as an instance of the standard library's
+`quiver` schema — the dynamics as re-usable, checkable data.|};
+      options = [];
+      examples = [ "pol control model.pol" ];
+    };
+    {
+      name = "schema";
+      summary =
+        "emit the model's schema as an instance of the stdlib's `olog` schema";
+      usage = [ "pol schema   MODEL.pol" ];
+      body =
+        {|Emit the model's SCHEMA as an instance of the standard library's
+`olog` schema — the map as data, the sibling of `control` one level
+up. Types become `ob`, arrows `hom` with `dom`/`cod`, laws `eqn`
+entities by name; a law's body is not encoded (kernel §17).|};
+      options = [];
+      examples = [ "pol schema  model.pol" ];
+    };
+    {
+      name = "sql";
+      summary = "read a relational schema as an olog, or write one back";
+      usage =
+        [
+          "pol sql      SCHEMA.sql [--with-data] [--strict]   # DDL  -> a model";
+          "pol sql      MODEL.pol  [--strict]                 # model -> DDL";
+        ];
+      body =
+        {|Read a relational schema as an olog, or write one back. ONE verb,
+both directions: the direction is the EXTENSION, because there is one
+mapping and reading it backwards is not a second feature. Output goes
+to stdout, so the ordinary use is a redirect:
+
+  pol sql schema.sql > shop.pol     # read a database
+  pol check shop.pol                # ask it something
+  pol sql shop.pol   > back.sql     # and write it out again
+
+WHAT CROSSES. A table is a type, a foreign key an arrow, NULL
+`vacatable`, an enum (or a CHECK … IN) an enumerated type keeping its
+members. A primary key emits nothing — an entity IS its identity. A
+single-row CHECK becomes an `equation`, which is the point: `pol
+check` then reports not merely that a constraint is violated but
+WHICH move can break it, with a route.
+
+The line is that pol carries a column's value iff the column has
+finitely many values worth naming. `boolean` and enums do. `varchar`,
+`int` and `timestamptz` cross as arrows into a ONE-member domain:
+present, exportable, and free, since a total arrow into a one-member
+type has exactly one filling. Nullability costs a factor of two —
+the one distinction pol can decide about a varchar, whether it is
+there.
+
+The SQL vocabulary arrives as forms over the 26 words, generated for
+the database at hand, so a column is two tokens: `(varchar-255
+email)`, `(timestamptz? shipped-at)`, `(fk buyer-id customers)`.
+Nothing is loaded; the emitted model is kernel-only.
+
+WHAT DOES NOT. Everything the DDL says that an olog cannot hold is
+reported on stderr by line and reason, aggregated, never dropped in
+silence — UNIQUE, arithmetic in a CHECK, DEFAULT, indexes, triggers.
+UNIQUE is declined as UNSAYABLE rather than unimplemented: a law
+ranges over one entity of its subject type and a bare `some` binder
+is not comparable, so "two distinct rows agree" has no spelling.
+
+--with-data reads INSERTs as the initial instance. That is for SEED
+rows: an instance is ONE starting configuration and the state space
+is a product over it, so a table's full contents is not what it
+wants. --strict makes a decline a finding (exit 1), which is the
+shape a CI check wants: fail when the DDL grows a construct the model
+would have carried silently.
+
+Round-tripping is defined on the MODEL, not the text — the export
+normalises spellings on purpose — and the two facts SQL cannot state,
+whether a key is ever UPDATEd and whether a plain column is wiring,
+travel as `-- pol:` pragmas the import reads back.|};
+      options =
+        [
+          "--with-data      read INSERT rows as the initial instance (import)";
+          "--strict         exit 1 if anything in the input was declined";
+        ];
+      examples =
+        [
+          "pol sql schema.sql > model.pol      # read a database as a model";
+          "pol sql schema.sql --with-data      # …with its INSERTs as the \
+           instance";
+          "pol sql model.pol  > schema.sql     # write the model out as DDL";
+          "pol sql schema.sql --strict         # exit 1 if anything was \
+           declined";
+        ];
+    };
+    {
+      name = "derive";
+      summary = "answer a .rules relation over the model's enumerated universe";
+      usage =
+        [
+          "pol derive   MODEL.pol RULES.rules RELATION | \"(RELATION ARG…)\"";
+          "pol derive   MODEL.pol RULES.rules --why \"(RELATION ARG…)\"";
+        ];
+      body =
+        {|Answer a .rules file's relations over the model's enumerated
+universe (the relational extension, docs/interrogator.md). A bare
+RELATION prints every row; a "(RELATION ARG…)" datum keeps only the
+rows matching the arguments given, ALL-CAPS being a free variable.
+Any position may be bound, so the dynamics run backward — "(reach X
+2)" asks which situations reach state 2 — as readily as forward. A
+situation is written as its state index, in and out; an entity by
+name; an edge by its transition name. --why prints the derivation
+tree of one fact whose arguments are all given, two spaces per
+level, down to the extensional facts, ground guard checks and
+completed-stratum negations it rests on. Every well-formed question
+exits 0, an empty answer set included — an empty relation is an
+answer — and an unreadable rules file or an undeclared relation
+exits 2. This verb never exits 1. A relation is declared
+`(relation NAME ARITY)`, or `(relation NAME (T1 … Tn))` to give a
+sort per column (Situation, Edge, or a schema type) — needed when a
+column's sort cannot be inferred, as it cannot for a variable
+rooted in an arrow name that two types share.|};
+      options =
+        [
+          "--why \"(R A…)\"   print one fact's derivation tree instead of rows";
+        ];
+      examples =
+        [
+          "pol derive  model.pol org.rules subordinate";
+          "pol derive  model.pol org.rules \"(subordinate nabu X)\"";
+          "pol derive  model.pol org.rules --why \"(subordinate nabu cabinet)\"";
+        ];
+    };
+  ]
+
+(* ---- rendering ---------------------------------------------------------- *)
+
+let pad w s = s ^ String.make (max 0 (w - String.length s)) ' '
+
+let indent n s =
+  String.split_on_char '\n' s
+  |> List.map (fun l -> if l = "" then "" else String.make n ' ' ^ l)
+  |> String.concat "\n"
+
+let bullets n xs =
+  String.concat "\n" (List.map (fun x -> String.make n ' ' ^ x) xs)
+
+let exit_status =
+  {|EXIT STATUS  (the interface — scriptable)
+  0   clean — the model built and nothing failed
+  1   a finding — a failed property; a violated, unadmitted, or stale law; a
+      guarantee lost in a comparison; or, with --strict, a declined construct
+  2   unreadable input — a missing file, a parse error, or a bad command line|}
+
+(* One verb, for `pol VERB --help`: everything about it and nothing about the
+   others. The body sits at indent 2 here and at 11 in the full reference —
+   which is the whole reason it is stored unindented. *)
+let for_verb (name : string) : string option =
+  match List.find_opt (fun v -> v.name = name) verbs with
+  | None -> None
+  | Some v ->
+      let section title = function
+        | [] -> []
+        | xs -> [ title ^ "\n" ^ bullets 2 xs ]
+      in
+      Some
+        (String.concat "\n\n"
+           ([ "pol " ^ v.name ^ " — " ^ v.summary ]
+           @ [ "USAGE\n" ^ bullets 2 v.usage ]
+           @ [ indent 2 v.body ]
+           @ section "OPTIONS" v.options
+           @ section "EXAMPLES" v.examples
+           @ [ exit_status; "`pol --help` is the full reference." ])
+        ^ "\n")
+
+let command_entry (v : verb) =
+  match String.split_on_char '\n' v.body with
+  | [] -> ""
+  | first :: rest ->
+      String.concat "\n"
+        (("  " ^ pad 9 v.name ^ first)
+        :: List.map
+             (fun l -> if l = "" then "" else String.make 11 ' ' ^ l)
+             rest)
 
 let text =
-  {help|pol — Partial Olog: an abstract language for modelling real-world domains.
+  {|pol — Partial Olog: an abstract language for modelling real-world domains.
 
 A Pol model is a state machine written down: a SCHEMA (the kinds of things that
 exist and the typed arrows between them, plus the laws certain arrow-chains must
@@ -17,108 +285,36 @@ obey), an INSTANCE (one starting configuration), and TRANSITIONS (guarded moves)
 questions about it by exhaustion, with a concrete route as evidence.
 
 USAGE
-  pol check    MODEL.pol [--claims FILE.claims]
-  pol query    MODEL.pol NAME [--at STATE]
-  pol compare  OLD.pol NEW.pol [--map MAP.pol]
-  pol compare  --git REV1 REV2 MODEL.pol [--map MAP.pol]
-  pol control  MODEL.pol
-  pol schema   MODEL.pol
-  pol sql      SCHEMA.sql [--with-data] [--strict]
-  pol sql      MODEL.pol [--strict]
-  pol derive   MODEL.pol RULES.rules RELATION | "(RELATION ARG…)"
-  pol derive   MODEL.pol RULES.rules --why "(RELATION ARG…)"
+|}
+  ^ bullets 2 (List.concat_map (fun v -> v.usage) verbs)
+  ^ {|
+  pol help VERB | pol VERB --help
   pol --help | -h
   pol --version | -V
 
 COMMANDS
-  check    Build the model and print the report — the reachable state count and
-           edges; the gaps (points where the rules are declared silent); the
-           dead ends (situations with no move enabled); and, per equation,
-           whether a move can break the law and where it is violated. With
-           --claims it also checks each property and prints:
-             holds NAME   — the property is true (a holding `possible` prints its
-                            shortest satisfying route: the solution/example)
-             fails NAME   — with `stuck at:` and a numbered witness route
-             n/a   NAME   — the property names structure the schema lacks
-           plus query answers and law acknowledgments (unadmitted / stale).
-
-  query    Run one named query from the model's sibling .claims file and print
-           the satisfying variable bindings. --at STATE addresses a situation by
-           its state index (default: the initial situation, index 0).
-
-  compare  Build two models and report each equation and property as
-           `preserved`, `LOST`, or `gained` across the pair (properties come
-           from OLD's sibling .claims). --map carries `(map X => Y)` renames when
-           the two schemas differ. The --git form compares two revisions of one
-           file (`git show REV:MODEL`).
-
-  control  Emit the model's move list as an instance of the standard library's
-           `quiver` schema — the dynamics as re-usable, checkable data.
-
-  schema   Emit the model's SCHEMA as an instance of the standard library's
-           `olog` schema — the map as data, the sibling of `control` one level
-           up. Types become `ob`, arrows `hom` with `dom`/`cod`, laws `eqn`
-           entities by name; a law's body is not encoded (kernel §17).
-
-  sql      Read a relational schema as an olog, or write one back. The
-           direction is the EXTENSION: a .sql argument prints a model, a .pol
-           argument prints CREATE TABLE. A table is a type, a foreign key an
-           arrow, NULL `vacatable`, an enum an enumerated type keeping its
-           members; a primary key dissolves into the entity's identity, and a
-           single-row CHECK becomes an `equation` — so `pol check` then reports
-           not merely that a constraint is violated but WHICH move can break
-           it. A column pol cannot look inside crosses as an arrow into a
-           one-member domain: present, exportable, and free, since a total
-           arrow into a one-member type has one filling. Nullability costs a
-           factor of two, which is the one distinction pol can decide about a
-           varchar. Everything the DDL says that is not carried — UNIQUE,
-           arithmetic in a CHECK, DEFAULT, indexes — is reported on stderr by
-           line and reason, never dropped in silence. --with-data reads INSERTs
-           as the initial instance, for seed rows: an instance is ONE starting
-           configuration, so a table's full contents is not what it wants.
-           Round-tripping is defined on the model, not the text:
-           `pol compare M <(pol sql <(pol sql M))` reports nothing lost.
-
-  derive   Answer a .rules file's relations over the model's enumerated
-           universe (the relational extension, docs/interrogator.md). A bare
-           RELATION prints every row; a "(RELATION ARG…)" datum keeps only the
-           rows matching the arguments given, ALL-CAPS being a free variable.
-           Any position may be bound, so the dynamics run backward — "(reach X
-           2)" asks which situations reach state 2 — as readily as forward. A
-           situation is written as its state index, in and out; an entity by
-           name; an edge by its transition name. --why prints the derivation
-           tree of one fact whose arguments are all given, two spaces per
-           level, down to the extensional facts, ground guard checks and
-           completed-stratum negations it rests on. Every well-formed question
-           exits 0, an empty answer set included — an empty relation is an
-           answer — and an unreadable rules file or an undeclared relation
-           exits 2. This verb never exits 1. A relation is declared
-           `(relation NAME ARITY)`, or `(relation NAME (T1 … Tn))` to give a
-           sort per column (Situation, Edge, or a schema type) — needed when a
-           column's sort cannot be inferred, as it cannot for a variable
-           rooted in an arrow name that two types share.
-
-OPTIONS
-  --claims FILE    the questions to ask (properties, queries, accepts)
-  --at STATE       address a situation by its state index (query only)
-  --why "(R A…)"   print one fact's derivation tree instead of rows (derive)
-  --map MAP.pol    `(map X => Y)` renames for comparing differing schemas
-  --git R1 R2 M    compare git revisions R1 and R2 of model M
-  --with-data      read INSERT rows as the initial instance (sql import)
-  --strict         exit 1 if anything in the input was declined (sql)
-
-EXIT STATUS  (the interface — scriptable)
-  0   clean — the model built and nothing failed
-  1   a finding — a failed property; a violated, unadmitted, or stale law; or a
-      guarantee lost in a comparison
-  2   unreadable input — a missing file, a parse error, or a bad command line
+|}
+  ^ String.concat "\n\n" (List.map command_entry verbs)
+  ^ "\n\nOPTIONS\n"
+  (* grouped by verb, in the COMMANDS block's own column, so the global list
+     says which verb each flag belongs to without anyone writing it down *)
+  ^ String.concat "\n"
+      (List.concat_map
+         (fun v ->
+           List.mapi
+             (fun i o -> "  " ^ pad 9 (if i = 0 then v.name else "") ^ o)
+             v.options)
+         verbs)
+  ^ "\n\n" ^ exit_status
+  ^ {|
 
 FILES
   A .pol file is a MODEL (exactly one `use` and one `initial`, plus transitions)
   or a LIBRARY (declarations only). `(load "FILE")` pulls a library in; there is
   no implicit prelude. A model's questions live beside it in MODEL.claims. A
   .rules file is the third file type: relation declarations and rules, read by
-  the same reader and form expander, named on the `derive` command line.
+  the same reader and form expander, named on the `derive` command line. A .sql
+  file is not a pol file at all — `pol sql` reads it and prints one.
 
   `(load "FILE")` resolves in order: the including file's directory; $POL_LIB;
   the stdlib bundled beside the binary (../share/pol/lib); then ./core/stdlib. So
@@ -139,15 +335,9 @@ INSTALLING  (all three land bin/pol + share/pol/lib, which is what the resolver
                       a machine with no OCaml, no opam and no network
 
 EXAMPLES
-  pol check   tests/models/any_model.pol --claims tests/models/any_model.claims
-  pol query   tests/models/any_model.pol captured --at 7
-  pol compare old.pol new.pol
-  pol compare --git HEAD~1 HEAD model.pol
-  pol control model.pol
-  pol schema  model.pol
-  pol derive  model.pol org.rules subordinate
-  pol derive  model.pol org.rules "(subordinate nabu X)"
-  pol derive  model.pol org.rules --why "(subordinate nabu cabinet)"
+|}
+  ^ bullets 2 (List.concat_map (fun v -> v.examples) verbs)
+  ^ {|
 
 The language is specified in docs/kernel-spec.md. Worked examples that solve real
 problems (the river crossing, knights & knaves, institutional scenarios) are
@@ -159,4 +349,4 @@ you are free to change and redistribute it, and a version you offer to users ove
 a network must offer them its source.  There is NO WARRANTY, to the extent
 permitted by law.  The full text ships with the program, at
 <prefix>/doc/pol/LICENSE.
-|help}
+|}
