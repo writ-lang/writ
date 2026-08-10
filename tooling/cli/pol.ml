@@ -35,7 +35,7 @@ let usage =
     @ [
         "  pol help VERB | pol VERB --help";
         "  pol --help | -h";
-        "  pol --version | -V";
+        "  pol --version | -V | -v";
       ])
 
 (* [pol], [pol -h], [pol --help] and [pol help] print the full help and exit 0;
@@ -68,7 +68,11 @@ let verb_help (name : string) =
 let () =
   match Array.to_list Sys.argv with
   | [ _ ] | [ _; ("-h" | "--help" | "help") ] -> help ()
-  | [ _; ("-V" | "--version" | "version") ] -> version ()
+  (* `-v` as well as `-V`: it is what nearly every tool means by the short
+     flag, it is what a hand reaches for, and pol has no verbosity setting to
+     want it back (tracing is POL_TRACE_LOADS). Getting the usage block instead
+     of a version is a papercut with no argument behind it. *)
+  | [ _; ("-V" | "-v" | "--version" | "version") ] -> version ()
   (* before the verbs, so `pol schema --help` is a question and not a file
      named `--help` *)
   | [ _; "help"; v ] | [ _; v; ("-h" | "--help") ] -> verb_help v

@@ -290,7 +290,7 @@ USAGE
   ^ {|
   pol help VERB | pol VERB --help
   pol --help | -h
-  pol --version | -V
+  pol --version | -V | -v
 
 COMMANDS
 |}
