@@ -603,7 +603,7 @@ determined by content:
 - **Meaning**
   - The file's datums enter the loaded universe at this point, **once
     per file** regardless of how many load paths reach it.
-  - Names are global across the loaded universe (§8.4); the
+  - Names are global across the loaded universe (§7); the
     once-per-file rule means a repeated-name error always signals two
     *different* declarations claiming one name — never the same file
     arriving twice.
@@ -703,7 +703,7 @@ types plus library forms spelling out their comparisons (§11, Example).
   - `fixed` — the answer is set once by the instance and never changes:
     wiring.
   - default (no `fixed`) — the answer may change: state.
-  - `vacatable` — the slot may be empty (§9.3).
+  - `vacatable` — the slot may be empty (§8.4, §9.3).
 
 *Example. `investigator` is wiring: in every reachable situation the
 docket's investigator is `watchdog`. `stage` is state: it is what
@@ -717,7 +717,58 @@ member such as `nobody` — must leak into every type any chain reaches,
 and a box labelled "a person" that means "a person or nothing" no
 longer says what it contains.
 
-### 8.4 *(covered by §7)*
+### 8.4 Slots
+
+- **Definition** — a **slot** is one entity paired with one arrow: the
+  cell holding that entity's answer for that arrow. Slots are not
+  declared. The schema says which arrows a type owns (§8.3), the
+  instance's roster says which entities exist (§9.2), and the slots are
+  every pairing the two permit.
+- **Contents** — exactly one member of the arrow's target type, or
+  nothing. Nothing is permitted only where the arrow is `vacatable`;
+  there is no null member and no placeholder (§2.3).
+- **Kind** — a slot of a `fixed` arrow is **wiring**: the instance sets
+  it (§9.3) and no effect may write it. Every other slot is **mutable**,
+  and carries state. A situation is one assignment to all the mutable
+  slots (§12.1), so this is the split that decides what varies.
+- **Use** — a valuation clause fills a slot (§9.3); `set` and `vacate`
+  rewrite one (§10.3); `is` and `defined` read one (§10.2); a chain is a
+  walk from slot to slot, and an empty slot ends the walk (§8.5).
+
+*Example — every slot of `day-one` (§4). Columns are the arrows a type
+owns, rows are the entities the instance named; each cell is a slot.*
+
+```
+                stage  investigator  prosecutor    judge
+                state  wiring (f)    wiring (f)    state, vacatable
+               ┌───────┬──────────────┬──────────────┬──────────────────┐
+        docket │ open  │ watchdog     │ prosecutions │ ∅                │
+               └───────┴──────────────┴──────────────┴──────────────────┘
+
+                independence
+                state
+               ┌──────────────┐
+      watchdog │ independent  │
+  prosecutions │ independent  │
+               └──────────────┘
+
+                employer
+                wiring (f)
+               ┌────────────┐
+         alice │ watchdog   │
+               └────────────┘
+```
+
+*Seven slots. Three are wiring — `investigator`, `prosecutor`,
+`employer` — and hold the same answers in every situation. The other
+four are mutable, and their domains multiply out to the situation space
+of §12.1: 2·2·2·2 = 16, `judge` counting empty as one of its two.*
+
+*Design note.* The set of slots is fixed once the schema and the
+instance are read: no move creates an entity, so no move creates or
+destroys a slot. A move changes only what a slot holds. That is what
+makes the situation space a finite product (§12.4) rather than
+something to be searched for.
 
 ### 8.5 Chains
 
@@ -1019,11 +1070,11 @@ do-nothing moves; a gap has no next situation at all.
   - `(form PATTERN TEMPLATE…)`
   - nullary: `(form NAME DATUM)`, referenced as the bare atom NAME.
 - **PATTERN** — a literal list headed by the form's name:
-  - ALL-CAPS atoms are **blanks** (slots);
-  - at most one `&rest SLOT`, in last position, captures the remainder;
+  - ALL-CAPS atoms are **blanks**;
+  - at most one `&rest BLANK`, in last position, captures the remainder;
   - everything else must match literally.
 - **TEMPLATE** — one or more datums; blanks are replaced by what they
-  matched; `@SLOT` pastes a `&rest` capture item by item.
+  matched; `@BLANK` pastes a `&rest` capture item by item.
 - **Constraints**
   - A form's name is fresh and is not a kernel word.
   - A template may mention only kernel words and *earlier-declared*
@@ -1038,6 +1089,11 @@ do-nothing moves; a gap has no next situation at all.
     no transformation of captures.
   - Expanded output is parsed by the ordinary grammar; an error names
     the invocation the author wrote, with the expansion shown.
+
+*Note.* A blank is a hole in a template, not a **slot** (§8.4): it holds
+a piece of source text before parsing, where a slot holds an entity's
+answer to an arrow in a situation. The tool's diagnostics still call
+blanks "form slots"; the two are unrelated.
 
 *Example — nullary.*
 
@@ -1097,8 +1153,8 @@ it references nothing outside this specification.
 - The **wiring** of a model: the rosters and the values of all `fixed`
   arrows, as given by the initial instance. Wiring never varies.
 - A **situation** (state): one assignment of answers to all mutable
-  slots over the wiring — each slot holding a member of its target
-  domain, or empty where vacatable.
+  slots (§8.4) over the wiring — each slot holding a member of its
+  target domain, or empty where vacatable.
 - The **situation space**: all situations. It is finite: the product of
   finitely many finite domains.
 
@@ -1474,7 +1530,7 @@ equation-d  ::= (equation NAME guard)                      ; §8.6, one free roo
 
 instance-d  ::= (instance NAME SCHEMA clause…)
 clause      ::= (TYPE ENTITY… slot…)                      ; entities are atoms, slots lists
-slot        ::= (ARROW value)                            ; slots need exactly one entity
+slot        ::= (ARROW value)                            ; §8.4; needs exactly one entity
 value       ::= VALUE | ENTITY | vacant
 rhs         ::= CHAIN | VALUE | ENTITY               ; CHAIN iff it has a dot
 
@@ -1488,8 +1544,8 @@ effect      ::= (set CHAIN rhs) | (vacate CHAIN) | (gap "MSG")
 form-d      ::= (form PATTERN TEMPLATE…)
               | (form NAME DATUM)
 PATTERN     ::= (NAME pat-item…)
-pat-item    ::= SLOT | &rest SLOT | literal-datum
-TEMPLATE    ::= datum with SLOT substitution and @SLOT splice
+pat-item    ::= BLANK | &rest BLANK | literal-datum       ; §11.1; a blank is not a slot
+TEMPLATE    ::= datum with BLANK substitution and @BLANK splice
 
 CHAIN       ::= ATOM.ATOM[.ATOM…]                         ; lexical (§5.2)
 ```

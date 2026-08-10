@@ -87,6 +87,21 @@ The clause grew a **slot**: `(book hamlet (status available))` reads as one
 sentence — a book, hamlet, whose status is available. Declaring the entity and
 filling its slots is one act, in one place.
 
+A **slot** is one entity plus one arrow — the cell where that entity's answer
+lives. The schema names the arrows, the instance names the entities, and every
+pairing of the two is a slot:
+
+```
+           status
+          ┌───────────┐
+   hamlet │ available │
+          └───────────┘
+```
+
+Columns are arrows, rows are entities, cells are slots. Nothing declares a slot
+directly; you get exactly the ones the schema and the instance imply. Add a
+second book and there are two, add a second arrow and there are four.
+
 Two arrangements now exist **on paper** — available and lent — but still only
 one *state*. A state is one the model can reach, and nothing yet moves.
 
@@ -248,6 +263,16 @@ The last three are **language** words, not claims words, even though the file
 above is where they first appear — guards work in a `when` exactly as they work
 inside a modality (step 4). `(when (not (defined hamlet.holder)))` is a legal
 transition guard, and means what it says here.
+
+`hamlet` has two slots now, and one of them holds nothing — `pol` prints an
+empty slot as `∅`:
+
+```
+           status     holder
+          ┌───────────┬────────┐
+   hamlet │ available │ ∅      │
+          └───────────┴────────┘
+```
 
 There is no `nobody` person, and that is deliberate — see
 [why partial](kernel-spec.md#23-the-arrows-are-partial).
@@ -583,7 +608,7 @@ is the same words applied to bigger worlds.
 | **Guards**   | `is` `defined` `and` `or` `not` `some`                               | the whole logic — one syntax, used by a move, a law and a claim alike |
 | **Forms**    | `form` `&rest`                                                               | rename and paste, nothing more                                         |
 
-`@` is punctuation, not a word. ALL-CAPS slots are a convention, not
+`@` is punctuation, not a word. ALL-CAPS blanks are a convention, not
 syntax. Everything else — ordering, `=`, "for all", entire domain
 vocabularies — is a library of forms written in these 26. The kernel does not
 grow.
@@ -621,7 +646,7 @@ grow.
 28    EFFECT ::= (set CHAIN rhs) | (vacate CHAIN) | (gap "MSG")
 29    CHAIN  ::= entity.arrow.arrow…                ; follow arrows; literal, finite
 30
-31  (form (NAME SLOT… [&rest SLOT]) TEMPLATE…)   ; ALL-CAPS slots; @SLOT splices
+31  (form (NAME BLANK… [&rest BLANK]) TEMPLATE…) ; ALL-CAPS blanks; @BLANK splices
 32  (form NAME DATUM)                            ; nullary, used as a bare atom
 ```
 
