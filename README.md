@@ -468,7 +468,21 @@ ships in
 make build   # compile the engine, the CLI, and the two servers
 make test    # the unit suites
 make lint    # ocamlformat check + warnings-as-errors typecheck
+make dev     # build + test, then refresh the installed binaries
 ```
+
+`make build` does not install, which is right — a build should not touch your
+`$PREFIX` — and is also how the `pol` on your PATH becomes a different program
+from the one you just tested. `make dev` is the edit loop: build, test,
+install. It leaves `lint` out on purpose, since `dune build` already compiles
+with warnings-as-errors and a formatting check that fails on every
+half-finished edit is a check you start skipping.
+
+(A symlinked dev install would need no remembering, and does not work here:
+dune's `_build/install/default/bin/pol` is itself a symlink into
+`_build/default/tooling/cli/pol.exe`, `Sys.executable_name` resolves through
+it, and the stdlib search is relative to the binary — so `../share/pol/lib`
+lands inside `_build`.)
 
 OCaml + dune, **stdlib only** — no external libraries (JSON, JSON-RPC and the
 MCP protocol are hand-written). The layering is enforced by dune's own

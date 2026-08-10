@@ -21,11 +21,34 @@
 
 DUNE = scripts/with-ocaml.sh dune
 
-.PHONY: build test lint fmt run image \
+.PHONY: build dev test lint fmt run image \
         install-pol uninstall-pol opam-install opam-uninstall release \
         clean
 build:
 	$(DUNE) build
+
+# The edit loop, in one command. `build` deliberately does NOT touch $(PREFIX)
+# — a build should not install — and that is exactly how the `pol` on PATH
+# comes to be a different program from the one just tested: you rebuild, the
+# suites pass, and then you type at yesterday's binary and read its answer as
+# today's. That failure is silent, which is what makes it expensive; this
+# target exists to be the one worth typing.
+#
+# A symlinked dev install would need no remembering at all. It does not work
+# here, and the reason is worth recording so nobody re-tries it: dune's
+# _build/install/default/bin/pol is ITSELF a symlink into
+# _build/default/tooling/cli/pol.exe, OCaml's Sys.executable_name resolves
+# through it, and the `(load …)` search order looks for the stdlib relative to
+# the binary (design D3, candidate 3) — so `../share/pol/lib` lands inside
+# _build, in a directory dune owns and will clobber. Checked, not assumed.
+#
+# Separate $(MAKE) lines rather than prerequisites: prerequisite order is not
+# guaranteed under -j, and installing a binary whose suites have not run yet is
+# the thing being avoided.
+dev:
+	$(MAKE) build
+	$(MAKE) test
+	$(MAKE) install-pol
 
 test:
 	$(DUNE) runtest --force
