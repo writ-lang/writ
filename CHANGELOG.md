@@ -60,6 +60,36 @@ file re-asking its `.claims` properties as derivations, and pol-problems'
 runner cross-checks the two implementations against each other: all sixteen
 properties get the same verdict from `pol derive` as from `pol check`.
 
+**A SQL bridge.** `pol sql` reads a relational schema as an olog and writes one
+back — one verb, one mapping, the direction taken from the extension. Tables
+become types, foreign keys arrows, `NULL` `vacatable`, enums and `CHECK … IN`
+enumerated types keeping their members, single-row `CHECK`s laws; a primary key
+emits nothing, an entity being its identity. Columns pol cannot look inside
+cross as arrows into a ONE-member domain, so a `NOT NULL` scalar costs the
+state product nothing and a nullable one costs the factor of two that IS the
+distinction pol can decide about a `varchar`. The SQL vocabulary arrives as
+forms over the 26 words, generated for the database at hand rather than
+shipped — the stdlib stays the only `.pol` the tool ships — and a domain type
+shares its column form's name, which is legal because a slotted form only
+expands in list-head position and is what makes a column two tokens.
+
+The point is what a database cannot do: a `CHECK` becomes an `equation`, so
+`pol check` reports not merely that a constraint is violated but WHICH move can
+break it. Everything the DDL says and an olog cannot hold is reported by line
+and reason, aggregated, never dropped in silence; `--strict` makes that a
+finding. `UNIQUE` is declined as unsayable rather than unimplemented — a law
+ranges over one entity of its subject type and a bare `some` binder is not
+comparable — as is arithmetic in a `CHECK`, for the reason the language has no
+numbers at all. pg_dump is the input that matters, so casts, `= ANY (ARRAY[…])`,
+`ALTER TABLE … ADD CONSTRAINT` and dollar-quoted function bodies are all read
+correctly. Round-tripping is defined on the model rather than the text, and the
+two facts SQL cannot state — whether a key is ever `UPDATE`d, whether a plain
+column is wiring — travel as `-- pol:` pragmas the import reads back. The
+library, `pol_sql`, depends on `pol_data` alone and lives in `tooling/`
+beside the other bridges to foreign notations — it is not part of the
+language, and the engine cannot tell it exists. The emitted model is
+kernel-only: no `(load …)`, no prelude, nothing from the standard library.
+
 **Editor support.** A language server, `pol-lsp` — diagnostics from the real
 engine, completion, hover and an outline, over `.pol`, `.claims` and `.rules`.
 The VS Code client is its own repository,

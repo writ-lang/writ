@@ -208,6 +208,8 @@ what it costs.
 | `pol compare --git R1 R2 MODEL` | …across two git revisions of one file |
 | `pol control MODEL` | emit the move list as an instance of the standard library's `quiver` schema |
 | `pol schema MODEL` | emit the model's schema as an instance of the standard library's `olog` schema |
+| `pol sql SCHEMA.sql` | read a relational schema as an olog — tables become types, foreign keys arrows, NULL `vacatable`, enums enumerated types, single-row `CHECK`s laws |
+| `pol sql MODEL.pol` | …and back: emit the model's schema as `CREATE TABLE` |
 | `pol derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
 | `pol derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
 | `pol derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
@@ -216,6 +218,58 @@ what it costs.
 Exit status is the interface: **0** clean · **1** a finding (a failed property; a
 violated, unadmitted, or stale law; a lost-in-compare guarantee) · **2**
 unreadable input.
+
+### Relational schemas
+
+A relational schema **is** a finitely presented category, so `pol sql` is a
+reading rather than a translation — and one mapping read in both directions.
+The SQL vocabulary arrives as **forms over the 26 words**, generated for the
+database at hand rather than shipped, so a column is two tokens:
+
+```lisp
+(varchar-255 email)                  ; email varchar(255) NOT NULL
+(timestamptz? shipped-at)            ; shipped_at timestamptz
+(fk buyer-id customers)              ; a key never UPDATEd — wiring, so not state at all
+(bool active)                        ; the one scalar whose values are worth naming
+```
+
+A domain type and its column form **share one name**, which is what makes two
+tokens possible: a form with slots only expands in list-head position, so the
+same word inside `(to …)` stays data.
+
+What crosses is decided by one line: **pol carries a column's value iff the
+column has finitely many values worth naming.** `boolean`, enums and `CHECK …
+IN` keep their members; `varchar`, `int` and `timestamptz` become arrows into a
+**one-member** domain — present, exportable, and *free*, since a total arrow
+into a one-member type has exactly one filling. Nullability costs a factor of
+two, which is the one distinction pol can decide about a `varchar`: whether it
+is there. A primary key emits nothing at all — an entity **is** its identity.
+
+The payoff is what a database cannot do. A `CHECK` becomes an `equation`, and a
+law is a claim the world is measured against rather than a filter on it:
+
+```console
+$ pol sql schema.sql > shop.pol      # then write the migration's UPDATE as a move
+$ pol check shop.pol
+equation orders-shipped
+  can be broken by: ship   (acknowledge in claims)
+```
+
+A database tells you a constraint was violated *at runtime*. `pol` tells you
+**which operation can violate it**, by exhaustion, before it ships.
+
+What the DDL says and an olog cannot hold is reported on stderr by line and
+reason — never dropped in silence. `UNIQUE` is the interesting one: it is
+**unsayable**, not unimplemented, because a pol law ranges over one entity of
+its subject type and a bare `some` binder is not comparable, so "two distinct
+rows agree" has no spelling. Arithmetic in a `CHECK` is refused for the reason
+the whole language is: there are no numbers, and inventing them would cost the
+negative answer.
+
+Round-tripping is defined on the **model**, not the text — the export
+normalises spellings on purpose — and the two facts SQL cannot state (whether a
+key is ever `UPDATE`d, whether a plain column is wiring) travel as `-- pol:`
+pragmas the import reads back.
 
 ## Install
 

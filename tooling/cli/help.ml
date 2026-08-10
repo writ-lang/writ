@@ -23,6 +23,8 @@ USAGE
   pol compare  --git REV1 REV2 MODEL.pol [--map MAP.pol]
   pol control  MODEL.pol
   pol schema   MODEL.pol
+  pol sql      SCHEMA.sql [--with-data] [--strict]
+  pol sql      MODEL.pol [--strict]
   pol derive   MODEL.pol RULES.rules RELATION | "(RELATION ARG…)"
   pol derive   MODEL.pol RULES.rules --why "(RELATION ARG…)"
   pol --help | -h
@@ -58,6 +60,25 @@ COMMANDS
            up. Types become `ob`, arrows `hom` with `dom`/`cod`, laws `eqn`
            entities by name; a law's body is not encoded (kernel §17).
 
+  sql      Read a relational schema as an olog, or write one back. The
+           direction is the EXTENSION: a .sql argument prints a model, a .pol
+           argument prints CREATE TABLE. A table is a type, a foreign key an
+           arrow, NULL `vacatable`, an enum an enumerated type keeping its
+           members; a primary key dissolves into the entity's identity, and a
+           single-row CHECK becomes an `equation` — so `pol check` then reports
+           not merely that a constraint is violated but WHICH move can break
+           it. A column pol cannot look inside crosses as an arrow into a
+           one-member domain: present, exportable, and free, since a total
+           arrow into a one-member type has one filling. Nullability costs a
+           factor of two, which is the one distinction pol can decide about a
+           varchar. Everything the DDL says that is not carried — UNIQUE,
+           arithmetic in a CHECK, DEFAULT, indexes — is reported on stderr by
+           line and reason, never dropped in silence. --with-data reads INSERTs
+           as the initial instance, for seed rows: an instance is ONE starting
+           configuration, so a table's full contents is not what it wants.
+           Round-tripping is defined on the model, not the text:
+           `pol compare M <(pol sql <(pol sql M))` reports nothing lost.
+
   derive   Answer a .rules file's relations over the model's enumerated
            universe (the relational extension, docs/interrogator.md). A bare
            RELATION prints every row; a "(RELATION ARG…)" datum keeps only the
@@ -83,6 +104,8 @@ OPTIONS
   --why "(R A…)"   print one fact's derivation tree instead of rows (derive)
   --map MAP.pol    `(map X => Y)` renames for comparing differing schemas
   --git R1 R2 M    compare git revisions R1 and R2 of model M
+  --with-data      read INSERT rows as the initial instance (sql import)
+  --strict         exit 1 if anything in the input was declined (sql)
 
 EXIT STATUS  (the interface — scriptable)
   0   clean — the model built and nothing failed

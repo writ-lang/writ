@@ -33,6 +33,7 @@ let usage =
       "  pol compare --git REV1 REV2 MODEL [--map M]";
       "  pol control MODEL";
       "  pol schema  MODEL";
+      "  pol sql     FILE.sql | FILE.pol [--with-data] [--strict]";
       "  pol derive  MODEL RULES [--why] RELATION | \"(RELATION ARG…)\"";
       "  pol --help | -h";
       "  pol --version | -V";
@@ -71,6 +72,15 @@ let () =
       | _ -> die 2 usage)
   | [ _; "control"; model ] -> Cmd_control.run model
   | [ _; "schema"; model ] -> Cmd_schema.run model
+  | _ :: "sql" :: file :: rest ->
+      (* the direction is the extension, so the flags are the only options and
+         either order will do *)
+      let known = [ "--with-data"; "--strict" ] in
+      if List.exists (fun f -> not (List.mem f known)) rest then die 2 usage
+      else
+        Cmd_sql.run file
+          ~with_data:(List.mem "--with-data" rest)
+          ~strict:(List.mem "--strict" rest)
   | _ :: "derive" :: model :: rules :: rest -> (
       match rest with
       | [ q ] -> Cmd_derive.run model rules ~why:false q

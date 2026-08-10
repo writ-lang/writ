@@ -31,12 +31,13 @@
   test_set_as_chain
   test_law_as_guard
   test_ct_rules
-  test_facts)
+  test_facts
+  test_sql)
  (deps
   (glob_files fixtures/*.{pol,claims,rules})
   (glob_files %{workspace_root}/tests/models/*.{pol,claims})
   (glob_files %{workspace_root}/core/stdlib/*.{pol,rules}))
- (libraries pol_data pol_syntax pol_runtime pol_loadpath))
+ (libraries pol_data pol_syntax pol_runtime pol_loadpath pol_sql))
 
 ; The language-server tests drive [Server.handle] (pure: JSON in, JSON out), so
 ; they link the [pol_lsp] library alongside the engine. No I/O — the resolver

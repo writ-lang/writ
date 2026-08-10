@@ -22,9 +22,10 @@
   cmd_control
   cmd_schema
   cmd_derive
+  cmd_sql
   help
   version)
- (libraries pol_data pol_syntax pol_runtime pol_loadpath))
+ (libraries pol_data pol_syntax pol_runtime pol_loadpath pol_sql))
 
 ; `pol --version` reads the version dune already knows — the one in dune-project
 ; that opam publishes and `make release` names the tarball with. Generated
