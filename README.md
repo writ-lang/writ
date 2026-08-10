@@ -309,24 +309,58 @@ pragmas the import reads back.
 
 ## Install
 
-Three ways, all landing the same layout — `bin/` holding `pol`, `pol-lsp` and
-`pol-mcp`, plus the `.pol` standard library at `share/pol/lib`, which is where
-the resolver looks:
+`pol` is a real opam package (`pol.opam`, generated from `dune-project`), and it
+also installs without opam at all. Every route lands the same layout — `bin/`
+holding `pol`, `pol-lsp` and `pol-mcp`, plus the `.pol` standard library at
+`share/pol/lib`, which is where the resolver looks.
+
+### With opam
+
+**It is not in opam-repository**, so there is nothing to `opam install pol`.
+Pin it — this needs no checkout, opam does the cloning:
+
+```sh
+opam pin add pol git+https://github.com/sajonaro/pol.git
+eval $(opam env)          # if this is the first thing in the switch
+pol --version
+```
+
+From a checkout, any of these:
+
+```sh
+opam install .            # build and install into the current switch
+opam pin add pol .        # …and keep it pinned to this directory
+make opam-install         # the same thing, through the Makefile
+```
+
+Two things to know. opam builds from your **git HEAD**, so uncommitted work is
+invisible to it — commit first, or pass `--working-dir`. And a pin follows the
+branch it was taken from; `opam upgrade pol` re-reads it. Remove with `opam
+remove pol` (or `make opam-uninstall`), and drop the pin with `opam pin remove
+pol`.
+
+The package depends on `ocaml >= 4.14` and `dune >= 3.0` and **nothing else** —
+the engine is OCaml stdlib only, JSON, JSON-RPC and the MCP protocol included.
+
+### Without opam
 
 ```sh
 make install-pol      # from this checkout -> ~/.local  (plain cp; no opam)
-make opam-install     # the opam package   -> the current switch
+make install-pol PREFIX=/usr/local          # …or a prefix you name
 make release          # a portable tarball -> dist/pol-<version>-linux-x86_64.tar.gz
 ```
 
-**opam.** `pol` is a real package (`pol.opam`, generated from `dune-project`), so
-`opam install .` or `opam pin add pol .` on any machine with a switch builds and
-installs all three binaries and the stdlib. Note opam builds from your git HEAD —
-commit first, or pass `--working-dir`.
+`make install-pol` needs OCaml and dune to build, but no opam package
+machinery, and installs all three binaries — the editor client looks for
+`pol-lsp` on `PATH`, and an MCP client is pointed at `pol-mcp` by name, so
+installing only `pol` leaves both with nothing to talk to. Undo it with `make
+uninstall-pol`.
 
-**Portable tarball.** For a machine with no OCaml, no opam and no network:
-`make release` produces one tarball holding **statically linked** binaries, the
-stdlib and an `install.sh`. No libc version floor — the same tarball is verified
+### Portable tarball
+
+For a machine with no OCaml, no opam and no network: `make release` produces
+one tarball holding **statically linked** binaries, the stdlib and an
+`install.sh`. No libc version floor — the same tarball is verified
 to run on Debian 12 (glibc) and Alpine (musl):
 
 ```sh
@@ -344,9 +378,7 @@ actually requires, so the portability claim is checked, not assumed.
 Nothing external is needed to *use* `pol`. The bundled stdlib lets `(load
 "stdlib.pol")` resolve from any directory (the resolver searches the including
 file's dir, `$POL_LIB`, the copy beside the binary, then `./core/stdlib`); set
-`POL_TRACE_LOADS=1` to print which file each load actually resolved to. Remove a
-`make install-pol` with `make uninstall-pol`, an opam install with
-`make opam-uninstall`.
+`POL_TRACE_LOADS=1` to print which file each load actually resolved to.
 
 ## Three repositories
 

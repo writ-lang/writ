@@ -37,7 +37,7 @@
  (synopsis
   "Partial Olog — a language for modelling real-world domains, and an interrogator that proves facts about them")
  (description
-  "A Pol model is a state machine written down: a schema (the kinds of things that exist, the typed arrows between them, and the laws certain arrow-chains must obey), an instance (one starting configuration) and guarded transitions. The `pol` tool enumerates every reachable situation and answers the questions put to it by exhaustion, printing a concrete route as evidence. The whole language is twenty-eight words; everything else is a library of forms over them. Questions live apart from models, in .claims files, so one question suite can be asked of many models and comparing two versions of a model is a tool operation. OCaml stdlib only — no external dependencies.")
+  "A Pol model is a state machine written down: a schema (the kinds of things that exist, the typed arrows between them, and the laws certain arrow-chains must obey), an instance (one starting configuration) and guarded transitions. The `pol` tool enumerates every reachable situation and answers the questions put to it by exhaustion, printing a concrete route as evidence. The whole language is twenty-six words; everything else is a library of forms over them. Questions live apart from models, in .claims files, so one question suite can be asked of many models and comparing two versions of a model is a tool operation. OCaml stdlib only — no external dependencies.")
  (depends
   (ocaml
    (>= 4.14))
