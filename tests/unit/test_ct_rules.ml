@@ -67,12 +67,20 @@ let space m =
    reaches [Derive.run] — which makes "it derives at all" one of the assertions
    here rather than a precondition of them. *)
 let program m src =
-  match Rules_parser.parse m.Model.schema (read src) with
+  (* [~open_heads:true] is what [Loader.read_rules] passes, and this harness has
+     to pass it too: §7's forms have rule bodies whose heads are relations, which
+     the expander cannot know. Expanding here rather than parsing the raw datums
+     is also the point — a `(form …)` reaching [Rules_parser] unexpanded is not a
+     rules declaration at all. *)
+  match Expander.expand ~open_heads:true (read src) with
   | Error e -> failwith ("ct.rules: " ^ Errors.to_string e)
-  | Ok t -> (
-      match Rules_check.check m t with
-      | Ok p -> p
-      | Error e -> failwith ("ct.rules: " ^ Errors.to_string e))
+  | Ok ds -> (
+      match Rules_parser.parse m.Model.schema ds with
+      | Error e -> failwith ("ct.rules: " ^ Errors.to_string e)
+      | Ok t -> (
+          match Rules_check.check m t with
+          | Ok p -> p
+          | Error e -> failwith ("ct.rules: " ^ Errors.to_string e)))
 
 let count d rel =
   match Derive_answers.sorts_of d rel with
@@ -127,6 +135,76 @@ let () =
   check "nobody escapes a single class" (count loop "escapes" = 0);
   check "both situations are in the final phase" (count loop "final-phase" = 2);
   check "a final phase need not be a dead end" (count loop "dead-end" = 0)
+
+(* §7 — the three goal forms, which are the only part of the library a model
+   INVOKES rather than merely loads, so the invocation is appended here. The
+   guard is the DAG's sink, reached from everywhere and left from nowhere:
+   `satisfies` is that one situation, `can-reach` is all four, and `trapped` —
+   the counterexample set a `live` claim would report — is empty, which is the
+   polarity §7's comment warns is the easy one to invert. *)
+let goals =
+  "\n\
+   (satisfies both-vocal (and (is nabu.stands vocal) (is mid.stands vocal)))\n\
+   (can-reach can-finish both-vocal)\n\
+   (trapped stuck can-finish)\n"
+
+let dag_goals =
+  let m = model_file "rules_base.pol" in
+  Derive.run (space m) (program m (ct ^ goals))
+
+let () =
+  check "satisfies is the situations where the guard holds"
+    (count dag_goals "both-vocal" = 1);
+  check "can-reach is every situation that still reaches one"
+    (count dag_goals "can-finish" = 4);
+  check "trapped is empty where the goal is always still reachable"
+    (count dag_goals "stuck" = 0)
+
+(* A model where the goal CAN be lost, so `trapped` is non-empty and the forms
+   are shown to tell the two cases apart. Written here rather than taken from a
+   fixture because the fixtures that trap — captured_trap.pol — reach their trap
+   through `(load …)`, and this harness parses without the loader.
+
+   `latch` is irreversible and `goal` needs p still at a. From (a,a): latch to
+   (b,a), goal to (a,b), and from (a,b) latch to (b,b) — four situations. The
+   goal is q at b, so it holds in (a,b) and (b,b); every situation reaches one
+   EXCEPT (b,a), where the latch has been thrown before the goal was taken and
+   no move remains. One trapped situation, and it is the point of the model. *)
+let trap_src =
+  "(schema s\n\
+  \   (type f (a b))\n\
+  \   (type box (arrow p (to f)) (arrow q (to f))))\n\
+   (instance i s (box x (p a) (q a)))\n\
+   (use s)\n\
+   (initial i)\n\
+   (transition latch (when (is x.p a)) (do (set x.p b)))\n\
+   (transition goal (when (and (is x.p a) (is x.q a))) (do (set x.q b)))\n"
+
+let trap_goals =
+  let m =
+    match Parser.parse_model (read trap_src) with
+    | Ok m -> m
+    | Error e -> failwith ("trap model: " ^ Errors.to_string e)
+  in
+  Derive.run (space m)
+    (program m
+       (ct
+      ^ "\n\
+         (satisfies done (is x.q b))\n\
+         (can-reach can-finish done)\n\
+         (trapped lost can-finish)\n"))
+
+let () =
+  check "the goal holds in two of the four situations"
+    (count trap_goals "done" = 2);
+  check "three situations can still reach it" (count trap_goals "can-finish" = 3);
+  check "throwing the latch first loses the goal for good"
+    (count trap_goals "lost" = 1);
+  (* Every situation either has a move or has not, so the two partition the
+     space — which is what makes this a partition check and not two numbers. *)
+  check "can-reach and trapped partition the space"
+    (count trap_goals "can-finish" + count trap_goals "lost"
+    = count trap_goals "moves" + count trap_goals "dead-end")
 
 let () =
   print_string ("ct.rules tests: " ^ string_of_int !passed ^ " checks passed\n")

@@ -119,6 +119,38 @@ let () =
       | _ -> check "the schema survived expansion as a schema" false)
   | Error e -> check ("expanding maybe failed: " ^ Errors.to_string e) false
 
+(* [~open_heads] — the one relaxation, and the test that it stays confined to
+   the file type that needs it.
+
+   A template head the expander cannot resolve is a typo or a forward reference
+   in a .pol or .claims file, and it stays an error there. In a .rules file it is
+   a RELATION, which does not exist until the program is parsed, so the check
+   rejects correct programs and catches nothing — [Loader.read_rules] opts out
+   of it, and nothing else may. The same template is used both ways below, so
+   the two answers differ only by the flag. *)
+let () =
+  let src = "(form (satisfies R G) (relation R 1) (rule (R S) (holds S G)))" in
+  (match Expander.expand (read_all src) with
+  | Ok _ ->
+      check "a .pol file still refuses a head the expander cannot know" false
+  | Error e ->
+      check "the refusal names the head"
+        (contains_sub ~sub:"mentions `holds`" e.Errors.msg));
+  match Expander.expand ~open_heads:true (read_all src) with
+  | Ok _ -> check "a .rules file accepts a rule body's relation heads" true
+  | Error e ->
+      check ("open_heads still refused it: " ^ Errors.to_string e) false
+
+(* Self-recursion is NOT relaxed: it needs no vocabulary to detect, so the
+   relaxation must not carry it along. *)
+let () =
+  let src = "(form (loop A) (loop A))" in
+  match Expander.expand ~open_heads:true (read_all src) with
+  | Ok _ -> check "open_heads must not admit a recursive template" false
+  | Error e ->
+      check "recursion is still refused under open_heads"
+        (contains_sub ~sub:"recurses" e.Errors.msg)
+
 let () =
   print_string
     ("forms-position tests: " ^ string_of_int !passed ^ " checks passed\n")

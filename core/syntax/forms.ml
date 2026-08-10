@@ -120,7 +120,30 @@ let rec parse_items acc = function
       let* nested = nested_slots_all [] items in
       parse_items (nested @ acc) tl
 
-let collect (d : Reader.t) ~(earlier : form_def list) :
+(* [open_heads] relaxes ONE rule below, for one file type, and the reason is
+   that the rule is unanswerable there rather than unwanted.
+
+   A template's heads are checked against what the expander knows: reserved
+   words, the form's own slots, and forms already declared. In a .pol or
+   .claims file that is the whole vocabulary, so an unknown head IS a typo or a
+   forward reference. In a .rules file it is not: a rule body's heads are
+   RELATIONS, which do not exist until the program is parsed — the extension's
+   built-ins (`situation`, `edge`, `holds`) and every relation the file itself
+   declares. The expander cannot know any of them, so the check there rejects
+   correct programs and catches nothing.
+
+   Nothing is lost by relaxing it, which is the condition for doing so: an
+   unknown head in a rule body is refused by [Rules_check] with its own position
+   and the declaration to add — a better diagnostic than this one, arriving where
+   the knowledge is. The self-recursion rule is NOT relaxed; it needs no
+   vocabulary.
+
+   It is a flag rather than a list of the extension's words on purpose. A list
+   would put the interrogator's vocabulary inside the kernel's expander, which
+   a conforming processor (§14) need not implement — the same coupling
+   [is_slot]'s note above declines — and it would still be wrong, since no list
+   can contain the relations a file has yet to declare. *)
+let collect ?(open_heads = false) (d : Reader.t) ~(earlier : form_def list) :
     (form_def, Errors.t) result =
   (* `=>` was the language's only infix token. It carried no information the
      position does not already give — the pattern is element 2, the templates
@@ -165,7 +188,8 @@ let collect (d : Reader.t) ~(earlier : form_def list) :
       (* Reject a template that names its own form (recursion) or a head that is
          neither reserved, a slot, nor an earlier form (a forward reference). *)
       let allowed_head h =
-        is_reserved h || List.mem h all_slots || List.mem h earlier_names
+        open_heads || is_reserved h || List.mem h all_slots
+        || List.mem h earlier_names
       in
       (* A nullary form is invoked as a bare atom, so a bare atom equal to the
          name is a self-invocation. A form with slots is only ever invoked as a

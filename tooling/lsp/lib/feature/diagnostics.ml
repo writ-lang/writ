@@ -78,16 +78,25 @@ let datums_of (t : Text.t) : Reader.t list =
   match Reader.read_string t.Text.src with Ok ds -> ds | Error _ -> []
 
 (* Read + inline + expand the buffer WITHOUT a schema — the structural check for
-   a .claims buffer whose sibling model is absent or does not build. It still
-   catches malformed datums, load cycles, and library violations, yet never
-   demands a model's (use)/(initial), which a claims file legitimately lacks. *)
-let structural (resolve : Loader.resolve) (path : string) :
-    (unit, Errors.t) result =
+   a .claims or .rules buffer whose sibling model is absent or does not build.
+   It still catches malformed datums, load cycles, and library violations, yet
+   never demands a model's (use)/(initial), which neither file type has.
+
+   [open_heads] must be passed through, and forgetting it was a real bug rather
+   than a tidiness point: a .rules file with no sibling model — ct.rules itself,
+   which has no ct.pol and never will — took THIS path, where the expander
+   refuses a template head it cannot know (`situation`, `holds`, any relation
+   the file declares). The editor therefore squiggled the standard library while
+   the command line accepted it, which is the one divergence a language server
+   must not have. [Loader.read_rules] already opts in; this is the same opt-in
+   on the fallback beside it. *)
+let structural ?(open_heads = false) (resolve : Loader.resolve) (path : string)
+    : (unit, Errors.t) result =
   let* datums =
     Loader.read_datums resolve ~file:path (Filename.basename path)
   in
   let* inlined = Loader.inline resolve datums in
-  let* _ = Expander.expand inlined in
+  let* _ = Expander.expand ~open_heads inlined in
   Ok ()
 
 (* A .rules buffer is checked against its sibling model, as a .claims buffer
@@ -99,7 +108,7 @@ let structural (resolve : Loader.resolve) (path : string) :
 let check_rules (resolve : Loader.resolve) ~(path : string) ~(sibling : string)
     : (unit, Errors.t) result =
   match Loader.read_model resolve sibling with
-  | Error _ -> structural resolve path
+  | Error _ -> structural ~open_heads:true resolve path
   | Ok model ->
       (* [Loader.read_rules] only PARSES. Sorts, stratification, range
          restriction and the undeclared-head check live in [Rules_check], which

@@ -113,5 +113,5 @@ let read_rules (resolve : resolve) (m : Model.t) (path : string) :
     (Rules_parser.t, Errors.t) result =
   let* datums = read_datums resolve ~file:path (Filename.basename path) in
   let* inlined = inline resolve datums in
-  let* expanded = Expander.expand inlined in
+  let* expanded = Expander.expand ~open_heads:true inlined in
   Rules_parser.parse m.Model.schema expanded

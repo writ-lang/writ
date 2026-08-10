@@ -130,7 +130,8 @@ let instantiate (fd : Forms.form_def) (args : Reader.t list) (pos : Errors.pos)
   let* env, rest = bind fd args pos in
   map_r (subst env rest) fd.Forms.template
 
-let expand (datums : Reader.t list) : (Reader.t list, Errors.t) result =
+let expand ?(open_heads = false) (datums : Reader.t list) :
+    (Reader.t list, Errors.t) result =
   let forms = ref [] in
   let find n =
     List.find_opt (fun (fd : Forms.form_def) -> fd.name = n) !forms
@@ -196,7 +197,7 @@ let expand (datums : Reader.t list) : (Reader.t list, Errors.t) result =
     | d :: rest -> (
         match d with
         | Reader.List (Reader.Atom ("form", _) :: _, _) ->
-            let* fd = Forms.collect d ~earlier:!forms in
+            let* fd = Forms.collect ~open_heads d ~earlier:!forms in
             forms := !forms @ [ fd ];
             go acc rest
         | _ ->
