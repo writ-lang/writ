@@ -202,10 +202,10 @@ type derivation = { by : rule_id; premises : premise list }
 
 (* A term is a VARIABLE iff it is ALL-CAPS, matching extension §1's notation.
 
-   Deliberately an independent definition and NOT a call to [Forms.is_slot],
-   which tests the same spelling for a different concept (a form's slot).
+   Deliberately an independent definition and NOT a call to [Forms.is_blank],
+   which tests the same spelling for a different concept (a form's blank).
    core/data is the leaf layer and cannot see core/syntax, but the move to
-   resist is the reverse one: hoisting [is_slot] down here would make the
+   resist is the reverse one: hoisting [is_blank] down here would make the
    KERNEL's form expander depend on this OPTIONAL extension, which a conforming
    processor need not implement (docs/interrogator.md §0). Two concepts that
    share a convention, kept apart on purpose. *)

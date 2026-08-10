@@ -1,17 +1,17 @@
 open Pol_data
 
 (* Form declarations: [(form PATTERN TEMPLATE…)] collected into a [form_def]
-   with hygiene checks (kernel §0.2, §6). Slot names are the ALL-CAPS words in
-   the pattern; [&rest] names the single splice slot, in last position; the
-   template may mention only reserved words, slots, and EARLIER forms. That last
-   rule — a template can name neither itself nor a not-yet-declared form — is
-   what makes the one-shot fixpoint (expander.ml) terminate. *)
+   with hygiene checks (kernel §0.2, §6). Blank names are the ALL-CAPS words
+   in the pattern; [&rest] names the single splice blank, in last position; the
+   template may mention only reserved words, blanks, and EARLIER forms. That
+   last rule — a template can name neither itself nor a not-yet-declared
+   form — is what makes the one-shot fixpoint (expander.ml) terminate. *)
 
 type form_def = {
   name : string;
   pattern : Reader.t;
   template : Reader.t list;
-  slots : string list;
+  blanks : string list;
   rest : string option;
 }
 
@@ -20,7 +20,7 @@ let ( let* ) = Result.bind
 (* The 26 reserved words, plus the interrogator's file-format words (so a claims
    library's forms may head their templates with [property]/[query]/…, and a
    rules library's with [relation]/[rule]). A form may not be named a reserved
-   word, a slot may not collide with one, and these are exactly the callable
+   word, a blank may not collide with one, and these are exactly the callable
    heads a template may legally mention.
 
    Reserving a word has a price, paid once per entry: [allowed_head] below lets
@@ -75,56 +75,56 @@ let reserved =
 
 let is_reserved w = List.mem w reserved
 
-(* A slot is an ALL-CAPS atom: at least one A–Z, and no a–z.
+(* A blank is an ALL-CAPS atom: at least one A–Z, and no a–z.
 
    [Rules.is_var] in the OPTIONAL interrogator extension spells the same test
-   for a different concept — a rule variable, not a form slot. The duplication
-   is deliberate: sharing one definition would point the kernel's form expander
-   at an extension a conforming processor need not implement. Change one and the
-   other stays as it is. *)
-let is_slot s =
+   for a different concept — a rule variable, not a form blank. The
+   duplication is deliberate: sharing one definition would point the kernel's
+   form expander at an extension a conforming processor need not implement.
+   Change one and the other stays as it is. *)
+let is_blank s =
   s <> ""
   && String.exists (fun c -> c >= 'A' && c <= 'Z') s
   && not (String.exists (fun c -> c >= 'a' && c <= 'z') s)
 
-(* Collect the ALL-CAPS slot atoms of a nested (structural) pattern item,
+(* Collect the ALL-CAPS blank atoms of a nested (structural) pattern item,
    prepending onto [acc]. [&rest] is a top-level-only construct; reject it
    below the top level. *)
-let rec nested_slots acc (it : Reader.t) : (string list, Errors.t) result =
+let rec nested_blanks acc (it : Reader.t) : (string list, Errors.t) result =
   match it with
   | Reader.Atom ("&rest", p) ->
       Errors.err ~pos:p "&rest may not appear inside a nested form pattern"
-  | Reader.Atom (a, _) -> Ok (if is_slot a then a :: acc else acc)
-  | Reader.List (items, _) -> nested_slots_all acc items
+  | Reader.Atom (a, _) -> Ok (if is_blank a then a :: acc else acc)
+  | Reader.List (items, _) -> nested_blanks_all acc items
 
-and nested_slots_all acc = function
+and nested_blanks_all acc = function
   | [] -> Ok acc
   | x :: xs ->
-      let* acc = nested_slots acc x in
-      nested_slots_all acc xs
+      let* acc = nested_blanks acc x in
+      nested_blanks_all acc xs
 
-(* Read the pattern items after the head into (slots, rest), enforcing ≤1
-   [&rest] and only in last position. Non-slot literals match literally in the
-   expander and are not recorded as slots; a nested list matches structurally,
-   contributing the slots it contains (kernel §6). *)
+(* Read the pattern items after the head into (blanks, rest), enforcing ≤1
+   [&rest] and only in last position. Non-blank literals match literally in the
+   expander and are not recorded as blanks; a nested list matches structurally,
+   contributing the blanks it contains (kernel §6). *)
 let rec parse_items acc = function
   | [] -> Ok (List.rev acc, None)
   | Reader.Atom ("&rest", p) :: tl -> (
       match tl with
       | [ Reader.Atom (r, _) ] -> Ok (List.rev acc, Some r)
-      | [] -> Errors.err ~pos:p "&rest must be followed by a slot name"
+      | [] -> Errors.err ~pos:p "&rest must be followed by a blank name"
       | _ -> Errors.err ~pos:p "&rest must be in the last position")
   | Reader.Atom (a, _) :: tl ->
-      if is_slot a then parse_items (a :: acc) tl else parse_items acc tl
+      if is_blank a then parse_items (a :: acc) tl else parse_items acc tl
   | Reader.List (items, _) :: tl ->
-      let* nested = nested_slots_all [] items in
+      let* nested = nested_blanks_all [] items in
       parse_items (nested @ acc) tl
 
 (* [open_heads] relaxes ONE rule below, for one file type, and the reason is
    that the rule is unanswerable there rather than unwanted.
 
    A template's heads are checked against what the expander knows: reserved
-   words, the form's own slots, and forms already declared. In a .pol or
+   words, the form's own blanks, and forms already declared. In a .pol or
    .claims file that is the whole vocabulary, so an unknown head IS a typo or a
    forward reference. In a .rules file it is not: a rule body's heads are
    RELATIONS, which do not exist until the program is parsed — the extension's
@@ -141,8 +141,8 @@ let rec parse_items acc = function
    It is a flag rather than a list of the extension's words on purpose. A list
    would put the interrogator's vocabulary inside the kernel's expander, which
    a conforming processor (§14) need not implement — the same coupling
-   [is_slot]'s note above declines — and it would still be wrong, since no list
-   can contain the relations a file has yet to declare. *)
+   [is_blank]'s note above declines — and it would still be wrong, since no
+   list can contain the relations a file has yet to declare. *)
 let collect ?(open_heads = false) (d : Reader.t) ~(earlier : form_def list) :
     (form_def, Errors.t) result =
   (* `=>` was the language's only infix token. It carried no information the
@@ -160,17 +160,19 @@ let collect ?(open_heads = false) (d : Reader.t) ~(earlier : form_def list) :
          with the template following the pattern directly"
   | Reader.List (Reader.Atom ("form", _) :: pattern :: template, _)
     when template <> [] ->
-      let* name, name_pos, slots, rest =
+      let* name, name_pos, blanks, rest =
         match pattern with
         | Reader.Atom (n, p) -> Ok (n, p, [], None)
         | Reader.List (Reader.Atom (n, p) :: items, _) ->
-            let* slots, rest = parse_items [] items in
-            Ok (n, p, slots, rest)
+            let* blanks, rest = parse_items [] items in
+            Ok (n, p, blanks, rest)
         | Reader.List (_, p) ->
             Errors.err ~pos:p "a form pattern must be headed by a name"
       in
       let earlier_names = List.map (fun fd -> fd.name) earlier in
-      let all_slots = slots @ match rest with Some r -> [ r ] | None -> [] in
+      let all_blanks =
+        blanks @ match rest with Some r -> [ r ] | None -> []
+      in
       let clashes s = is_reserved s || List.mem s earlier_names in
       let* () =
         if is_reserved name then
@@ -179,24 +181,25 @@ let collect ?(open_heads = false) (d : Reader.t) ~(earlier : form_def list) :
         else if List.mem name earlier_names then
           Errors.err ~pos:name_pos ("form `" ^ name ^ "` is already declared")
         else
-          match List.find_opt clashes all_slots with
+          match List.find_opt clashes all_blanks with
           | Some s ->
               Errors.err ~pos:name_pos
-                ("slot `" ^ s ^ "` collides with a name in scope")
+                ("blank `" ^ s ^ "` collides with a name in scope")
           | None -> Ok ()
       in
-      (* Reject a template that names its own form (recursion) or a head that is
-         neither reserved, a slot, nor an earlier form (a forward reference). *)
+      (* Reject a template that names its own form (recursion) or a head that
+         is neither reserved, a blank, nor an earlier form (a forward
+         reference). *)
       let allowed_head h =
-        open_heads || is_reserved h || List.mem h all_slots
+        open_heads || is_reserved h || List.mem h all_blanks
         || List.mem h earlier_names
       in
       (* A nullary form is invoked as a bare atom, so a bare atom equal to the
-         name is a self-invocation. A form with slots is only ever invoked as a
+         name is a self-invocation. A form with blanks is only ever invoked as a
          list head, so its name occurring as a bare (non-head) atom is data — a
          §7 claim-form names itself as the [property]/[query] symbol — and must
          not be flagged. *)
-      let nullary = slots = [] && rest = None in
+      let nullary = blanks = [] && rest = None in
       let rec scan (t : Reader.t) =
         match t with
         | Reader.Atom (a, p) ->
@@ -221,7 +224,7 @@ let collect ?(open_heads = false) (d : Reader.t) ~(earlier : form_def list) :
             scan_all xs
       in
       let* () = scan_all template in
-      Ok { name; pattern; template; slots; rest }
+      Ok { name; pattern; template; blanks; rest }
   | Reader.List (Reader.Atom ("form", _) :: _, p) ->
       Errors.err ~pos:p "malformed form: expected (form PATTERN TEMPLATE …)"
   | _ -> Reader.err_at d "expected a (form …) declaration"

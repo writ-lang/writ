@@ -105,7 +105,7 @@ let () =
              | Reader.List (Reader.Atom ("transition", _) :: _, _) -> true
              | _ -> false)
            out);
-      check "expand: slots are substituted (P := light.state, B := off)"
+      check "expand: blanks are substituted (P := light.state, B := off)"
         (Reader.to_string (List.nth out 0)
         = "(transition (when (is light.state on)) (do (set light.state off)))")
 

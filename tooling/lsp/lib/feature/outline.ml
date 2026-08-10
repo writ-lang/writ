@@ -75,7 +75,7 @@ and named t d head rest =
   | _ -> []
 
 (* A form names itself in its PATTERN: [(form NAME …)] (nullary) or
-   [(form (NAME …) …)] (with slots). The name token is inside the form's
+   [(form (NAME …) …)] (with blanks). The name token is inside the form's
    parens either way, so the selectionRange is contained. *)
 and form_sym t d rest =
   match rest with

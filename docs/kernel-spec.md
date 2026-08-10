@@ -1092,8 +1092,8 @@ do-nothing moves; a gap has no next situation at all.
 
 *Note.* A blank is a hole in a template, not a **slot** (§8.4): it holds
 a piece of source text before parsing, where a slot holds an entity's
-answer to an arrow in a situation. The tool's diagnostics still call
-blanks "form slots"; the two are unrelated.
+answer to an arrow in a situation. Nothing connects them but the shape of
+the word, which is why they no longer share one.
 
 *Example — nullary.*
 

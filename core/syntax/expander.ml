@@ -3,8 +3,8 @@ open Pol_data
 (* One-shot fixpoint expansion, no computation (kernel §0.2, §6). Datums are
    processed left-to-right: a [(form …)] registers into the running scope (via
    [Forms.collect]) and is dropped from the output; any other datum is rewritten
-   to a fixpoint by substituting a form invocation's slots and splicing its one
-   [&rest] through [@SLOT]. Because [Forms.collect] forbade a template from
+   to a fixpoint by substituting a form invocation's blanks and splicing its one
+   [&rest] through [@BLANK]. Because [Forms.collect] forbade a template from
    naming itself or a later form, no invocation can introduce a cycle, so the
    fixpoint always terminates; a large step cap is only a safety net. *)
 
@@ -12,12 +12,13 @@ let ( let* ) = Result.bind
 let cap = 100_000
 let is_splice s = String.length s > 1 && s.[0] = '@'
 
-(* A form is nullary when it takes no slots and no [&rest]. Only a nullary form
-   is invoked as a bare atom, so only a nullary name may expand in atom position;
-   a slotted form's name occurring as a bare atom is data (e.g. a §7 claim-form's
-   [(property NAME …)] symbol) and is left untouched. *)
+(* A form is nullary when it takes no blanks and no [&rest]. Only a nullary
+   form is invoked as a bare atom, so only a nullary name may expand in atom
+   position; a form WITH blanks is invoked as a list head, so its name occurring
+   as a bare atom is data (e.g. a §7 claim-form's [(property NAME …)] symbol)
+   and is left untouched. *)
 let is_nullary (fd : Forms.form_def) =
-  fd.Forms.slots = [] && fd.Forms.rest = None
+  fd.Forms.blanks = [] && fd.Forms.rest = None
 
 let splice_name s = String.sub s 1 (String.length s - 1)
 
@@ -35,7 +36,7 @@ let rec concat_map_r f = function
       let* ys = concat_map_r f xs in
       Ok (y @ ys)
 
-(* Match a form's pattern against an invocation's args, binding each slot to a
+(* Match a form's pattern against an invocation's args, binding each blank to a
    datum and the optional [&rest] to the remaining datums. *)
 let bind (fd : Forms.form_def) (args : Reader.t list) (pos : Errors.pos) :
     ( (string * Reader.t) list * (string * Reader.t list) option,
@@ -50,7 +51,7 @@ let bind (fd : Forms.form_def) (args : Reader.t list) (pos : Errors.pos) :
      list matches structurally; [&rest] never appears below the top level. *)
   let rec match1 env (pat : Reader.t) (arg : Reader.t) =
     match pat with
-    | Reader.Atom (a, _) when Forms.is_slot a -> Ok ((a, arg) :: env)
+    | Reader.Atom (a, _) when Forms.is_blank a -> Ok ((a, arg) :: env)
     | Reader.Atom (lit, lp) -> (
         match arg with
         | Reader.Atom (a, _) when a = lit -> Ok env
@@ -87,14 +88,14 @@ let bind (fd : Forms.form_def) (args : Reader.t list) (pos : Errors.pos) :
   in
   go [] pat_items args
 
-(* Rewrite a template datum: slots become their bound datums, and an [@SLOT]
+(* Rewrite a template datum: blanks become their bound datums, and an [@BLANK]
    atom splices the [&rest] binding into its enclosing list. *)
 let rec subst env rest (d : Reader.t) : (Reader.t, Errors.t) result =
   match d with
   | Reader.Atom (a, p) -> (
       match Reader.split_dots a with
       | [] | [ _ ] -> (
-          (* A bare atom (no dot): the whole atom is the slot key, and its
+          (* A bare atom (no dot): the whole atom is the blank key, and its
              bound datum — atom or list — replaces it. *)
           match List.assoc_opt a env with
           | Some v -> Ok v
@@ -107,7 +108,7 @@ let rec subst env rest (d : Reader.t) : (Reader.t, Errors.t) result =
               Ok (Reader.Atom (String.concat "." (e :: tail), p))
           | Some (Reader.List _) ->
               Errors.err ~pos:p
-                ("form slot `" ^ head
+                ("form blank `" ^ head
                ^ "` heads a path but is bound to a list, not an entity")))
   | Reader.List (items, p) ->
       let one it =
