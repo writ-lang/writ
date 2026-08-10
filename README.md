@@ -120,6 +120,36 @@ every verdict carries a route. The cost: no arithmetic, no unbounded
 populations, no "for every *n*" — a domain that cannot be honestly reduced to
 finitely many named distinctions is one this tool should not be pointed at.
 
+At first almost every domain looks like it needs arithmetic: payments have
+amounts, a timetable has hours, a shelf has a height. But numbers tend to
+arrive in a model in only two ways — as *how many of something there are*, and
+as *how one thing compares with another* — and each has a substitution that
+gets rid of it. **Counting becomes naming. Calculating becomes writing down.**
+Those two are what give the language its range. Take a payment waiting on
+sign-off:
+
+- **Counting becomes naming.** "A payment needs two signatures" is
+  not the number two — it is two slots, either of which may be empty:
+
+  ```
+  payment 4471    first-sign  → nobody
+                  second-sign → nobody
+  ```
+
+  *Fully signed* is both slots answering: a question about things, with
+  nothing to add up.
+
+- **Calculating becomes writing down.** "Is this over the limit?"
+  is arithmetic. What the rules turn on is only which side of the limit the
+  payment falls on, so that is what the model carries:
+
+  ```
+  payment 4471    band → large            not:   amount → 12,400
+  ```
+
+  Any calculation with finitely many answers can be written down instead of
+  performed. In Pol, what you write it down as is arrows.
+
 **The notation is s-expressions** because the object written down is a finitely
 presented category: labelled nodes, each with a head naming its kind, a body
 naming its parts, and containment where one thing belongs to another. `(arrow

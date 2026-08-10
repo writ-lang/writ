@@ -1,9 +1,9 @@
 # Pol — Language Specification
 
 *New to Pol? Start with **[the tour](tour.md)** — ten runnable steps, each a
-complete model, ending in a one-page cheat sheet of all 27 words. This document
-is the reference: precise, normative, and not meant to be read front to back
-first.*
+complete model, ending in a one-page cheat sheet of all twenty-six words.
+This document is the reference: precise, normative, and not meant to be read
+front to back first.*
 
 ## Contents
 
@@ -186,59 +186,210 @@ language has the shape it does. Everything follows from one demand: **a
 model must denote a finite object the tool can hold entire** — one that
 can be built, walked, exported and diffed.
 
-Four decisions carry it. Pol inherits an olog and makes the map move
-(§2.2); it makes the olog's arrows partial (§2.3); it refuses to compute
-(§2.4); it writes everything in one datum shape (§2.5). They depend on
-each other. Refusing computation keeps the object finite; partial arrows
-keep it honest at that size, since totalising a map corrupts its types
-and inflates the object at once; the uniform datum shape lets the
-vocabulary grow without the object's definition changing.
+**No numbers, no loops, no recursion.** That sounds like a language able
+to model almost nothing.
+
+**Pol is not Turing-complete, and that is on purpose.**
+
+In a language that can express any computation, most questions about what
+a program does have no general answer. "Can it ever reach this state?" is
+the plain example: no tool can settle that for every program. A tool
+working on such a language therefore has two ways out. It can ask the
+author to supply the proof. Or it can explore for a while and report what
+it found — and when it finds nothing, that is not the same as there being
+nothing.
+
+Pol gives up that expressive power. What it gets back is answers. A model
+denotes one finite object, the tool builds all of it, and a question is
+settled by looking at every situation once.
+
+Take the river. Two questions. The tool answers both by building every
+arrangement the rules allow, then looking at all of them:
+
+- **Can everything reach the far bank intact?**
+  Yes — and the answer arrives with a crossing to follow.
+
+- **From every arrangement, can the crossing still succeed?**
+  No. One careless first move is enough:
+
+      the farmer rows across alone
+
+      left:  wolf  goat  cabbage          right:  farmer
+
+  The wolf has been left alone with the goat, and nothing after that
+  gets everything across.
+
+Both answers are about every arrangement there is, because the tool built
+them all. That makes *there is no crossing* a finding you can act on,
+exactly like *here is one*.
+
+Building all of it is only possible when there is a finite amount to
+build. That is what the missing numbers and loops are for: nothing you
+can write in this language describes unboundedly many situations, so the
+tool can always finish.
+
+The burden that takes off the tool lands on you. The language will not
+stretch to fit a domain, having no arithmetic to offer, so the domain has
+to arrive already cut down — finitely many things, each with a name, and
+the questions asked about those names.
+
+So the first question is about your domain, not about the language:
+
+> Can my domain be cut down to finitely many named distinctions?
+
+Answering it is the work.
+
+At first almost every domain looks like it needs arithmetic: payments
+have amounts, a timetable has hours, a shelf has a height. But numbers
+tend to arrive in a model in only two ways — as *how many of something
+there are*, and as *how one thing compares with another* — and each of
+the two has a substitution that gets rid of it.
+
+**Counting becomes naming. Calculating becomes writing down.**
+
+Those two do most of the work of fitting a domain into this language.
+Take a payment waiting on sign-off:
+
+- **Counting becomes naming.**
+  "A payment needs two signatures" is not the number two. It is two
+  slots, either of which may be empty:
+
+      payment 4471    first-sign  → nobody
+                      second-sign → nobody
+
+  *Fully signed* is then both slots answering: a question about things,
+  with nothing to add up. Nothing in the model holds the number two — the
+  two named slots do all the work it would have done.
+
+- **Calculating becomes writing down.**
+  "Is this over the limit?" is arithmetic. What the rules turn on is only
+  which side of the limit the payment falls on, so that is what the model
+  carries:
+
+      payment 4471    band → large            not:   amount → 12,400
+
+  Any calculation with finitely many answers can be settled once, in
+  advance, and written into the model — so that a rule looks the answer
+  up instead of working it out.
+
+Some domains go through neither substitution. A quantity that genuinely
+has to be added up, a probability, a duration measured rather than named,
+a population of no fixed size — for these there is no honest set of
+names, and the domain does not fit (§2.4).
+
+Cutting your domain down is your half of the arrangement. The language's
+half begins with what you are left holding once the cutting is done.
+
+Look at the payment. There is the payment itself, the people who might
+sign it, the departments they belong to; the two named slots; a band
+where an amount used to be. Four decisions follow from that pile, and
+each has a section of its own below:
+
+- **The things in the pile point at each other, so the language is boxes
+  and arrows.** A payment points at whoever signed it, a person points at
+  a department. Kinds of things, and named connections between them, is
+  exactly what an *olog* is — a notation that already exists for this —
+  so Pol starts there rather than inventing one, and then lets the
+  arrangement change (§2.1, §2.2).
+- **Some of the pointing is missing, and that is part of the domain.**
+  An unsigned payment has a signer slot with nothing in it. That is not a
+  defect in the model; it is what most payments look like on the day they
+  arrive. So an arrow is allowed to answer nothing (§2.3).
+- **The pile has to stay finite, whatever you write.** That is the
+  restriction already argued for: no numbers, no loops, no recursion
+  (§2.4).
+- **You will want your own words for the pile** — *payment*, *sign-off*,
+  *band* — without those words changing what a model means. So everything
+  is written in one shape, a parenthesised list with a word at its head,
+  and new vocabulary is new words in that shape rather than new grammar
+  (§2.5).
+
+Two of the four lean on each other. Refusing to compute is what keeps a
+model's meaning finite. Partial arrows are what keep it honest at that
+size: the alternative is to invent a value meaning "nothing" and hand it
+to every arrow, which spoils the types and enlarges the object at the
+same time.
 
 ### 2.1 The starting point: an olog
 
-Pol's map layer is an **Olog** ("ontology log") — a notation from
-category theory for writing ontologies as boxes and arrows. Ologs are
-good at five things, and Pol keeps every one whole:
+An **olog** ("ontology log") is a way of writing a domain down as boxes
+and arrows, taken from category theory. A box is a kind of thing. An
+arrow is one named way that a kind of thing points at another. The river
+begins like this:
 
-- **Saying what exists.** Boxes force the commitment — a bureau, a
-  case, a person. Most modelling failures are failures to say what
-  kinds of things there are.
-- **Typed, chainable relations.** Every arrow runs from a named type
-  to a named type, so relations compose:
-  `docket.investigator.independence` is checkable text.
-- **Laws as diagrams.** Two routes that must agree — "the
-  investigator's independence equals the prosecutor's" — are written
-  as equations: the formal content of "the rules require".
-- **The map apart from its filling.** The world's shape and one
-  concrete filling of it are separate documents, and "is this filling
-  legal for this map" is a checkable question.
-- **Translation.** A dictionary from one map into another — including
-  an older version of itself — can be checked for honesty: nothing
-  untranslated, shapes preserved, laws carried over.
+    a wolf  ──at──▶  a bank
+    a goat  ──at──▶  a bank
 
-What an Olog lacks is everything the puzzles demanded beyond the map.
-An Olog is a photograph:
+That is the whole notation. Four things follow from it, and they are why
+Pol starts here rather than anywhere else.
 
-- **no time** — nothing moves *(Pol adds transitions, §10)*;
-- **no possibility** — no "can this ever happen", no traps *(the
-  generated meaning, §12, and the questions of §16)*;
-- **no absence** — every arrow must answer *(`vacant` slots and `gap`
-  moves, §8.3, §10.4)*;
-- **no violation** — a filling that breaks a law simply does not count
-  as a filling, so the illegal cannot be studied *(law as observable,
-  §15)*;
-- **no evidence** — a failed law has no counterexample artifact
-  *(witnesses, §15–16)*.
+**You cannot avoid saying what exists.** There is no way to write that
+arrow without first admitting there is such a thing as a bank. Most
+modelling failures are failures to say what kinds of things there are,
+and this notation will not let you past that step.
 
-Pol is the Olog kept whole, plus exactly these five changes and nothing
-else; the wish-by-wish map from the Prologue to the constructs is
-Appendix F.
+**Arrows join up, so a relationship becomes a path you can follow.** If a
+payment points at the person who signed it, and a person points at the
+department they work in, then
 
-Four of the five are genuine **additions** — structure an olog does not
-carry. The third is not: it is a **subtraction**, since an olog's arrows
-must answer and Pol's need not. The sections below take the additions
-first (§2.2, where the photograph starts to move) and the subtraction
-second (§2.3, which is what the language is named for).
+    payment 4471  ──first-sign──▶  a person  ──department──▶  a department
+
+is a path across the map, written `4471.first-sign.department`. Reading
+it is following arrows one at a time. Nothing is worked out.
+
+**A rule is two paths that have to end in the same place.** "The
+investigating agency and the prosecuting agency must be the same" is not
+a remark in the margin: it is two routes out of one box, required to
+agree. That is what an olog offers in place of prose, and Pol keeps it
+(§8.6).
+
+**The shape and one filling of it are separate documents.** The kinds of
+things and their arrows are one text; which wolf, which bank, and where
+everything stands is another. So "is this arrangement a legal filling of
+this shape" is a question with an answer, and one shape can be
+translated into another — including into an older version of itself —
+with the translation itself checkable (§16.4).
+
+Pol keeps all four whole. What it does not get from an olog is
+everything the Prologue's puzzles ask for beyond the map, because an olog
+is a **photograph**:
+
+- **No time.** The farmer can row, but a photograph does not change:
+  there is no way to say the goat is on the left bank now and the right
+  bank next. *(Pol adds transitions, §10.)*
+- **No possibility.** "Can everything reach the far bank?" cannot be put
+  to a photograph at all. It is a question about what might follow, and
+  nothing follows a photograph. *(The generated space, §12; the
+  questions, §16.)*
+- **No absence.** Every arrow must answer, so there is nowhere to put an
+  eaten goat, and no way to record that a native has not been
+  interviewed yet. *(Empty slots and `gap`, §8.3, §10.4.)*
+- **No violation.** An arrangement that breaks a rule is simply not a
+  filling of the map, so the broken case cannot be examined — and the
+  island's whole subject is the case that breaks. *(Law as an
+  observable, §15.)*
+- **No evidence.** A rule that fails leaves nothing behind: no crossing
+  to print, no route to the blunder. *(Witnesses, §15–16.)*
+
+Pol is the olog kept whole, plus exactly these five changes and nothing
+else. Appendix F maps them back to the Prologue's twelve wishes one by
+one.
+
+**Four of the five are additions.** Time, possibility, violation and
+evidence are all structure an olog does not carry, and Pol brings them.
+
+**The third is not an addition. It is a subtraction, and it is what the
+language is called after.** An olog's arrows must answer, for every
+thing: ask any wolf where it is and there has to be a bank at the end of
+the arrow. Pol drops that requirement, and an arrow is allowed to answer
+nothing at all.
+
+That sounds like a small liberty. It is the one that mattered most: in
+the domains this language is for, having no answer is ordinary rather
+than exceptional — the goat is eaten, the office is unfilled, the statute
+says nothing about the case in front of you. An olog with that
+requirement removed is a **partial** olog, which is where the language
+gets its name (§2.3).
 
 ### 2.2 The meaning is generated, not written
 
