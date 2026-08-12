@@ -197,7 +197,10 @@ let succs (t : t) : int list array =
    them from a partition of the whole. A node with no edges either way is a
    component of one, which is exactly what a restriction should leave behind. *)
 let tarjan (n : int) (succ : int list array) : int array =
-  let visit = Array.make n (-1) (* preorder number, -1 = unvisited *) in
+  let visit =
+    Array.make n (-1)
+    (* preorder number, -1 = unvisited *)
+  in
   let low = Array.make n 0 in
   let on = Array.make n false in
   let comp = Array.make n (-1) in
@@ -266,7 +269,8 @@ let phases (t : t) : int array * (int * int) list =
          (fun (e : edge) ->
            match e.dst with
            | `To s' -> (
-               match (State.M.find_opt e.src t.index, State.M.find_opt s' t.index)
+               match
+                 (State.M.find_opt e.src t.index, State.M.find_opt s' t.index)
                with
                | Some si, Some di when comp.(si) <> comp.(di) ->
                    Some (comp.(si), comp.(di))
@@ -285,7 +289,8 @@ let enabled_names (t : t) : string list array =
   List.iter
     (fun e ->
       match State.M.find_opt e.src t.index with
-      | Some si -> if not (List.mem e.via out.(si)) then out.(si) <- e.via :: out.(si)
+      | Some si ->
+          if not (List.mem e.via out.(si)) then out.(si) <- e.via :: out.(si)
       | None -> ())
     t.edges;
   out
@@ -343,7 +348,9 @@ let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
       (fun e ->
         match e.dst with
         | `To s' -> (
-            match (State.M.find_opt e.src t.index, State.M.find_opt s' t.index) with
+            match
+              (State.M.find_opt e.src t.index, State.M.find_opt s' t.index)
+            with
             | Some si, Some di when (not f.(si)) && not f.(di) ->
                 Some (e.via, si, di)
             | _ -> None)
@@ -366,7 +373,9 @@ let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
     comp := tarjan n sub;
     let c = !comp in
     let size = Array.make n 0 in
-    Array.iteri (fun i k -> if alive.(i) && k >= 0 then size.(k) <- size.(k) + 1) c;
+    Array.iteri
+      (fun i k -> if alive.(i) && k >= 0 then size.(k) <- size.(k) + 1)
+      c;
     let cyclic i = alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)) in
     List.iter
       (fun mv ->
@@ -379,7 +388,8 @@ let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
           labelled;
         let offers = Hashtbl.create 16 in
         for i = 0 to n - 1 do
-          if cyclic i && List.mem mv avail.(i) then Hashtbl.replace offers c.(i) ()
+          if cyclic i && List.mem mv avail.(i) then
+            Hashtbl.replace offers c.(i) ()
         done;
         Hashtbl.iter
           (fun k () ->
@@ -403,12 +413,14 @@ let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
     all;
   let c = tarjan n sub in
   let size = Array.make n 0 in
-  Array.iteri (fun i k -> if alive.(i) && k >= 0 then size.(k) <- size.(k) + 1) c;
+  Array.iteri
+    (fun i k -> if alive.(i) && k >= 0 then size.(k) <- size.(k) + 1)
+    c;
   Array.init n (fun i ->
       (not f.(i))
       && ((* stopped: no real move out of the model at all *)
           all.(i) = []
-          || (alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)))))
+         || (alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)))))
 
 (* The enabled moves out of a state: exactly the edges whose source is it (an
    edge is recorded only for an enabled transition). Gap edges are INCLUDED — a

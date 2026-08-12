@@ -249,7 +249,9 @@ let () =
    every model and goal this file builds — the property is about the pair, so
    testing it on one fixture would prove nothing. *)
 let () =
-  let goals = [ "up"; "down"; "safe"; "captured"; "home"; "away"; "home-able" ] in
+  let goals =
+    [ "up"; "down"; "safe"; "captured"; "home"; "away"; "home-able" ]
+  in
   let holds = function Checker.Holds _ -> true | _ -> false in
   let bad =
     List.concat_map
@@ -290,7 +292,9 @@ let () =
   | _ -> check "n/a: an unknown move must be n/a" false);
   (* The assumption is printed with the verdict, both ways: a verdict that could
      be quoted without it would be a different claim from the one checked. *)
-  let s = Report.outcome sp (goal [ "arrive" ]) (Checker.check sp (goal [ "arrive" ])) in
+  let s =
+    Report.outcome sp (goal [ "arrive" ]) (Checker.check sp (goal [ "arrive" ]))
+  in
   check "report: a holding inevitable names what it assumed"
     (contains ~sub:"holds  i" s && contains ~sub:"assuming fair: arrive" s)
 
@@ -317,8 +321,11 @@ let () =
   (match
      parse "(property p \"d\" (inevitable (is s.pos up) (fair raise lower)))"
    with
-  | Ok { Claims.props = [ { modality = Inevitable [ "raise"; "lower" ]; _ } ]; _ }
-    ->
+  | Ok
+      {
+        Claims.props = [ { modality = Inevitable [ "raise"; "lower" ]; _ } ];
+        _;
+      } ->
       check "claims: (fair MOVE…) decodes into the modality, in order" true
   | _ -> check "claims: (fair MOVE…) must decode into the modality" false);
   (match parse "(property p \"d\" (inevitable (is s.pos up)))" with
@@ -371,8 +378,7 @@ let () =
   check "show: a gap edge is printed as one, not as a destination"
     (contains ~sub:"blow → gap: boom" b);
   check "show: …and a situation that only exits by a gap is not a dead end"
-    (contains ~sub:"climb → 2" b
-    && not (contains ~sub:"a dead end" b))
+    (contains ~sub:"climb → 2" b && not (contains ~sub:"a dead end" b))
 
 (* The cells come from ONE formatter, which is the reason [cells_line] was split
    out of the stuck line rather than copied: a failing property and this verb

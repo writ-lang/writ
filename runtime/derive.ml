@@ -323,7 +323,8 @@ let restrict (prog : Rules.program) (target : string) : Rules.program =
         (fun (d : Rules.relation) -> List.mem d.Rules.rel_name keep)
         prog.Rules.relations;
     Rules.rules =
-      List.filter (fun (r : Rules.rule) -> List.mem r.Rules.head keep)
+      List.filter
+        (fun (r : Rules.rule) -> List.mem r.Rules.head keep)
         prog.Rules.rules;
   }
 

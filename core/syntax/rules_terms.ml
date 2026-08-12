@@ -98,7 +98,8 @@ let builtin_cols (b : Rules.builtin) : string * (Rules.term * Rules.sort) list =
      exposed rather than an opaque handle: a phase joins against [situation],
      [edge] and [holds] with no conversion, and no sixth sort enters the
      language to be inferred, blamed and documented. *)
-  | Rules.Phase (s, p) -> ("phase", [ (s, Rules.Situation); (p, Rules.Situation) ])
+  | Rules.Phase (s, p) ->
+      ("phase", [ (s, Rules.Situation); (p, Rules.Situation) ])
   | Rules.Phase_step (p, q) ->
       ("phase-step", [ (p, Rules.Situation); (q, Rules.Situation) ])
   | Rules.Holds (s, _) -> ("holds", [ (s, Rules.Situation) ])

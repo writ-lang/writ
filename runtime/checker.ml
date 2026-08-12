@@ -154,12 +154,13 @@ let check (sp : Space.t) (prop : Claims.property) : outcome =
                failed. *)
             Not_applicable ("model has no move named " ^ m)
         | None -> (
-        let esc = Space.escapes_f ~fair sp sat in
-        let escapes s =
-          match State.M.find_opt s sp.index with
-          | Some i -> esc.(i)
-          | None -> false
-        in
-        match nearest sp escapes with
-        | None -> Holds []
-        | Some s -> Fails { route = Space.shortest_path sp s; stuck = Some s }))
+            let esc = Space.escapes_f ~fair sp sat in
+            let escapes s =
+              match State.M.find_opt s sp.index with
+              | Some i -> esc.(i)
+              | None -> false
+            in
+            match nearest sp escapes with
+            | None -> Holds []
+            | Some s ->
+                Fails { route = Space.shortest_path sp s; stuck = Some s }))

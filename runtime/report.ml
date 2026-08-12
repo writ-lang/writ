@@ -194,5 +194,4 @@ let situation (sp : Space.t) (i : int) : string =
     | [] -> "  moves:   none — a dead end"
     | _ -> "  moves:   " ^ String.concat "   " out
   in
-  String.concat "\n"
-    [ head; "  cells:   " ^ cells_line sp s; route; moves ]
+  String.concat "\n" [ head; "  cells:   " ^ cells_line sp s; route; moves ]

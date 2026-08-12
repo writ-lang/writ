@@ -154,8 +154,7 @@ let () =
      T are one class and are not the same situation" needs an inequality on
      situations, and the language has none. *)
   check "both situations of a cycle are on it" (count loop "recurrent" = 2);
-  check "one class, so no phase precedes another"
-    (count loop "phase-before" = 0)
+  check "one class, so no phase precedes another" (count loop "phase-before" = 0)
 
 (* §7 — the three goal forms, which are the only part of the library a model
    INVOKES rather than merely loads, so the invocation is appended here. The
@@ -239,8 +238,11 @@ let () =
    where the bug would be. *)
 
 let escape_calls goal =
-  "\n(satisfies goal " ^ goal ^ ")\n(off-set off goal)\n(stays confined off)\n\
-   (escaping escape off confined)\n"
+  "\n(satisfies goal " ^ goal
+  ^ ")\n\
+     (off-set off goal)\n\
+     (stays confined off)\n\
+     (escaping escape off confined)\n"
 
 let cross label src goal =
   let m =
@@ -262,7 +264,9 @@ let cross label src goal =
     | Ok g -> g
     | Error e -> failwith (label ^ ": " ^ Errors.to_string e)
   in
-  let esc = Space.escapes_f sp (fun s -> Eval.guard_holds sp.Space.ctx s [] g) in
+  let esc =
+    Space.escapes_f sp (fun s -> Eval.guard_holds sp.Space.ctx s [] g)
+  in
   let by_engine =
     List.filter_map
       (fun i -> if esc.(i) then Some (string_of_int i) else None)

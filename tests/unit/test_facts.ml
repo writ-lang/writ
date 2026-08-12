@@ -195,7 +195,7 @@ let phase_agrees label m sp =
   let agree = ref true in
   for a = 0 to n - 1 do
     for b = 0 to n - 1 do
-      if (phase_of a = phase_of b) <> (reaches a b && reaches b a) then
+      if phase_of a = phase_of b <> (reaches a b && reaches b a) then
         agree := false
     done
   done;
@@ -208,7 +208,8 @@ let phase_agrees label m sp =
   let named = ref true in
   for i = 0 to n - 1 do
     let p = phase_of i in
-    if phase_of (int_of_string p) <> p || int_of_string p > i then named := false
+    if phase_of (int_of_string p) <> p || int_of_string p > i then
+      named := false
   done;
   check (label ^ ": a phase is named by its least-indexed member") !named;
   (* The quotient's edges: exactly the edges that cross a phase boundary, and
@@ -218,8 +219,8 @@ let phase_agrees label m sp =
       (List.filter_map
          (fun row ->
            match row with
-           | [ _; a; b ] when phase_of (int_of_string a) <> phase_of (int_of_string b)
-             ->
+           | [ _; a; b ]
+             when phase_of (int_of_string a) <> phase_of (int_of_string b) ->
                Some [ phase_of (int_of_string a); phase_of (int_of_string b) ]
            | _ -> None)
          (all d "edge"))
