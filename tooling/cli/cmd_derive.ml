@@ -54,8 +54,10 @@ let run (model : string) (rules_path : string) ~(why : bool) (spec : string) =
   (* Two resolvers, because [(load …)] searches the INCLUDING file's directory
      first (design D3) and the rules file need not sit beside the model. *)
   let prog = read_rules (make_resolve rules_path) m rules_path in
-  let t = Derive.run sp prog in
+  (* Read the question BEFORE running: one verb, one relation, so the fixpoint
+     is told what is wanted and computes nothing else ([Derive.cone]). *)
   let rel, given = parse_ask spec in
+  let t = Derive.run ~only:rel sp prog in
   let arity =
     match Derive_answers.sorts_of t rel with
     | Some ss -> List.length ss

@@ -122,6 +122,18 @@ let () =
   check "three situations have a move" (count dag "moves" = 3);
   check "the sink is the one dead end" (count dag "dead-end" = 1)
 
+(* The two phase-derived relations, on the same fixture. A DAG has no recurrence
+   at all, and its quotient is itself — so the phase order has the same five
+   pairs `before` does, which is the agreement worth asserting: the two are
+   computed by different routes (a closure over the quotient, then read down
+   onto situations) and must not part company. *)
+let () =
+  check "a DAG has no situation on a cycle" (count dag "recurrent" = 0);
+  check "the phase order closes the four crossings into five pairs"
+    (count dag "phase-before" = 5);
+  check "…which is exactly `before`, every phase being a single situation here"
+    (count dag "phase-before" = count dag "before")
+
 (* The cycle, where every answer is the opposite. Both situations reach each
    other, so the poset has collapsed to a single class: nothing is `before`
    anything, no edge is one-way, nobody escapes, and both situations are final
@@ -134,7 +146,16 @@ let () =
   check "no edge of a cycle is one-way" (count loop "one-way" = 0);
   check "nobody escapes a single class" (count loop "escapes" = 0);
   check "both situations are in the final phase" (count loop "final-phase" = 2);
-  check "a final phase need not be a dead end" (count loop "dead-end" = 0)
+  check "a final phase need not be a dead end" (count loop "dead-end" = 0);
+  (* The pair the DAG cannot distinguish. `final-phase` holds of both situations
+     here AND of the DAG's sink, so on its own it does not say whether a model
+     has arrived or is going round forever; `recurrent` is what tells the two
+     apart, and it is the relation that had no spelling before `phase` — "S and
+     T are one class and are not the same situation" needs an inequality on
+     situations, and the language has none. *)
+  check "both situations of a cycle are on it" (count loop "recurrent" = 2);
+  check "one class, so no phase precedes another"
+    (count loop "phase-before" = 0)
 
 (* §7 — the three goal forms, which are the only part of the library a model
    INVOKES rather than merely loads, so the invocation is appended here. The

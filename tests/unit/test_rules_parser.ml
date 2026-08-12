@@ -201,7 +201,17 @@ let () =
   rejected "built-in: gap-edge takes two" ~sub:"(gap-edge E S)"
     "(rule (p S) (gap-edge E S1 S2))";
   rejected "built-in: situation takes one" ~sub:"(situation S)"
-    "(rule (p S) (situation S T))"
+    "(rule (p S) (situation S T))";
+  rejected "built-in: phase takes two" ~sub:"(phase S P)"
+    "(rule (p S) (phase S))";
+  rejected "built-in: phase-step takes two" ~sub:"(phase-step P Q)"
+    "(rule (p P) (phase-step P Q R))";
+  (* The quotient is the interrogator's to compute, like every other reading of
+     the derived category — extension §5 again, at the two newest names. *)
+  rejected "relation: phase cannot be redeclared" ~sub:"built-in"
+    "(relation phase 2)";
+  rejected "rule: phase-step cannot be a head" ~sub:"cannot define"
+    "(rule (phase-step P Q) (p P))"
 
 let () =
   (* G is a datum, never a term: a variable there would otherwise reach the

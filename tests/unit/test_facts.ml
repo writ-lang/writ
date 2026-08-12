@@ -166,5 +166,91 @@ let () =
     (all d "vocal" = List.sort compare want);
   check "…and is not vacuously empty" (want <> [])
 
+(* ── The phase built-ins, against the closure they quotient ──────────────── *)
+
+(* Tarjan's partition is checked against the DEFINITION of the thing it computes
+   — two situations share a phase exactly when each reaches the other — and
+   `reach` is derived by the Datalog fixpoint from `edge` alone, knowing nothing
+   about components. Two implementations of one question, which is the only
+   cross-check worth having; comparing the partition with itself would prove
+   only that it is deterministic. *)
+let reach_src =
+  "(relation reach 2)\n\
+   (rule (reach S S) (situation S))\n\
+   (rule (reach S T) (edge E S M) (reach M T))"
+
+let phase_agrees label m sp =
+  let d = Derive.run sp (program_of m reach_src) in
+  let n = Array.length sp.Space.states in
+  let ix = string_of_int in
+  let r = all d "reach" in
+  let reaches a b = List.mem [ ix a; ix b ] r in
+  let ph = all d "phase" in
+  let phase_of i =
+    match List.filter (fun row -> List.nth row 0 = ix i) ph with
+    | [ [ _; p ] ] -> p
+    | _ -> failwith (label ^ ": phase is not a function on situations")
+  in
+  check (label ^ ": every situation has exactly one phase") (List.length ph = n);
+  let agree = ref true in
+  for a = 0 to n - 1 do
+    for b = 0 to n - 1 do
+      if (phase_of a = phase_of b) <> (reaches a b && reaches b a) then
+        agree := false
+    done
+  done;
+  check
+    (label ^ ": two situations share a phase iff each reaches the other")
+    !agree;
+  (* The representative is a member of its own phase, and is the least-indexed
+     one — the naming this rests on, and what makes a phase addressable as a
+     situation rather than as an opaque handle. *)
+  let named = ref true in
+  for i = 0 to n - 1 do
+    let p = phase_of i in
+    if phase_of (int_of_string p) <> p || int_of_string p > i then named := false
+  done;
+  check (label ^ ": a phase is named by its least-indexed member") !named;
+  (* The quotient's edges: exactly the edges that cross a phase boundary, and
+     never one that stays inside — which is what makes the quotient acyclic. *)
+  let want =
+    List.sort_uniq compare
+      (List.filter_map
+         (fun row ->
+           match row with
+           | [ _; a; b ] when phase_of (int_of_string a) <> phase_of (int_of_string b)
+             ->
+               Some [ phase_of (int_of_string a); phase_of (int_of_string b) ]
+           | _ -> None)
+         (all d "edge"))
+  in
+  check
+    (label ^ ": phase-step is exactly the edges that cross a phase boundary")
+    (all d "phase-step" = want);
+  d
+
+(* rules_base.pol is a DAG — two latches, each thrown once — so no situation
+   reaches itself the long way and every one is a phase of its own. Counted by
+   hand from the fixture: 0 → {1, 2} → 3. *)
+let () =
+  let d = phase_agrees "rules_base (a DAG)" base base_sp in
+  check "a DAG: every situation is its own phase"
+    (all d "phase" = [ [ "0"; "0" ]; [ "1"; "1" ]; [ "2"; "2" ]; [ "3"; "3" ] ]);
+  check "a DAG: the quotient is the edge set itself, four crossings"
+    (all d "phase-step"
+    = [ [ "0"; "1" ]; [ "0"; "2" ]; [ "1"; "3" ]; [ "2"; "3" ] ])
+
+(* cycle.pol is the opposite: one flag up and down, so the two situations are
+   one phase and nothing crosses out of it. A partition that quietly answered
+   "everything is its own class" passes the fixture above and fails this one. *)
+let () =
+  let cm = model_file "cycle.pol" in
+  let csp = space cm in
+  let d = phase_agrees "cycle (one loop)" cm csp in
+  check "a loop: both situations are one phase, named by the initial one"
+    (all d "phase" = [ [ "0"; "0" ]; [ "1"; "0" ] ]);
+  check "a loop: nothing crosses out, so the quotient has no edges"
+    (all d "phase-step" = [])
+
 let () =
   print_string ("facts tests: " ^ string_of_int !passed ^ " checks passed\n")

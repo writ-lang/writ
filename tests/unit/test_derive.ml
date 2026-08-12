@@ -213,5 +213,43 @@ let () =
   acyclic "reach" reach;
   acyclic "reach over a cyclic space" cycle
 
+(* ── Demand: one question, one cone ──────────────────────────────────────── *)
+
+(* [~only] must change the COST and never the ANSWER. Three relations: `want`
+   rests on `dep` (positively) and on `neg` (negatively), and `spare` on
+   nothing anyone asked for. Pruning to `want` has to keep both dependencies —
+   a dropped negative premise would silently turn `not` into "true", which is
+   the failure mode worth a test of its own — and drop only `spare`. *)
+let demand_src =
+  "(relation dep 1)\n\
+   (rule (dep S) (situation S))\n\
+   (relation neg 1)\n\
+   (rule (neg S) (init S))\n\
+   (relation want 1)\n\
+   (rule (want S) (dep S) (not (neg S)))\n\
+   (relation spare 2)\n\
+   (rule (spare S T) (edge E S T))\n"
+
+let () =
+  let prog () = program_of base demand_src in
+  let full = Derive.run base_sp (prog ()) in
+  let only = Derive.run ~only:"want" base_sp (prog ()) in
+  check "pruned and unpruned agree on the relation that was asked for"
+    (all only "want" = all full "want");
+  check "…and the answer is the three situations that are not the initial one"
+    (all only "want" = [ [ "1" ]; [ "2" ]; [ "3" ] ]);
+  check "a relation reached only through `not` is still computed"
+    (Derive_answers.sorts_of only "neg" <> None && all only "neg" = [ [ "0" ] ]);
+  check "a positive dependency is still computed"
+    (Derive_answers.sorts_of only "dep" <> None);
+  check "a relation nothing asked for is not computed at all"
+    (Derive_answers.sorts_of only "spare" = None
+    && Derive_answers.sorts_of full "spare" <> None);
+  (* Asking for a built-in prunes every user rule and still answers, because the
+     built-ins are extensional and seeded before any stratum runs. *)
+  let b = Derive.run ~only:"edge" base_sp (prog ()) in
+  check "a built-in can be the question, with no user relation computed"
+    (all b "edge" = all full "edge" && Derive_answers.sorts_of b "want" = None)
+
 let () =
   print_string ("derive tests: " ^ string_of_int !passed ^ " checks passed\n")

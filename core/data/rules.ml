@@ -118,6 +118,17 @@ type builtin =
   | Init of term
   | Edge_ of term * term * term
   | Gap_edge of term * term
+  (* [(phase S P)] and [(phase-step P Q)]: the quotient of the state category by
+     mutual reachability, and its order. P names a phase by the least-indexed
+     situation in it, so a phase is addressed as a situation and needs no sort
+     of its own — which is the reason to expose the representative rather than
+     an opaque identifier. [phase-step] holds only between DISTINCT phases,
+     which is what earns it a place beside [phase] instead of being a rule over
+     it: two situation variables cannot be compared in this language (there is
+     no inequality on atoms), so "and the two phases differ" has no spelling a
+     rule could supply. *)
+  | Phase of term * term
+  | Phase_step of term * term
   (* [(holds S G)]: G is a guard DATUM, never a term. It is the one argument
      position in the language that holds no term — never a variable, never
      sorted, never unified, and skipped by the fixpoint. Modelling it as a term

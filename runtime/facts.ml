@@ -53,6 +53,14 @@ let gap_edges (sp : Space.t) : (string * int) list =
       | `To _ -> None)
     sp.Space.edges
 
+(* [(phase S P)] and [(phase-step P Q)] — the state category quotiented by
+   mutual reachability, and its order. Both come from ONE [Space.phases] run:
+   they are two readings of a single Tarjan pass, and computing them apart would
+   let the map and its order disagree about where a component's boundary is. *)
+let phases (sp : Space.t) : (int * int) list * (int * int) list =
+  let comp, steps = Space.phases sp in
+  (List.init (Array.length comp) (fun i -> (i, comp.(i))), steps)
+
 (* [(holds S G)] — G is true in S, by the KERNEL's evaluator. One guard
    semantics, the kernel's: a rules engine that re-implemented [holds] would be
    able to disagree with `pol check` about the same formula. The environment is

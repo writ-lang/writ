@@ -141,6 +141,38 @@ relations below are named for it.
 | `(edge E S1 S2)`     | transition named E maps situation S1 to situation S2    |
 | `(holds S G)`        | guard G is true in S (G a guard datum, not a variable)  |
 | `(gap-edge E S)`     | transition E fires at S with no successor               |
+| `(phase S P)`        | P names the phase S belongs to                          |
+| `(phase-step P Q)`   | some move leads out of phase P into phase Q, P ≠ Q      |
+
+**The phases** are the state category quotiented by mutual reachability:
+two situations share one exactly when each can still become the other,
+so inside a phase nothing has been spent, and a step between two phases
+can never be walked back. P names a phase by the **least-indexed
+situation in it** — a phase is therefore addressed as a situation, joins
+against `situation`, `edge` and `holds` with no conversion, and adds no
+sort to the language.
+
+`phase-step` holds only between **distinct** phases, and that is what
+earns it a place beside `phase` rather than being a rule over it: two
+situation variables cannot be compared in this language — there is no
+inequality on atoms, deliberately (§0.4) — so "and the two phases
+differ" has no spelling a rule could supply. The same gap is why "S lies
+on a cycle" was previously unwritable without the closure.
+
+**Why they are built in rather than derived.** Both are computable from
+`reach`, and that is how [`ct.rules`](../core/stdlib/ct.rules) computed
+them until this release. The cost was not incidental: materialising the
+closure means a tuple per ordered pair of situations, which at 1 938
+situations does not finish in 100 seconds, against 30 milliseconds to
+build the space it closes over — and [§14](kernel-spec.md#14-conformance)
+sets the floor a conforming processor must reach at 200 000. The
+partition is one linear pass, and every relation resting on it becomes
+linear with it: final phases, one-way moves, recurrence, and the
+"can this still happen" half of the modalities.
+
+What stays quadratic is `reach` and `before`, whose **answers** are sets
+of pairs. That cost belongs to the answer, not to the algorithm, and no
+built-in removes it. Ask a linear question wherever one will do.
 
 `(holds S G)`'s second argument is the one position in the language that
 is **not a term**: G is a guard datum, never a variable, never sorted,
@@ -165,14 +197,18 @@ Two consequences worth spelling out:
 **The modalities become two-line derivations.** With
 
 ```lisp
-(relation reach 2)
-(rule (reach S S) (situation S))
-(rule (reach S T) (edge E S M) (reach M T))
+(relation can-reach 1)
+(rule (can-reach S) (holds S F))            ; the goal set itself
+(rule (can-reach S) (edge E S T) (can-reach T))   ; and a move into it
 ```
 
-`possible F` is `(init S) (reach S T) (holds T F)`; `live F` is the absence
-of a reachable situation from which no F-situation is reachable; `never F` is
-the emptiness of possible's answer set. The interrogator keeps
+`possible F` is `(init S) (can-reach S)`; `live F` is the absence of a
+reachable situation outside `can-reach`; `never F` is the emptiness of
+`(situation S) (holds S F)`. Note which direction the recursion runs: this
+walks **backwards** from the goal, one pass over the edges. Written forwards
+through the transitive closure — `(reach S T) (holds T F)`, which is how
+`ct.rules` spelled it until this release — it is the same set at a quadratic
+price, for no gain. The interrogator keeps
 `possible`/`live`/`never` as blessed claim vocabulary
 ([§16.1](kernel-spec.md#161-properties), which remains their normative
 definition) — they are the common case and their witnesses print as move
@@ -237,6 +273,15 @@ pol derive oversight.pol org.rules subordinate            # all rows
 pol derive oversight.pol org.rules "(subordinate nabu X)" # bound query
 pol derive oversight.pol org.rules --why "(subordinate nabu cabinet)"
 ```
+
+**One question, one fixpoint.** A `.rules` file declares a vocabulary and
+this verb asks it for one relation, so only that relation and what it
+rests on are computed — everything else the file declares costs nothing.
+That is what lets a rules library be rich rather than minimal: a name you
+did not ask for is free, so `ct.rules` can keep the quadratic hom-sets of
+§1 for the models that want them without charging every file that loads
+it. The pruning follows the rules' own reading of what depends on what,
+positively and negatively alike, so `--why` still finds every premise.
 
 Exit status follows the kernel spec's per-flag rule
 ([§18](kernel-spec.md#18-command-line)): a search exits `1` for "nothing

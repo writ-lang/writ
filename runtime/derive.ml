@@ -162,6 +162,9 @@ let literal_step t (r : Rules.rule) ~delta (env : Rules.env) (l : Rules.literal)
       | Rules.Edge_ (e, s1, s2) ->
           rel_step t "edge" [ e; s1; s2 ] ~delta env kont
       | Rules.Gap_edge (e, s) -> rel_step t "gap-edge" [ e; s ] ~delta env kont
+      | Rules.Phase (s, p) -> rel_step t "phase" [ s; p ] ~delta env kont
+      | Rules.Phase_step (p, q) ->
+          rel_step t "phase-step" [ p; q ] ~delta env kont
       (* G is a datum, never a term: it is not interned, not joined, and not a
          column. Only S is, and §4 proved it already bound. *)
       | Rules.Holds (s, g) -> (
@@ -261,6 +264,11 @@ let extensional t =
   List.iter
     (fun (via, a) -> ignore (insert t "gap-edge" [| intern t via; a |] None))
     (Facts.gap_edges sp);
+  let phase, phase_step = Facts.phases sp in
+  List.iter (fun (s, p) -> ignore (insert t "phase" [| s; p |] None)) phase;
+  List.iter
+    (fun (p, q) -> ignore (insert t "phase-step" [| p; q |] None))
+    phase_step;
   List.iter
     (fun (n, _) ->
       let st = store t n in
@@ -268,7 +276,62 @@ let extensional t =
       st.delta <- [])
     builtin_cols
 
-let run (sp : Space.t) (prog : Rules.program) : t =
+(* ── Demand ──────────────────────────────────────────────────────────────── *)
+
+(* The relations one question needs: the target, and everything a rule that can
+   contribute to it reads, positively or negatively, transitively. Built-ins are
+   not in it because they are extensional — complete before stratum 0 and free.
+
+   WHY IT EXISTS. A .rules file declares a VOCABULARY, and `pol derive` asks it
+   ONE question; without this, every other relation in the file is computed too
+   and thrown away. That is not a rounding error where a library is involved:
+   `ct.rules` declares `reach`, whose answer is quadratic in the situation
+   count, so merely LOADING the library to ask a linear question cost 17
+   seconds at 1 938 situations against 0.16 for the question itself. Pruning to
+   the cone is what lets the library be rich — a name you did not ask for is
+   free, so §1's hom-sets can stay in the file for the models that want them.
+
+   Sound, not a heuristic: a fact of a relation outside the cone can appear in
+   no derivation of the target, by the same reading of the rules that the
+   fixpoint itself uses. `--why` therefore still finds every premise it needs. *)
+let cone (prog : Rules.program) (target : string) : string list =
+  let reads rel =
+    List.concat_map
+      (fun (r : Rules.rule) ->
+        if String.equal r.Rules.head rel then
+          List.filter_map
+            (function
+              | Rules.Pos_rel (n, _, _) | Rules.Neg_rel (n, _, _) -> Some n
+              | Rules.Built_in _ | Rules.Guard _ -> None)
+            r.Rules.body
+        else [])
+      prog.Rules.rules
+  in
+  let rec go seen = function
+    | [] -> seen
+    | x :: rest ->
+        if List.mem x seen then go seen rest else go (x :: seen) (reads x @ rest)
+  in
+  go [] [ target ]
+
+let restrict (prog : Rules.program) (target : string) : Rules.program =
+  let keep = cone prog target in
+  {
+    prog with
+    Rules.relations =
+      List.filter
+        (fun (d : Rules.relation) -> List.mem d.Rules.rel_name keep)
+        prog.Rules.relations;
+    Rules.rules =
+      List.filter (fun (r : Rules.rule) -> List.mem r.Rules.head keep)
+        prog.Rules.rules;
+  }
+
+(* [?only] names the one relation the caller will read, and prunes the program to
+   what can contribute to it. Omitted, every declared relation is computed —
+   which is what the tests want, since they read several from one run. *)
+let run ?only (sp : Space.t) (prog : Rules.program) : t =
+  let prog = match only with None -> prog | Some r -> restrict prog r in
   let t = create sp prog in
   extensional t;
   List.iter (run_stratum t)

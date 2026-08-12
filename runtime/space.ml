@@ -146,6 +146,128 @@ let bwd_reach (t : t) (sat : State.t -> bool) : bool array =
   done;
   can
 
+(* The successor lists of the real-edge graph, aligned to [t.states] by index.
+   Gap edges are excluded, for [bwd_reach]'s reason: a gap has no successor
+   situation, so it is an exit from the model rather than a move within it. *)
+let succs (t : t) : int list array =
+  let n = Array.length t.states in
+  let out = Array.make n [] in
+  List.iter
+    (fun e ->
+      match e.dst with
+      | `To s' -> (
+          match
+            (State.M.find_opt e.src t.index, State.M.find_opt s' t.index)
+          with
+          | Some si, Some di -> out.(si) <- di :: out.(si)
+          | _ -> ())
+      | `Gap _ -> ())
+    t.edges;
+  out
+
+(* The PHASES: the strongly connected components of the real-edge graph, and the
+   edges of the quotient. A phase is what ct.rules calls an isomorphism class —
+   inside one, every situation reaches every other, so nothing has been spent
+   and every arrangement is recoverable from every other. Between two, the move
+   is one-way: the quotient is acyclic by construction.
+
+   Returns [comp], mapping each situation to its phase's REPRESENTATIVE — the
+   least-indexed situation in it, so the name is the earliest arrangement of the
+   class the search found — and the distinct quotient edges, [(P, Q)] with
+   P ≠ Q, deduplicated.
+
+   WHY IT IS HERE rather than derived in a .rules file. Every phase question a
+   rules file can ask today has to route through the transitive closure
+   [reach], whose ANSWER is quadratic in the situation count: at 1 938
+   situations the closure does not finish in 100 seconds, while the space it
+   closes over is built in 30 milliseconds, and the kernel's conformance floor
+   is 200 000 (§14). Tarjan is linear in situations and edges, and the
+   relations that rest on it — final phases, one-way moves, recurrence — become
+   linear with it. What stays quadratic is [reach] and [before] themselves,
+   whose answers ARE sets of pairs; that cost is the answer's, not the
+   algorithm's, and no built-in can remove it.
+
+   Iterative rather than recursive, and that is not a style preference: the
+   depth of this walk is the depth of the situation space, which §14 permits to
+   be 200 000, and a native stack does not hold that many frames. *)
+let phases (t : t) : int array * (int * int) list =
+  let n = Array.length t.states in
+  let succ = succs t in
+  let visit = Array.make n (-1) (* preorder number, -1 = unvisited *) in
+  let low = Array.make n 0 in
+  let on = Array.make n false in
+  let comp = Array.make n (-1) in
+  let stack = ref [] in
+  let clock = ref 0 in
+  let open_ v =
+    visit.(v) <- !clock;
+    low.(v) <- !clock;
+    incr clock;
+    stack := v :: !stack;
+    on.(v) <- true
+  in
+  (* Pop this phase off the tentative stack, down to and including its root, and
+     name every member after the least index among them. *)
+  let close v =
+    let members = ref [] in
+    let rec pop () =
+      match !stack with
+      | w :: ws ->
+          stack := ws;
+          on.(w) <- false;
+          members := w :: !members;
+          if w <> v then pop ()
+      | [] -> ()
+    in
+    pop ();
+    let rep = List.fold_left min v !members in
+    List.iter (fun w -> comp.(w) <- rep) !members
+  in
+  for root = 0 to n - 1 do
+    if visit.(root) < 0 then begin
+      open_ root;
+      (* The explicit DFS stack: each frame is a situation and the successors of
+         it still to try. *)
+      let work = ref [ (root, succ.(root)) ] in
+      while !work <> [] do
+        match !work with
+        | [] -> ()
+        | (v, todo) :: rest -> (
+            match todo with
+            | w :: more ->
+                work := (v, more) :: rest;
+                if visit.(w) < 0 then begin
+                  open_ w;
+                  work := (w, succ.(w)) :: !work
+                end
+                else if on.(w) && visit.(w) < low.(v) then low.(v) <- visit.(w)
+            | [] ->
+                (* v is finished: hand its low-link up to its parent, which is
+                   the frame beneath it, and close the phase if v roots one. *)
+                work := rest;
+                (match rest with
+                | (p, _) :: _ -> if low.(v) < low.(p) then low.(p) <- low.(v)
+                | [] -> ());
+                if low.(v) = visit.(v) then close v)
+      done
+    end
+  done;
+  let steps =
+    List.sort_uniq compare
+      (List.filter_map
+         (fun (e : edge) ->
+           match e.dst with
+           | `To s' -> (
+               match (State.M.find_opt e.src t.index, State.M.find_opt s' t.index)
+               with
+               | Some si, Some di when comp.(si) <> comp.(di) ->
+                   Some (comp.(si), comp.(di))
+               | _ -> None)
+           | `Gap _ -> None)
+         t.edges)
+  in
+  (comp, steps)
+
 (* The enabled moves out of a state: exactly the edges whose source is it (an
    edge is recorded only for an enabled transition). Gap edges are INCLUDED — a
    gap edge is recorded with [src = s], so a gap-firing state has a non-empty

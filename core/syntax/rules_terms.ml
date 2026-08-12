@@ -46,6 +46,8 @@ let literal_terms (l : Rules.literal) : Rules.term list =
       | Rules.Situation_ t | Rules.Init t -> [ t ]
       | Rules.Edge_ (e, s1, s2) -> [ e; s1; s2 ]
       | Rules.Gap_edge (e, s) -> [ e; s ]
+      | Rules.Phase (s, p) -> [ s; p ]
+      | Rules.Phase_step (p, q) -> [ p; q ]
       (* G is not a term (extension §3) and is not one of these; its CONTENTS
          are, and they are rule variables like any other. *)
       | Rules.Holds (s, g) -> s :: guard_terms g)
@@ -91,4 +93,12 @@ let builtin_cols (b : Rules.builtin) : string * (Rules.term * Rules.sort) list =
       ("edge", [ (e, Rules.Edge); (s1, Rules.Situation); (s2, Rules.Situation) ])
   | Rules.Gap_edge (e, s) ->
       ("gap-edge", [ (e, Rules.Edge); (s, Rules.Situation) ])
+  (* A phase is named by a situation — its least-indexed member — so both
+     columns are [Situation]. That is the whole reason the representative is
+     exposed rather than an opaque handle: a phase joins against [situation],
+     [edge] and [holds] with no conversion, and no sixth sort enters the
+     language to be inferred, blamed and documented. *)
+  | Rules.Phase (s, p) -> ("phase", [ (s, Rules.Situation); (p, Rules.Situation) ])
+  | Rules.Phase_step (p, q) ->
+      ("phase-step", [ (p, Rules.Situation); (q, Rules.Situation) ])
   | Rules.Holds (s, _) -> ("holds", [ (s, Rules.Situation) ])

@@ -26,6 +26,8 @@ let builtins =
     ("init", "(init S)");
     ("edge", "(edge E S1 S2)");
     ("gap-edge", "(gap-edge E S)");
+    ("phase", "(phase S P)");
+    ("phase-step", "(phase-step P Q)");
     ("holds", "(holds S G)");
   ]
 
@@ -56,6 +58,14 @@ let builtin (k : string) (kp : Errors.pos) (args : Reader.t list) :
       let* e = term e in
       let* s = term s in
       Ok (Rules.Gap_edge (e, s))
+  | "phase", [ s; p ] ->
+      let* s = term s in
+      let* p = term p in
+      Ok (Rules.Phase (s, p))
+  | "phase-step", [ p; q ] ->
+      let* p = term p in
+      let* q = term q in
+      Ok (Rules.Phase_step (p, q))
   | "holds", [ s; g ] ->
       let* s = term s in
       let* g = Rules_guard.holds_guard g in

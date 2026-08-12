@@ -14,17 +14,21 @@
 ; into a .pol model would be accepted and useless: nothing here is a declaration
 ; a model's universe can hold.
 ;
-; THE COST, stated as stdlib.pol states its own. Eight relation names: a .rules
-; file that loads this one gives up `reach`, `mutual`, `before`, `one-way`,
-; `escapes`, `final-phase`, `moves` and `dead-end`, and may not redeclare any of
-; them — which is exactly what the corpus's existing files do with the first,
-; and why the migration is a deletion.
+; THE COST, stated as stdlib.pol states its own. Ten relation names: a .rules
+; file that loads this one gives up `reach`, `mutual`, `recurrent`, `before`,
+; `phase-before`, `one-way`, `escapes`, `final-phase`, `moves` and `dead-end`,
+; and may not redeclare any of them — which is exactly what the corpus's
+; existing files do with the first, and why the migration is a deletion.
+;
+; WHAT IS A PAIR AND WHAT IS NOT, which is the one thing to know before writing
+; against this file. `phase` and `phase-step` are BUILT-IN (extension §2): the
+; interrogator quotients the state category by mutual reachability in one linear
+; pass, so everything defined from them is linear too. `reach` and `before` are
+; not, and cannot be made so — their ANSWERS are sets of pairs, quadratic in the
+; situation count however they are computed. Ask a linear question wherever one
+; will do; §7's goal forms are written so that the common ones are.
 
 ; 1. Hom-sets — the free category on the reachable graph
-;
-; WHY IT EARNS ITS PLACE, and it is the plainest case in the file: every worked
-; scenario's .rules file opens with these three lines, character for character.
-; Ten copies of one definition is the thing a standard library exists to end.
 ;
 ; `reach S T` is the hom-set of the state category made a relation: non-empty
 ; exactly when some move sequence runs from S to T. The first rule is the
@@ -34,6 +38,15 @@
 ; No `init` premise is needed and none is wanted: the built-ins range over
 ; REACHABLE situations only (§12.3), so the space the engine enumerated is
 ; already the space that exists.
+;
+; USE IT LAST. Nothing else in this file needs it any more, and that is
+; deliberate: materialising the closure costs a tuple per ordered pair of
+; situations, which measured at 1 938 situations does not finish in 100 seconds,
+; while the space itself is built in 30 milliseconds. It is kept because the
+; hom-set is what the category IS, and a model small enough to want it whole
+; should be able to ask. Where the question is "can S still get to an F" — which
+; is nearly always the question — §7's `can-reach` answers it by walking
+; backwards from F instead, in one pass over the edges.
 (relation reach (Situation Situation))
 (rule (reach S S) (situation S))
 (rule (reach S T) (edge E S M) (reach M T))
@@ -41,26 +54,56 @@
 ; 2. Isomorphism — the maximal subgroupoid
 ;
 ; Two situations are isomorphic in the state category when each reaches the
-; other, and `mutual` is that relation: an equivalence, whose classes a graph
-; tool would call strongly connected components. The categorical name is the one
-; worth keeping, because it says what the classes MEAN — inside one, nothing has
-; been spent; every arrangement in it is recoverable from every other.
+; other. That relation's classes are what `phase` names: the interrogator
+; computes them directly, and `(phase S P)` answers with P, the least-indexed
+; situation of S's class. The categorical reading is the one worth keeping,
+; because it says what a class MEANS — inside one, nothing has been spent; every
+; arrangement in it is recoverable from every other.
+;
+; `mutual` is that equivalence spelled out as pairs, for the questions that want
+; them. Note the shape of the cost: the first literal generates each situation
+; with its phase, the second generates only the members of THAT phase, so the
+; work is the answer's own size rather than a scan of all pairs.
 (relation mutual (Situation Situation))
-(rule (mutual S T) (reach S T) (reach T S))
+(rule (mutual S T) (phase S P) (phase T P))
+
+; `recurrent S` — S lies on a cycle: some move leaves S and comes back, perhaps
+; the long way round. Equivalently S's phase is not a single spent point.
+;
+; WHY IT EARNS ITS PLACE. It is the question `mutual` is usually wanted for, and
+; the one that could not be written before `phase` existed: "S and T are in one
+; class and are not the same situation" needs an inequality on situations, and
+; there is none — the language compares a cell against a value, never one atom
+; against another. Reading it off an edge that stays inside the phase avoids the
+; comparison entirely. It is also the shape of every non-termination question:
+; a model that can run forever without arriving is one with a recurrent
+; situation the goal does not hold in.
+(relation recurrent (Situation))
+(rule (recurrent S) (edge E S T) (phase S P) (phase T P))
 
 ; 3. The posetal reflection — what a move costs
 ;
 ; Quotient the state category by §2 and what is left is a POSET: the same order,
-; every cycle collapsed to a point. `before` is that order, strictly — S can
-; become T, and T can never become S again.
+; every cycle collapsed to a point. That quotient is exactly the `phase-step`
+; graph, and it is acyclic by construction — a step between two phases can never
+; be walked back, or they would have been one phase.
 ;
 ; WHY IT EARNS ITS PLACE. This is what most models are actually for, and it is
 ; the question the modalities cannot put. `live G` failing says a trap exists
 ; and prints one route into it; `before` is the whole trap structure, and it is
 ; asked WITHOUT naming a goal — which is what makes it answerable of a model
 ; nobody has yet written the claims for.
+;
+; `phase-before` is the order on phases; `before` is the same order read back
+; down onto situations. Written in that order on purpose: bind the phase pair
+; first and each situation pair is generated once, where binding the situations
+; first would scan every pair of situations to test each.
+(relation phase-before (Situation Situation))
+(rule (phase-before P Q) (phase-step P Q))
+(rule (phase-before P R) (phase-step P Q) (phase-before Q R))
+
 (relation before (Situation Situation))
-(rule (before S T) (reach S T) (not (reach T S)))
+(rule (before S T) (phase-before P Q) (phase S P) (phase T Q))
 
 ; 4. One-way doors — irreversibility, per move
 ;
@@ -68,8 +111,13 @@
 ; for good. §15 reports which moves can break a law; this reports which moves
 ; break a return. A model with no one-way rows is fully reversible, and that is
 ; worth being able to state rather than believe.
+;
+; A move is one-way exactly when it crosses out of its phase: if the target
+; could come back, the two ends would share a phase. So this needs no closure
+; and no negation — one literal per end, and the crossing test the built-in
+; supplies.
 (relation one-way (Edge Situation Situation))
-(rule (one-way E S T) (edge E S T) (not (reach T S)))
+(rule (one-way E S T) (edge E S T) (phase S P) (phase T Q) (phase-step P Q))
 
 ; 5. Final phases — where a model ends up
 ;
@@ -80,9 +128,9 @@
 ; `escapes` is scaffolding rather than vocabulary, and is named instead of
 ; hidden because it costs a name either way: a variable inside `not` must be
 ; bound elsewhere in the body (range restriction, extension §1), so "there is no
-; T with (before S T)" has to become a relation before it can be negated.
+; phase after this one" has to become a relation before it can be negated.
 (relation escapes (Situation))
-(rule (escapes S) (before S T))
+(rule (escapes S) (phase S P) (phase-step P Q))
 (relation final-phase (Situation))
 (rule (final-phase S) (situation S) (not (escapes S)))
 
@@ -129,13 +177,21 @@
 ; also lets a scenario stop after the first — `possible` needs only `satisfies`
 ; — and lets the middle relation carry a name of the model's own, which is what
 ; a witness prints.
+;
+; `can-reach` is a BACKWARD walk: the goal set, then anything with a move into
+; what is already in. It used to be written `(rule (C S) (reach S T) (R T))`,
+; which is the same set and asks for the whole hom-set to compute it — the
+; closure is quadratic, this is one pass over the edges, and every `live`
+; cross-check in the corpus goes through here. The rewrite is the reason §1 now
+; says "use it last".
 (form (satisfies R G)
   (relation R 1)
   (rule (R S) (situation S) (holds S G)))
 
 (form (can-reach C R)
   (relation C 1)
-  (rule (C S) (reach S T) (R T)))
+  (rule (C S) (R S))
+  (rule (C S) (edge E S T) (C T)))
 
 (form (trapped X C)
   (relation X 1)

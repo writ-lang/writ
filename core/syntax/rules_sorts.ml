@@ -186,7 +186,8 @@ let seed_builtin st rid (b : Rules.builtin) =
   let* () = go 0 cols in
   match b with
   | Rules.Holds (_, g) -> seed_guard st rid [] g
-  | Rules.Situation_ _ | Rules.Init _ | Rules.Edge_ _ | Rules.Gap_edge _ ->
+  | Rules.Situation_ _ | Rules.Init _ | Rules.Edge_ _ | Rules.Gap_edge _
+  | Rules.Phase _ | Rules.Phase_step _ ->
       Ok ()
 
 let seed_literal st rid (l : Rules.literal) =

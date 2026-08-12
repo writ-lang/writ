@@ -99,6 +99,16 @@ let literal sorts rid bound (l : Rules.literal) =
       | Rules.Gap_edge (e, s) ->
           List.iter (bind bound) [ e; s ];
           Ok ()
+      (* Both phase relations are extensional and complete before stratum 0, so
+         either position may GENERATE: [(phase S P)] with neither bound
+         enumerates the whole map, which is what lets a rule read a situation's
+         phase and a phase's members with one literal. *)
+      | Rules.Phase (s, p) ->
+          List.iter (bind bound) [ s; p ];
+          Ok ()
+      | Rules.Phase_step (p, q) ->
+          List.iter (bind bound) [ p; q ];
+          Ok ()
       | Rules.Holds (s, g) ->
           let* () = need bound s in
           top sorts rid bound g)

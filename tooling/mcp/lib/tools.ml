@@ -118,7 +118,9 @@ let derive ~resolve ~model ~rules ~relation ~args ~why =
     in
     Rules_check.check m t |> Result.map_error Errors.to_string
   in
-  let t = Derive.run sp prog in
+  (* One call asks for one relation, so the fixpoint is told which — the same
+     pruning [Cmd_derive] does, for the same reason. *)
+  let t = Derive.run ~only:relation sp prog in
   let* sorts =
     match Derive_answers.sorts_of t relation with
     | Some ss -> Ok ss

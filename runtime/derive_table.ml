@@ -101,6 +101,8 @@ let builtin_cols =
     ("init", [ Rules.Situation ]);
     ("edge", [ Rules.Edge; Rules.Situation; Rules.Situation ]);
     ("gap-edge", [ Rules.Edge; Rules.Situation ]);
+    ("phase", [ Rules.Situation; Rules.Situation ]);
+    ("phase-step", [ Rules.Situation; Rules.Situation ]);
   ]
 
 let make_store (cols : Rules.sort list) : store =
