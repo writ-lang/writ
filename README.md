@@ -426,7 +426,7 @@ The other two need an installed `pol`, not a checkout of this one.
 ```sh
 make install-pol
 git clone https://github.com/sajonaro/pol-problems && cd pol-problems
-./run-tests.sh                         # 98 checks over every scenario
+./run-tests.sh                         # 222 checks over every scenario
 ```
 
 Or with nothing installed on the host but Docker — `make image` here tags
@@ -443,9 +443,8 @@ finish, and which schedule is shortest — and `arch`, which turns the tool
 around and *designs* rather than checks: a bank of components, a brief, and
 every architecture the constraints permit, enumerated. Every scenario also
 carries a `.rules` file re-asking its `.claims` properties as derivations, and a
-**cross-check** scenario runs both instruments over all twenty: `pol check`'s
-CTL reading
-against `pol derive`'s rules encoding. Two independent implementations of one
+**cross-check** scenario runs both instruments over all thirty-one: `pol
+check`'s CTL reading against `pol derive`'s rules encoding. Two independent implementations of one
 question, so a disagreement is a bug in one of them rather than a number to
 adjust — the only test whose oracle its author did not choose.
 
