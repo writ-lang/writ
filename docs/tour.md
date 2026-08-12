@@ -660,6 +660,7 @@ words below are claims vocabulary; every `GUARD` in them is the language's own
  2  (property NAME ["DOC"] (never    GUARD))        ; none does
  3  (property NAME ["DOC"] (live     GUARD))        ; from EVERY state, still reachable
  4  (property NAME ["DOC"] (inevitable GUARD))      ; …and no run avoids it
+      …(inevitable GUARD (fair MOVE…))            ; …assuming those are not starved
  5  (query    NAME (where (VAR TYPE)…) GUARD)       ; answer = the satisfying bindings
  6  (accept   TRANSITION EQUATION…)                 ; "we know this move can break that law"
 ```

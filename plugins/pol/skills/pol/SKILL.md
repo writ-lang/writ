@@ -49,6 +49,7 @@ you asked "is there a schedule", the witness is the schedule. Quote it.
 | `never F` | no reachable situation does |
 | `live F` | from **every** reachable situation, F is still reachable |
 | `inevitable F` | …and no whole run avoids it |
+| `inevitable F (fair M…)` | …assuming those moves are not starved for ever |
 
 `live` is the one people forget and the one that finds traps. "Every job can
 finish" is `possible`; "no schedule can paint itself into a corner" is `live`,
@@ -67,6 +68,18 @@ Nothing passes `inevitable` and fails `live`: a situation has at least one run,
 so if every run reaches F then F is reachable. Ask `live` when the goal is a
 capability the model must not lose, and `inevitable` when it is an outcome the
 model must deliver.
+
+**`(fair MOVE…)`** narrows which runs count: one where a named move is on offer
+again and again for ever and never taken is not a run the question is about.
+That is how you ask the question a protocol is actually judged by — *it
+terminates, provided the network does not refuse to deliver for ever* — while
+still being able to ask the unconditional one of the same model, since the
+assumption lives in the claims file rather than in the model. Both verdicts
+print the assumption, so neither can be quoted as the other.
+
+It does not rescue a deadlock, and should not: a run that STOPS is finite, so
+nothing is starved in it. If `inevitable` fails at a situation with no moves,
+no scheduling assumption will fix it — the model is stuck, not unlucky.
 
 ## Optimising without arithmetic
 

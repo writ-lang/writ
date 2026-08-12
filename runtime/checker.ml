@@ -143,8 +143,18 @@ let check (sp : Space.t) (prop : Claims.property) : outcome =
         match nearest sp cannot with
         | None -> Holds []
         | Some s -> Fails { route = Space.shortest_path sp s; stuck = Some s })
-    | Claims.Inevitable -> (
-        let esc = Space.escapes_f sp sat in
+    | Claims.Inevitable fair -> (
+        let known =
+          List.filter_map (fun (t : Model.transition) -> t.name) sp.transitions
+        in
+        match List.find_opt (fun m -> not (List.mem m known)) fair with
+        | Some m ->
+            (* Same treatment as a formula naming an arrow the schema lacks: a
+               question about a move that does not exist is neither passed nor
+               failed. *)
+            Not_applicable ("model has no move named " ^ m)
+        | None -> (
+        let esc = Space.escapes_f ~fair sp sat in
         let escapes s =
           match State.M.find_opt s sp.index with
           | Some i -> esc.(i)
@@ -152,4 +162,4 @@ let check (sp : Space.t) (prop : Claims.property) : outcome =
         in
         match nearest sp escapes with
         | None -> Holds []
-        | Some s -> Fails { route = Space.shortest_path sp s; stuck = Some s })
+        | Some s -> Fails { route = Space.shortest_path sp s; stuck = Some s }))

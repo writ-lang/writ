@@ -1436,13 +1436,27 @@ forms.
 | `(never F)`    | no reachable situation satisfies F                                |
 | `(possible F)` | some reachable situation satisfies F                              |
 | `(live F)`     | from every reachable situation, an F-situation is still reachable |
-| `(inevitable F)` | from every reachable situation, no whole run avoids F           |
+| `(inevitable F [(fair MOVE…)])` | from every reachable situation, no whole run avoids F |
 
 - F is a guard (§10.2), closed or with `some`-bound variables.
 - A **run** is maximal: it continues forever, or it stops where the model
   stops — at a situation with no move, or at one whose only move is a `gap`,
   the model's own admission that its rules have run out (§10.4). A run that
   ends at a `gap` has not reached F.
+- `(fair MOVE…)` — only on `inevitable` — narrows the runs the question is
+  about: a run in which a named move is available again and again, for ever,
+  and never taken, is not one of them. It names **moves**, because what it
+  constrains is the scheduler, and the scheduler picks transitions. Naming a
+  move the model does not have is **n/a**, like a formula naming a missing
+  arrow. Only runs that go on for ever are affected: a run that STOPS is
+  finite, nothing is available for ever in it, and so a model that can
+  deadlock fails `inevitable` under every assumption there is.
+- The assumption belongs to the question and not to the model, which is what
+  lets one model face both: *does this terminate whatever the network does*
+  and *does it terminate if a message is not refused for ever* are two
+  questions about one protocol, and a model that carried the answer to the
+  second could not be asked the first. An interrogator reports the assumption
+  beside the verdict, so a verdict cannot be quoted without it.
 - `inevitable` is strictly stronger than `live`, and the gap between them is
   one-directional: a situation has at least one run, so a situation every run
   of which reaches F is one F is reachable from. Nothing satisfies

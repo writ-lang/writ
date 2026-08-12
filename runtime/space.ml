@@ -276,6 +276,20 @@ let phases (t : t) : int array * (int * int) list =
   in
   (comp, steps)
 
+(* The moves each situation has available, by name, INCLUDING the ones that end
+   at a gap: a gap edge is a transition firing, so a rule about a move not being
+   starved has something to say about it. *)
+let enabled_names (t : t) : string list array =
+  let n = Array.length t.states in
+  let out = Array.make n [] in
+  List.iter
+    (fun e ->
+      match State.M.find_opt e.src t.index with
+      | Some si -> if not (List.mem e.via out.(si)) then out.(si) <- e.via :: out.(si)
+      | None -> ())
+    t.edges;
+  out
+
 (* The situations at which a run stops short of F, or starts going round without
    it — the counterexample set of [inevitable F], aligned to [t.states] by index.
 
@@ -283,14 +297,27 @@ let phases (t : t) : int array * (int * int) list =
    run avoids F in exactly two ways, and both are read off the subgraph of NON-F
    situations, since a run that touches an F situation has not avoided it:
 
-   - it goes round for ever — the subgraph has a cycle, which is a component of
-     more than one situation, or one with an edge to itself;
+   - it goes round for ever — a cycle in that subgraph;
    - it stops — a non-F situation with no real move out. That covers a dead end
      and, deliberately, a situation whose only move is a GAP. A gap is the model
      saying its rules run out here (§10.4), and "F is inevitable" claimed past
      the point a model admits it has stopped speaking would be a claim the model
      does not make. `live` already treats a gap exit as a non-F terminal; this
      is the same reading.
+
+   [fair] names moves the question assumes are not starved: a run in which such
+   a move is available again and again, for ever, and never taken, is not a run
+   the question is about. Only cycles are affected. A run that STOPS is finite,
+   and nothing is available for ever in it, so a stop is a counterexample under
+   every fairness assumption there is — which is the right answer: no assumption
+   about scheduling rescues a protocol that deadlocks.
+
+   The test on a cycle is per named move: the cycle is unfair if some situation
+   on it has the move available and no step of it takes the move. Removing those
+   situations can break the cycle into smaller ones that are fair, so the
+   deletion repeats until nothing more is removed (Emerson–Lei). With [fair]
+   empty the loop runs once and deletes nothing, which is the same walk as
+   before at the same cost.
 
    ONE SET, NOT TWO, and it is worth saying why the obvious extra step is
    absent. Every situation that can reach one of these without leaving the
@@ -301,25 +328,87 @@ let phases (t : t) : int array * (int * int) list =
    the empty route, which says only that an escape exists somewhere. The route
    to the escape ITSELF is the answer to "where", and that is this set.
 
-   Linear in situations and edges. Note the degenerate case falls out: where F
-   holds the situation is not in the subgraph at all, so it is never a
-   counterexample — a run that starts at its goal has reached it. *)
-let escapes_f (t : t) (sat : State.t -> bool) : bool array =
+   Note the degenerate case falls out: where F holds the situation is not in the
+   subgraph at all, so it is never a counterexample — a run that starts at its
+   goal has reached it. *)
+let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
   let n = Array.length t.states in
   let f = Array.init n (fun i -> sat t.states.(i)) in
   let all = succs t in
+  let avail = enabled_names t in
+  (* The labelled edges inside the non-F region, which is where a fair cycle's
+     steps have to come from. *)
+  let labelled =
+    List.filter_map
+      (fun e ->
+        match e.dst with
+        | `To s' -> (
+            match (State.M.find_opt e.src t.index, State.M.find_opt s' t.index) with
+            | Some si, Some di when (not f.(si)) && not f.(di) ->
+                Some (e.via, si, di)
+            | _ -> None)
+        | `Gap _ -> None)
+      t.edges
+  in
+  (* [alive] is the non-F region minus what the fairness deletions have removed;
+     it shrinks, and the cycles are recomputed over what is left. *)
+  let alive = Array.init n (fun i -> not f.(i)) in
+  let comp = ref [||] in
+  let changed = ref true in
+  while !changed do
+    changed := false;
+    let sub = Array.make n [] in
+    Array.iteri
+      (fun i outs ->
+        if alive.(i) then
+          List.iter (fun j -> if alive.(j) then sub.(i) <- j :: sub.(i)) outs)
+      all;
+    comp := tarjan n sub;
+    let c = !comp in
+    let size = Array.make n 0 in
+    Array.iteri (fun i k -> if alive.(i) && k >= 0 then size.(k) <- size.(k) + 1) c;
+    let cyclic i = alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)) in
+    List.iter
+      (fun mv ->
+        (* Which cycles take this move, and which merely have it on offer. *)
+        let takes = Hashtbl.create 16 in
+        List.iter
+          (fun (via, si, di) ->
+            if String.equal via mv && cyclic si && c.(si) = c.(di) then
+              Hashtbl.replace takes c.(si) ())
+          labelled;
+        let offers = Hashtbl.create 16 in
+        for i = 0 to n - 1 do
+          if cyclic i && List.mem mv avail.(i) then Hashtbl.replace offers c.(i) ()
+        done;
+        Hashtbl.iter
+          (fun k () ->
+            if not (Hashtbl.mem takes k) then
+              for i = 0 to n - 1 do
+                if cyclic i && c.(i) = k && List.mem mv avail.(i) then begin
+                  alive.(i) <- false;
+                  changed := true
+                end
+              done)
+          offers)
+      fair
+  done;
+  (* One last partition over what survived, to say which situations are still on
+     a cycle. *)
   let sub = Array.make n [] in
   Array.iteri
     (fun i outs ->
-      if not f.(i) then
-        List.iter (fun j -> if not f.(j) then sub.(i) <- j :: sub.(i)) outs)
+      if alive.(i) then
+        List.iter (fun j -> if alive.(j) then sub.(i) <- j :: sub.(i)) outs)
     all;
-  let comp = tarjan n sub in
+  let c = tarjan n sub in
   let size = Array.make n 0 in
-  Array.iter (fun c -> if c >= 0 then size.(c) <- size.(c) + 1) comp;
+  Array.iteri (fun i k -> if alive.(i) && k >= 0 then size.(k) <- size.(k) + 1) c;
   Array.init n (fun i ->
       (not f.(i))
-      && (size.(comp.(i)) > 1 || List.mem i sub.(i) || all.(i) = []))
+      && ((* stopped: no real move out of the model at all *)
+          all.(i) = []
+          || (alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)))))
 
 (* The enabled moves out of a state: exactly the edges whose source is it (an
    edge is recorded only for an enabled transition). Gap edges are INCLUDED — a

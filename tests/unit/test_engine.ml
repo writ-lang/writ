@@ -197,7 +197,7 @@ let () =
 let () =
   let sp = build_ok toggle in
   check "inevitable holds: every run of the toggle passes through up"
-    (Checker.check sp (prop "i" Inevitable (is "s" "pos" "up"))
+    (Checker.check sp (prop "i" (Inevitable []) (is "s" "pos" "up"))
     = Checker.Holds [])
 
 (* The pair the whole modality exists for, at three situations. `wander` and
@@ -225,7 +225,7 @@ let () =
   check "detour: three situations" (Array.length sp.Space.states = 3);
   check "live holds: home stays reachable from everywhere"
     (Checker.check sp (prop "l" Live (is "s" "pos" "home")) = Checker.Holds []);
-  match Checker.check sp (prop "i" Inevitable (is "s" "pos" "home")) with
+  match Checker.check sp (prop "i" (Inevitable []) (is "s" "pos" "home")) with
   | Checker.Fails { route = []; stuck = Some s } ->
       check "inevitable fails: the loop is a run that never arrives"
         (State.get sp.Space.ctx s (cr "pos" "s") = Value.Filled "home-able")
@@ -238,7 +238,7 @@ let () =
    same route [live] does, since here the trap and the escape are one move. *)
 let () =
   let sp = build_ok capture_model in
-  match Checker.check sp (prop "i" Inevitable (is "s" "pos" "safe")) with
+  match Checker.check sp (prop "i" (Inevitable []) (is "s" "pos" "safe")) with
   | Checker.Fails { route = [ "capture" ]; stuck = Some _ } ->
       check "inevitable fails at a dead end that is not the goal" true
   | _ -> check "inevitable fails: expected witness [capture]" false
@@ -258,11 +258,86 @@ let () =
         List.filter
           (fun g ->
             let q md = Checker.check sp (prop "q" md (is "s" "pos" g)) in
-            holds (q Inevitable) && not (holds (q Live)))
+            holds (q (Inevitable [])) && not (holds (q Live)))
           goals)
       [ toggle; capture_model; detour ]
   in
   check "no goal is inevitable without being live" (bad = [])
+
+(* --- fairness: which runs the question is about ----------------------------- *)
+
+(* The detour's loop is a run that never arrives, and `arrive` is on offer at
+   every turn of it and never taken. Assuming that move is not starved for ever
+   deletes the loop, and there is nothing else to escape by — so the same model
+   and the same goal answer differently to the two questions, which is the whole
+   reason the assumption belongs to the question. *)
+let () =
+  let sp = build_ok detour in
+  let goal ms = prop "i" (Inevitable ms) (is "s" "pos" "home") in
+  let holds = function Checker.Holds _ -> true | _ -> false in
+  check "unfair: a run can decline to arrive for ever"
+    (not (holds (Checker.check sp (goal []))));
+  check "fair: assuming arrive is not starved, every run arrives"
+    (holds (Checker.check sp (goal [ "arrive" ])));
+  (* A move the cycle DOES take is not starved by it, so assuming it fair
+     changes nothing — the loop takes `wander` every time round. *)
+  check "a move the loop takes is already fair to it"
+    (not (holds (Checker.check sp (goal [ "wander" ]))));
+  (* Naming a move the model does not have is neither a pass nor a failure, the
+     same treatment a formula naming a missing arrow gets. *)
+  (match Checker.check sp (goal [ "sprint" ]) with
+  | Checker.Not_applicable _ -> check "n/a: an unknown move is n/a" true
+  | _ -> check "n/a: an unknown move must be n/a" false);
+  (* The assumption is printed with the verdict, both ways: a verdict that could
+     be quoted without it would be a different claim from the one checked. *)
+  let s = Report.outcome sp (goal [ "arrive" ]) (Checker.check sp (goal [ "arrive" ])) in
+  check "report: a holding inevitable names what it assumed"
+    (contains ~sub:"holds  i" s && contains ~sub:"assuming fair: arrive" s)
+
+(* No assumption about scheduling rescues a model that stops. capture is
+   one-way into a dead end, and a run that takes it is FINITE — nothing is on
+   offer for ever in it, so there is no starvation to rule out. *)
+let () =
+  let sp = build_ok capture_model in
+  let goal ms = prop "i" (Inevitable ms) (is "s" "pos" "safe") in
+  let fails = function Checker.Fails _ -> true | _ -> false in
+  check "fairness does not rescue a dead end"
+    (fails (Checker.check sp (goal []))
+    && fails (Checker.check sp (goal [ "capture" ])))
+
+(* The fairness clause, through the real reader and the real claims parser, so
+   the spelling in the spec is the spelling that decodes. *)
+let () =
+  let sch = sw_schema [ "down"; "up" ] and inst = sw_instance "down" in
+  let parse src =
+    match Pol_syntax.Reader.read_string src with
+    | Error e -> Error e
+    | Ok ds -> Pol_syntax.Claims_parser.parse sch inst ds
+  in
+  (match
+     parse "(property p \"d\" (inevitable (is s.pos up) (fair raise lower)))"
+   with
+  | Ok { Claims.props = [ { modality = Inevitable [ "raise"; "lower" ]; _ } ]; _ }
+    ->
+      check "claims: (fair MOVE…) decodes into the modality, in order" true
+  | _ -> check "claims: (fair MOVE…) must decode into the modality" false);
+  (match parse "(property p \"d\" (inevitable (is s.pos up)))" with
+  | Ok { Claims.props = [ { modality = Inevitable []; _ } ]; _ } ->
+      check "claims: no clause is the plain reading, over every run" true
+  | _ -> check "claims: a bare inevitable must carry no assumption" false);
+  let rejected name src =
+    match parse src with
+    | Error e -> check (name ^ " is positioned") (e.Pol_data.Errors.pos <> None)
+    | Ok _ ->
+        check (name ^ ": expected a rejection") false;
+        exit 1
+  in
+  rejected "claims: fairness on live"
+    "(property p \"d\" (live (is s.pos up) (fair raise)))";
+  rejected "claims: an empty fairness clause"
+    "(property p \"d\" (inevitable (is s.pos up) (fair)))";
+  rejected "claims: a guard where a move name belongs"
+    "(property p \"d\" (inevitable (is s.pos up) (fair (is s.pos up))))"
 
 (* --- equation observation: can_break, unadmitted, stale, violation ---------- *)
 

@@ -93,15 +93,26 @@ let witness_block (route : string list) : string =
 
 let outcome (sp : Space.t) (prop : Claims.property) (oc : Checker.outcome) :
     string =
+  (* A fairness assumption is printed with the verdict, both ways, so that a
+     verdict cannot be quoted without it. "This protocol always terminates" and
+     "this protocol always terminates unless the network refuses to deliver for
+     ever" are different claims, and only one of them was checked. *)
+  let assumed =
+    match prop.modality with
+    | Claims.Inevitable (_ :: _ as ms) ->
+        [ "  assuming fair: " ^ String.concat ", " ms ]
+    | _ -> []
+  in
   match oc with
-  | Checker.Holds route -> (
+  | Checker.Holds route ->
       (* A holding [possible] carries its solution path; show it as the witness
-         (spec Appendix C). [never]/[live] hold with no route. *)
-      let head = "holds  " ^ prop.name in
-      match route with [] -> head | _ -> head ^ "\n" ^ witness_block route)
+         (spec Appendix C). The other three hold with no route. *)
+      String.concat "\n"
+        ((("holds  " ^ prop.name) :: assumed)
+        @ match route with [] -> [] | _ -> [ witness_block route ])
   | Checker.Not_applicable _ -> "n/a  " ^ prop.name
   | Checker.Fails { route; stuck } ->
-      let parts = ref [ "fails  " ^ prop.name ] in
+      let parts = ref (List.rev (("fails  " ^ prop.name) :: assumed)) in
       (match stuck with
       | Some s -> parts := stuck_line sp s :: !parts
       | None -> ());

@@ -26,8 +26,24 @@ let modality_of = function
   | "never" -> Some Claims.Never
   | "possible" -> Some Claims.Possible
   | "live" -> Some Claims.Live
-  | "inevitable" -> Some Claims.Inevitable
+  | "inevitable" -> Some (Claims.Inevitable [])
   | _ -> None
+
+(* The optional trailing clause of an [inevitable]: the moves the question
+   assumes are not starved. Named moves, never a guard — a fairness assumption
+   is about the scheduler, and the scheduler picks transitions. *)
+let fair_of (d : Reader.t) : (string list, Errors.t) result =
+  match d with
+  | Reader.List (Reader.Atom ("fair", fp) :: moves, _) ->
+      if moves = [] then
+        Errors.err ~pos:fp "(fair …) needs at least one move to assume fair"
+      else
+        map_r
+          (function
+            | Reader.Atom (m, _) -> Ok m
+            | d -> Reader.err_at d "a fairness assumption names a move")
+          moves
+  | _ -> Reader.err_at d "expected (fair MOVE…) after an inevitable formula"
 
 let binder_of (d : Reader.t) : (string * string, Errors.t) result =
   match d with
@@ -45,10 +61,24 @@ let decode_property (d : Reader.t) : (Claims.property, Errors.t) result =
         ],
         _ ) -> (
       match formula with
-      | Reader.List ([ Reader.Atom (m, mp); f ], _) -> (
+      | Reader.List (Reader.Atom (m, mp) :: f :: rest, _)
+        when List.length rest <= 1 -> (
           match modality_of m with
           | None -> Errors.err ~pos:mp ("unknown modality `" ^ m ^ "`")
           | Some modality ->
+              (* Only [inevitable] takes a fairness clause: the other three are
+                 about which situations exist, and no assumption about the
+                 scheduler changes that. *)
+              let* modality =
+                match (modality, rest) with
+                | _, [] -> Ok modality
+                | Claims.Inevitable _, [ d ] ->
+                    let* ms = fair_of d in
+                    Ok (Claims.Inevitable ms)
+                | _, d :: _ ->
+                    Reader.err_at d
+                      ("`" ^ m ^ "` takes a formula and nothing else")
+              in
               (* Shape only — path/arrow/value resolution is the checker's, so an
                  unknown one surfaces as n/a, not a parse error (kernel §8). *)
               let* g = Grammar.guard f in
