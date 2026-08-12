@@ -189,10 +189,14 @@ let succs (t : t) : int list array =
 
    Iterative rather than recursive, and that is not a style preference: the
    depth of this walk is the depth of the situation space, which §14 permits to
-   be 200 000, and a native stack does not hold that many frames. *)
-let phases (t : t) : int array * (int * int) list =
-  let n = Array.length t.states in
-  let succ = succs t in
+   be 200 000, and a native stack does not hold that many frames.
+
+   [tarjan] takes the successor array rather than reading [t] because the SAME
+   pass answers a second question on a RESTRICTED graph — see [avoids_forever],
+   which needs the components of the subgraph a guard fails in, and cannot get
+   them from a partition of the whole. A node with no edges either way is a
+   component of one, which is exactly what a restriction should leave behind. *)
+let tarjan (n : int) (succ : int list array) : int array =
   let visit = Array.make n (-1) (* preorder number, -1 = unvisited *) in
   let low = Array.make n 0 in
   let on = Array.make n false in
@@ -252,6 +256,10 @@ let phases (t : t) : int array * (int * int) list =
       done
     end
   done;
+  comp
+
+let phases (t : t) : int array * (int * int) list =
+  let comp = tarjan (Array.length t.states) (succs t) in
   let steps =
     List.sort_uniq compare
       (List.filter_map
@@ -267,6 +275,51 @@ let phases (t : t) : int array * (int * int) list =
          t.edges)
   in
   (comp, steps)
+
+(* The situations at which a run stops short of F, or starts going round without
+   it — the counterexample set of [inevitable F], aligned to [t.states] by index.
+
+   A run is maximal: it goes on forever, or it stops where the model does. So a
+   run avoids F in exactly two ways, and both are read off the subgraph of NON-F
+   situations, since a run that touches an F situation has not avoided it:
+
+   - it goes round for ever — the subgraph has a cycle, which is a component of
+     more than one situation, or one with an edge to itself;
+   - it stops — a non-F situation with no real move out. That covers a dead end
+     and, deliberately, a situation whose only move is a GAP. A gap is the model
+     saying its rules run out here (§10.4), and "F is inevitable" claimed past
+     the point a model admits it has stopped speaking would be a claim the model
+     does not make. `live` already treats a gap exit as a non-F terminal; this
+     is the same reading.
+
+   ONE SET, NOT TWO, and it is worth saying why the obvious extra step is
+   absent. Every situation that can reach one of these without leaving the
+   subgraph also has a run avoiding F, so the counterexample set is really the
+   backward closure of this one. Closing it changes no verdict — the closure is
+   empty exactly when this set is — and it makes the report worse: the closure
+   almost always contains the INITIAL situation, so the shortest witness becomes
+   the empty route, which says only that an escape exists somewhere. The route
+   to the escape ITSELF is the answer to "where", and that is this set.
+
+   Linear in situations and edges. Note the degenerate case falls out: where F
+   holds the situation is not in the subgraph at all, so it is never a
+   counterexample — a run that starts at its goal has reached it. *)
+let escapes_f (t : t) (sat : State.t -> bool) : bool array =
+  let n = Array.length t.states in
+  let f = Array.init n (fun i -> sat t.states.(i)) in
+  let all = succs t in
+  let sub = Array.make n [] in
+  Array.iteri
+    (fun i outs ->
+      if not f.(i) then
+        List.iter (fun j -> if not f.(j) then sub.(i) <- j :: sub.(i)) outs)
+    all;
+  let comp = tarjan n sub in
+  let size = Array.make n 0 in
+  Array.iter (fun c -> if c >= 0 then size.(c) <- size.(c) + 1) comp;
+  Array.init n (fun i ->
+      (not f.(i))
+      && (size.(comp.(i)) > 1 || List.mem i sub.(i) || all.(i) = []))
 
 (* The enabled moves out of a state: exactly the edges whose source is it (an
    edge is recorded only for an enabled transition). Gap edges are INCLUDED — a

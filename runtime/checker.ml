@@ -1,6 +1,6 @@
 open Pol_data
 
-(* The three modalities as hom-set questions, with witnesses. A witness is a
+(* The four modalities as hom-set questions, with witnesses. A witness is a
    morphism of the state category — a BFS shortest path — so it is computed here
    and nowhere else (never in [query] or [core]).
 
@@ -13,13 +13,30 @@ open Pol_data
    - [live F]: [AG EF F] over real edges — hold iff every reachable state can
      reach an F-state; gap exits are non-F terminals. Fail-witness = shortest
      path to a state that cannot reach F.
+   - [inevitable F]: [AG AF F] — hold iff no reachable state has a whole run
+     that avoids F, a run being maximal: forever round a cycle, or stopped
+     where the model stops. Fail-witness = shortest path to the situation the
+     run stops at or starts circling in — where it escapes, rather than where
+     escaping first became possible, which is usually the initial situation and
+     says nothing.
+
+   [inevitable] is strictly stronger than [live], and the implication is worth
+   knowing because it says which of the two to reach for. Every state has at
+   least one run, so a state all of whose runs reach F is a state F is
+   reachable from: [inevitable F] holding anywhere makes [live F] hold there
+   too. The gap between them is one-directional, and it is where a model with
+   independent parties lives — a protocol that retransmits can always still
+   finish and need never do it, which is [live] holding while [inevitable]
+   fails. Nothing passes [inevitable] and fails [live].
    [Not_applicable] when F names schema structure (a type/arrow/value) that does
    not exist — reported, but neither a pass nor a failure.
 
    [Holds] carries an evidence route, non-empty only for a holding [possible]
-   (the solution path); empty for [never]/[live], which have no single witness.
-   A [Fails] carries the shortest witness route AND, for a failing [live], the
-   stuck [State.t] (the reachable situation that can no longer reach F) so the
+   (the solution path); empty for the other three, which have no single
+   witness.
+   A [Fails] carries the shortest witness route AND, for a failing [live] or
+   [inevitable], the stuck [State.t] — the situation that can no longer reach
+   F, or the one a run can escape from — so the
    report can render its [stuck at:] cell layout. Formatting stays in [report];
    the checker only supplies the evidence. *)
 
@@ -124,5 +141,15 @@ let check (sp : Space.t) (prop : Claims.property) : outcome =
           | None -> false
         in
         match nearest sp cannot with
+        | None -> Holds []
+        | Some s -> Fails { route = Space.shortest_path sp s; stuck = Some s })
+    | Claims.Inevitable -> (
+        let esc = Space.escapes_f sp sat in
+        let escapes s =
+          match State.M.find_opt s sp.index with
+          | Some i -> esc.(i)
+          | None -> false
+        in
+        match nearest sp escapes with
         | None -> Holds []
         | Some s -> Fails { route = Space.shortest_path sp s; stuck = Some s })

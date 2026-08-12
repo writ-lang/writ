@@ -26,6 +26,7 @@ let modality_of = function
   | "never" -> Some Claims.Never
   | "possible" -> Some Claims.Possible
   | "live" -> Some Claims.Live
+  | "inevitable" -> Some Claims.Inevitable
   | _ -> None
 
 let binder_of (d : Reader.t) : (string * string, Errors.t) result =

@@ -43,6 +43,10 @@ asked of it, and derivations over it are three documents.
 (transition begin
   (when (and (is a.stage queued) (not (defined a.uses.held-by))))
   (do (set a.uses.held-by a) (set a.stage running)))
+
+(transition finish                       ; and the machine is handed back
+  (when (is a.stage running))
+  (do (set a.stage done) (vacate a.uses.held-by)))
 ```
 
 `a.uses.held-by` is a **chain**: follow `uses` from `a`, then `held-by`. Chains
@@ -107,13 +111,19 @@ walker stops at the end of a ladder with no guard needed.
 (property never-stuck "from anywhere, it can still finish"
   (live (is a.stage done)))
 
+(property must-finish "and no run of it goes on for ever"
+  (inevitable (is a.stage done)))
+
 (query where-is
   (where (m machine)) (defined m.held-by))
 ```
 
-`possible` / `never` / `live`. **`live` is the trap detector**: it asks whether
-F stays reachable from *every* reachable situation, which is what "cannot paint
-itself into a corner" means.
+`possible` / `never` / `live` / `inevitable`. **`live` is the trap detector**:
+it asks whether F stays reachable from *every* reachable situation, which is
+what "cannot paint itself into a corner" means. **`inevitable` is the
+termination detector**: it asks whether every run REACHES F, not merely whether
+it still could — so a model that can loop forever without arriving fails it
+while passing `live`. Reach for it wherever parties act independently.
 
 **A `property` carries a description string; a `query` does NOT** (§16.2 —
 `(query NAME (where (x TYPE)…) GUARD)`). Writing one is `malformed query`, and

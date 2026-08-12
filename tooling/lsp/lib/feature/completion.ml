@@ -62,6 +62,7 @@ let interrogator =
     "never";
     "possible";
     "live";
+    "inevitable";
     "query";
     "where";
     "accept";

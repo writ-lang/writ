@@ -570,7 +570,7 @@ libraries, one over the servers and the shared JSON. The toolchain is resolved b
 ## Status
 
 Built: the full language (schema / instance / transitions / equations / forms),
-the interrogator (state-space enumeration, the three modalities with witnesses,
+the interrogator (state-space enumeration, the four modalities with witnesses,
 queries, equation observation), the tool interface `pol check` / `query` /
 `compare` (+ `--git`) / `control` / `schema` / `derive` — the last being the
 relational extension's rules engine over the enumerated universe — and two

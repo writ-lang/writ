@@ -2,7 +2,11 @@
    syntax) so the engine can consume it without ever touching the front end;
    syntax merely parses into it. *)
 
-type modality = Never | Possible | Live
+(* [Inevitable] is AF: not "can still reach" but "cannot avoid". It is the
+   fourth of CTL's basic operators, joining the three already here, and the one
+   a model with independent parties asks — a protocol that CAN still finish
+   from everywhere is not a protocol that DOES. *)
+type modality = Never | Possible | Live | Inevitable
 
 type property = {
   name : string;

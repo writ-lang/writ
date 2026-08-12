@@ -41,18 +41,32 @@ fails  never-stuck            false — with the shortest counterexample
 **A witness under a holding `possible` is the answer, not evidence for it.** If
 you asked "is there a schedule", the witness is the schedule. Quote it.
 
-## The three modalities
+## The four modalities
 
 | | asks |
 | --- | --- |
 | `possible F` | some reachable situation satisfies F |
 | `never F` | no reachable situation does |
 | `live F` | from **every** reachable situation, F is still reachable |
+| `inevitable F` | …and no whole run avoids it |
 
 `live` is the one people forget and the one that finds traps. "Every job can
 finish" is `possible`; "no schedule can paint itself into a corner" is `live`,
 and a model can pass the first while failing the second — that is exactly what
 a deadlock is.
+
+`inevitable` is the next step up, and it is the one to reach for wherever the
+model has parties that act independently of each other. `live` asks whether the
+goal is still AVAILABLE; `inevitable` asks whether it is UNAVOIDABLE, which is
+what "does this terminate" actually means. A protocol that retransmits a lost
+message can always still finish — `live` holds — while a run that loses the
+message every time never does, and only `inevitable` reports it. The witness
+names the situation the run circles in, or the one it stops at.
+
+Nothing passes `inevitable` and fails `live`: a situation has at least one run,
+so if every run reaches F then F is reachable. Ask `live` when the goal is a
+capability the model must not lose, and `inevitable` when it is an outcome the
+model must deliver.
 
 ## Optimising without arithmetic
 

@@ -60,6 +60,7 @@ let reserved =
     "never";
     "possible";
     "live";
+    "inevitable";
     "query";
     "where";
     "accept";

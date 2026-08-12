@@ -1436,13 +1436,24 @@ forms.
 | `(never F)`    | no reachable situation satisfies F                                |
 | `(possible F)` | some reachable situation satisfies F                              |
 | `(live F)`     | from every reachable situation, an F-situation is still reachable |
+| `(inevitable F)` | from every reachable situation, no whole run avoids F           |
 
 - F is a guard (§10.2), closed or with `some`-bound variables.
+- A **run** is maximal: it continues forever, or it stops where the model
+  stops — at a situation with no move, or at one whose only move is a `gap`,
+  the model's own admission that its rules have run out (§10.4). A run that
+  ends at a `gap` has not reached F.
+- `inevitable` is strictly stronger than `live`, and the gap between them is
+  one-directional: a situation has at least one run, so a situation every run
+  of which reaches F is one F is reachable from. Nothing satisfies
+  `inevitable` and fails `live`. What lies between the two is a world that
+  can always still arrive and need never do it — the river, where the farmer
+  may row back and forth for ever.
 - A failing property is reported with a **shortest witness** — a route,
   printed as numbered moves.
 - A holding **`possible`** also carries a witness: the shortest route to a
   satisfying situation — the example the question asked for (Appendix C's
-  solvable river prints its crossing). `never` and `live` hold with no single
+  solvable river prints its crossing). The other three hold with no single
   witness.
 - A property naming structure the schema lacks is **n/a** — never a
   pass.
@@ -1455,6 +1466,9 @@ forms.
 
 (property accountability "the docket can always still conclude"
   (live (is docket.stage concluded)))
+
+(property conclusion "the docket cannot stay open for ever"
+  (inevitable (is docket.stage concluded)))
 ```
 
 *Against the running example with a `capture-prosecutions` move added
@@ -1468,7 +1482,12 @@ fails  accountability
 ```
 
 *Capture is a trap: one move, and no continuation ever concludes the
-case. `possible` cannot see this; `live` can.*
+case. `possible` cannot see this; `live` can, and `inevitable` fails
+here too — a run that takes the capture never concludes. The two part
+company where nothing is lost and nothing is settled: the river's farmer
+may row back and forth for ever, so the crossing stays available from
+every arrangement (`live` holds) and no run is obliged to make it
+(`inevitable` fails, naming the arrangement the rowing circles in).*
 
 ### 16.2 Queries
 

@@ -48,6 +48,9 @@ let interrogator_desc =
     ("never", "(never F) — no reachable state satisfies F");
     ("possible", "(possible F) — some reachable state satisfies F");
     ("live", "(live F) — from every reachable state, an F-state stays reachable");
+    ( "inevitable",
+      "(inevitable F) — no run avoids F: every run reaches one, or is still \
+       going" );
     ("query", "(query NAME (where …) GUARD) — reported bindings");
     ("where", "(where (VAR TYPE)…) — a query's binders");
     ("accept", "(accept TRANSITION EQUATION…) — acknowledge known breakage");

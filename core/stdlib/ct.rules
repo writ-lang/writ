@@ -2,11 +2,11 @@
 ;
 ; A model's meaning IS a category (kernel Appendix I.1): objects are the
 ; reachable situations, morphisms are move sequences, composition is
-; concatenation, identities are "do nothing". `pol check` asks three questions
-; about it — `possible`, `live`, `never` — and the interrogator extension is
+; concatenation, identities are "do nothing". `pol check` asks four questions
+; about it — `possible`, `never`, `live` and `inevitable` — and the extension is
 ; explicit that those three are the common case rather than the instrument
 ; (extension §2). This file is the instrument's vocabulary: the structure of
-; that category, named, so a model can be asked what the three modalities have
+; that category, named, so a model can be asked what the four modalities have
 ; no spelling for.
 ;
 ; WHERE IT LIVES. It is a RULES library — it declares relations, never types —

@@ -187,6 +187,83 @@ let () =
     && contains ~sub:"stuck at:" s
     && contains ~sub:"witness:  1. capture" s)
 
+(* --- inevitable: the gap between "can still" and "cannot avoid" ------------- *)
+
+(* A cycle does not refute [inevitable] by existing — only one that stays off
+   the goal does. The toggle loops forever between two situations, and `up` is
+   one of them, so every run reaches it: [inevitable] HOLDS over a cyclic space,
+   which is the case a "reject anything with a loop" implementation gets
+   wrong. *)
+let () =
+  let sp = build_ok toggle in
+  check "inevitable holds: every run of the toggle passes through up"
+    (Checker.check sp (prop "i" Inevitable (is "s" "pos" "up"))
+    = Checker.Holds [])
+
+(* The pair the whole modality exists for, at three situations. `wander` and
+   `back` are a loop that never touches `home`, and `arrive` leaves it for
+   `home`, which is where the model stops. So `home` is always still reachable
+   — [live] holds — and a run can decline to take it forever — [inevitable]
+   fails. This is two-phase commit with a retransmitting network, reduced until
+   it can be counted by hand: three situations, three edges.
+
+   The counterexample is the INITIAL situation, and its route is therefore
+   empty: the run that avoids `home` is available from the start, and a
+   shortest witness to that is no moves at all. *)
+let detour =
+  mk
+    [
+      flip "wander" "home-able" "away";
+      flip "back" "away" "home-able";
+      flip "arrive" "home-able" "home";
+    ]
+    "home-able"
+    [ "home-able"; "away"; "home" ]
+
+let () =
+  let sp = build_ok detour in
+  check "detour: three situations" (Array.length sp.Space.states = 3);
+  check "live holds: home stays reachable from everywhere"
+    (Checker.check sp (prop "l" Live (is "s" "pos" "home")) = Checker.Holds []);
+  match Checker.check sp (prop "i" Inevitable (is "s" "pos" "home")) with
+  | Checker.Fails { route = []; stuck = Some s } ->
+      check "inevitable fails: the loop is a run that never arrives"
+        (State.get sp.Space.ctx s (cr "pos" "s") = Value.Filled "home-able")
+  | _ ->
+      check "inevitable fails: expected the initial situation, no moves" false
+
+(* Stopping refutes as well as looping: a run that ends where the model ends,
+   without the goal, has avoided it. capture is one-way into a dead end, so a
+   run that takes it never comes back to `safe` — and [inevitable] reports the
+   same route [live] does, since here the trap and the escape are one move. *)
+let () =
+  let sp = build_ok capture_model in
+  match Checker.check sp (prop "i" Inevitable (is "s" "pos" "safe")) with
+  | Checker.Fails { route = [ "capture" ]; stuck = Some _ } ->
+      check "inevitable fails at a dead end that is not the goal" true
+  | _ -> check "inevitable fails: expected witness [capture]" false
+
+(* [inevitable] implies [live], because a state has at least one run and a run
+   that reaches F witnesses that F is reachable. So of the four combinations
+   only three can occur, and this asserts the missing one is missing across
+   every model and goal this file builds — the property is about the pair, so
+   testing it on one fixture would prove nothing. *)
+let () =
+  let goals = [ "up"; "down"; "safe"; "captured"; "home"; "away"; "home-able" ] in
+  let holds = function Checker.Holds _ -> true | _ -> false in
+  let bad =
+    List.concat_map
+      (fun m ->
+        let sp = build_ok m in
+        List.filter
+          (fun g ->
+            let q md = Checker.check sp (prop "q" md (is "s" "pos" g)) in
+            holds (q Inevitable) && not (holds (q Live)))
+          goals)
+      [ toggle; capture_model; detour ]
+  in
+  check "no goal is inevitable without being live" (bad = [])
+
 (* --- equation observation: can_break, unadmitted, stale, violation ---------- *)
 
 let independence =
