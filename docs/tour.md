@@ -621,33 +621,32 @@ grow.
  3  (schema NAME
  4    (type NAME)                                   ; open: members come from the instance
  5    (type NAME (VALUE…))                          ; enumerated
- 6    (type NAME (arrow A (to T) FLAG…) …)          ; arrows owned by a type
- 7    (arrow A (of T) (to T) FLAG…)                 ; …or declared at schema top
- 8    (equation NAME GUARD))                        ; a law: one free root
- 9
-10    FLAG ::= fixed        ; wiring — set once, never varies
-11           | vacatable    ; the slot may be empty
-12
-13  (instance NAME SCHEMA CLAUSE…)
-14
-15    CLAUSE ::= (TYPE ENTITY… SLOT…)               ; entities are atoms, slots are lists
-16    SLOT   ::= (ARROW value)                      ; value may be `vacant`
-17                                                  ; slots need exactly one entity
-18
-19  (use SCHEMA)
-20  (initial INSTANCE)
-21
-22  (transition [NAME] (when GUARD) (do EFFECT…))
-23
-24    GUARD  ::= (and G…) | (or G…) | (not G)
-25             | (is CHAIN rhs) | (defined CHAIN)
-26             | (some (VAR TYPE) G)
-27             | NAME                               ; a nullary form
-28    EFFECT ::= (set CHAIN rhs) | (vacate CHAIN) | (gap "MSG")
-29    CHAIN  ::= entity.arrow.arrow…                ; follow arrows; literal, finite
-30
-31  (form (NAME BLANK… [&rest BLANK]) TEMPLATE…) ; ALL-CAPS blanks; @BLANK splices
-32  (form NAME DATUM)                            ; nullary, used as a bare atom
+ 6    (type NAME (arrow A (to T) FLAG…) …)          ; an arrow is owned by a type
+ 7    (equation NAME GUARD))                        ; a law: one free root
+ 8
+ 9    FLAG ::= fixed        ; wiring — set once, never varies
+10           | vacatable    ; the slot may be empty
+11
+12  (instance NAME SCHEMA CLAUSE…)
+13
+14    CLAUSE ::= (TYPE ENTITY… SLOT…)               ; entities are atoms, slots are lists
+15    SLOT   ::= (ARROW value)                      ; value may be `vacant`
+16                                                  ; slots need exactly one entity
+17
+18  (use SCHEMA)
+19  (initial INSTANCE)
+20
+21  (transition [NAME] (when GUARD) (do EFFECT…))
+22
+23    GUARD  ::= (and G…) | (or G…) | (not G)
+24             | (is CHAIN rhs) | (defined CHAIN)
+25             | (some (VAR TYPE) G)
+26             | NAME                               ; a nullary form
+27    EFFECT ::= (set CHAIN rhs) | (vacate CHAIN) | (gap "MSG")
+28    CHAIN  ::= entity.arrow.arrow…                ; follow arrows; literal, finite
+29
+30  (form (NAME BLANK… [&rest BLANK]) TEMPLATE…) ; ALL-CAPS blanks; @BLANK splices
+31  (form NAME DATUM)                            ; nullary, used as a bare atom
 ```
 
 ## The claims file

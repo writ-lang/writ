@@ -523,10 +523,11 @@ dropping it: unbounded domains with bounded checking or sampling, and
 Everything in Pol is one shape: a parenthesised list whose head is a
 word. There is no expression sub-language, no operator table, no
 precedence, no order of evaluation; the collected grammar is Appendix A,
-and it is a page. The one exception is `=>`, which sits *inside* a
-`form` datum rather than heading it (§11.1) — the language's only infix
-token, kept because a form's pattern and its template are both lists and
-nothing else would tell them apart to a reader.
+and it is a page. There is no exception and no infix token: a form's
+pattern and its template sit side by side (§11.1), told apart by position
+like every other datum's parts. `=>` was that exception until the template
+became positional, and survives only in the map files of §16.4 — a tool
+file format, not the language.
 
 **The object being written down is a finitely presented category —
 generators and relations** (Appendix I.1): labelled nodes, each with a
@@ -837,7 +838,7 @@ once an instance names them.*
 division of labour at the type level. Ordered scales are enumerated
 types plus library forms spelling out their comparisons (§11, Example).
 
-### 8.3 `arrow`, `to`, `of`, `fixed`, `vacatable`
+### 8.3 `arrow`, `to`, `fixed`, `vacatable`
 
 - **Syntax**
   - in the body of the type that owns it: `(arrow NAME (to TYPE) FLAG…)`
@@ -1215,7 +1216,7 @@ do-nothing moves; a gap has no next situation at all.
 
 ## 11. Forms
 
-### 11.1 `form`, `=>`, `&rest`, `@`
+### 11.1 `form`, `&rest`, `@`
 
 - **Syntax**
   - `(form PATTERN TEMPLATE…)`
@@ -1527,7 +1528,7 @@ captured-bureaus  (at state 7)
   (*The dictionary is a functor — the same "consistent assignment"
   pattern as §9.1.*)
 
-*Example. A later commit adds `(arrow reassigns (of bureau) (to case))`:*
+*Example. A later commit adds `(arrow reassigns (to case))` to `bureau`:*
 
 ```
 functor eu-view: TOTALITY FAILS
@@ -1671,7 +1672,7 @@ load-d      ::= (load "FILE")
 use-d       ::= (use SCHEMA)
 initial-d   ::= (initial INSTANCE)
 
-schema-d    ::= (schema NAME (type-d | arrow-d | equation-d)…)
+schema-d    ::= (schema NAME (type-d | equation-d)…)
 type-d      ::= (type NAME)
               | (type NAME (VALUE…))
               | (type NAME arrow-d…)

@@ -1,10 +1,10 @@
 # The Pol language, for writing a model that runs
 
-Twenty-seven kernel words. Everything else — quantifiers, equality, ordering,
+Twenty-six kernel words. Everything else — quantifiers, equality, ordering,
 domain vocabulary — is a library form built from them.
 
 ```
-load use initial schema type arrow to of fixed vacatable equation
+load use initial schema type arrow to fixed vacatable equation
 instance vacant transition when do set vacate gap
 and or not is defined some form &rest
 ```
@@ -30,7 +30,7 @@ asked of it, and derivations over it are three documents.
     (arrow stage (to stage-t))
     (arrow uses  (to machine) fixed)))   ; `fixed` = wiring, no move may change it
 
-(instance start (of shop)                ; exactly ONE starting configuration
+(instance start shop                     ; exactly ONE starting configuration
   (machine m1)
   (job a)
   (uses  (a m1))
@@ -122,8 +122,8 @@ the whole claims file is rejected.
 ## Forms — the only way to abstract
 
 ```lisp
-(form (idle M) => (not (defined M.held-by)))          ; a named guard
-(form (job-of J E A L) => (enters J E) (advances J A) (leaves J L))
+(form (idle M) (not (defined M.held-by)))             ; a named guard
+(form (job-of J E A L) (enters J E) (advances J A) (leaves J L))
 ```
 
 A form is **rename-and-paste**: no recursion, no computation, and it cannot map
@@ -131,9 +131,9 @@ over its `&rest`. At top level it may expand to several datums; *inside* a list
 it must expand to exactly one.
 
 **A form cannot introduce a bound variable.** An undeclared symbol in a template
-is read as a form name, so writing `(form (deps-met C) => (all (R req) …))`
+is read as a form name, so writing `(form (deps-met C) (all (R req) …))`
 fails with *"template of `deps-met` mentions `R`, a form not yet declared"*.
-Thread the binder in as a parameter — `(form (deps-met C R) => (all (R req) …))`
+Thread the binder in as a parameter — `(form (deps-met C R) (all (R req) …))`
 — and pass a name at each call site.
 
 A **domain library** is declarations only — a schema, an instance, forms — and
