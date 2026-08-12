@@ -339,6 +339,55 @@ let () =
   rejected "claims: a guard where a move name belongs"
     "(property p \"d\" (inevitable (is s.pos up) (fair (is s.pos up))))"
 
+(* --- one situation, addressed by index -------------------------------------- *)
+
+(* What `pol show` prints. Counted by hand off the fixtures above: the toggle is
+   0 = down (initial) and 1 = up, one move each way. *)
+let () =
+  let sp = build_ok toggle in
+  let a = Report.situation sp 0 and b = Report.situation sp 1 in
+  check "show: the head counts the space and marks the initial situation"
+    (contains ~sub:"situation 0 of 2" a
+    && contains ~sub:"(the initial one)" a
+    && not (contains ~sub:"(the initial one)" b));
+  check "show: the cells are the situation" (contains ~sub:"(s.pos=down)" a);
+  check "show: the initial situation needs no route"
+    (contains ~sub:"route:   none needed" a);
+  check "show: elsewhere the route is the fewest moves to it"
+    (contains ~sub:"route:   1. raise" b);
+  check "show: every move out names where it lands"
+    (contains ~sub:"moves:   raise → 1" a
+    && contains ~sub:"moves:   lower → 0" b)
+
+(* A dead end says so, and a GAP situation does not — §15's distinction, which a
+   reader of this output should be able to see rather than infer. gap_model is
+   a → b → c with `blow` firing a gap at both b and c. *)
+let () =
+  let dead = build_ok deadlock_model in
+  check "show: a situation with no move says it is a dead end"
+    (contains ~sub:"moves:   none — a dead end" (Report.situation dead 1));
+  let g = build_ok gap_model in
+  let b = Report.situation g 1 in
+  check "show: a gap edge is printed as one, not as a destination"
+    (contains ~sub:"blow → gap: boom" b);
+  check "show: …and a situation that only exits by a gap is not a dead end"
+    (contains ~sub:"climb → 2" b
+    && not (contains ~sub:"a dead end" b))
+
+(* The cells come from ONE formatter, which is the reason [cells_line] was split
+   out of the stuck line rather than copied: a failing property and this verb
+   print the same situation, and two layouts would eventually disagree about
+   what a model's state is. *)
+let () =
+  let sp = build_ok capture_model in
+  let p = prop "acc" Live (is "s" "pos" "safe") in
+  let stuck = Report.outcome sp p (Checker.check sp p) in
+  let captured = find_state sp "pos" "s" "captured" in
+  let i = State.M.find captured sp.Space.index in
+  check "show and stuck-at render the situation identically"
+    (contains ~sub:(Report.cells_line sp captured) stuck
+    && contains ~sub:(Report.cells_line sp captured) (Report.situation sp i))
+
 (* --- equation observation: can_break, unadmitted, stale, violation ---------- *)
 
 let independence =

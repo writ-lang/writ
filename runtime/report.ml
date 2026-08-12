@@ -68,17 +68,21 @@ let build (sp : Space.t) : string =
 
 (* --- §16.1 properties ------------------------------------------------------ *)
 
-(* The stuck situation's mutable cells in layout order, [SRC.ARROW=VALUE] with
-   [∅] (U+2205) for a vacant cell. *)
-let stuck_line (sp : Space.t) (s : State.t) : string =
+(* A situation's mutable cells in layout order, [SRC.ARROW=VALUE] with [∅]
+   (U+2205) for a vacant cell. Named apart from [stuck_line] because it is what
+   a situation IS, and two things want to print it: a failing property, and
+   `pol show` answering "what is situation 17" for a caller holding a row from
+   `pol derive`. One layout, so the two cannot drift. *)
+let cells_line (sp : Space.t) (s : State.t) : string =
   let cells = sp.Space.ctx.State.layout.cells in
   let cell i (cr : Instance.cellref) =
     let v = match s.(i) with Value.Filled x -> x | Value.Vacant -> "∅" in
     cr.Instance.src ^ "." ^ cr.Instance.arrow ^ "=" ^ v
   in
-  "  stuck at: ("
-  ^ String.concat " " (Array.to_list (Array.mapi cell cells))
-  ^ ")"
+  "(" ^ String.concat " " (Array.to_list (Array.mapi cell cells)) ^ ")"
+
+let stuck_line (sp : Space.t) (s : State.t) : string =
+  "  stuck at: " ^ cells_line sp s
 
 (* [  witness:  1. m1] then moves 2..n indented under the first move. *)
 let witness_block (route : string list) : string =
@@ -138,3 +142,57 @@ let query_rows (q : Claims.query) (idx : int)
     "  " ^ String.concat ", " (List.map (fun (k, v) -> k ^ " = " ^ v) r)
   in
   String.concat "\n" (header :: List.map row rows)
+
+(* --- one situation, addressed by index ------------------------------------- *)
+
+(* What `pol derive` answers with is a state index, and an index is not an
+   answer a reader can act on. This renders one: its cells, the fewest moves to
+   it, and where it can go. The numbering is the space's own, so it is the same
+   17 that `pol query --at` addresses and that a rules row printed.
+
+   The three lines are chosen to close the loop a derivation opens. A `blocked`
+   row wants the cells (what the situation is), the route (how it got there) and
+   the moves out (whether it really is stuck) — and a reader who had to run
+   three more commands to get those had been given a number rather than an
+   answer. *)
+let situation (sp : Space.t) (i : int) : string =
+  let s = sp.Space.states.(i) in
+  let head =
+    "situation " ^ string_of_int i ^ " of "
+    ^ string_of_int (Array.length sp.Space.states)
+    ^ if Space.same s sp.Space.initial then "   (the initial one)" else ""
+  in
+  let route =
+    match Space.shortest_path sp s with
+    | [] -> "  route:   none needed — this is where the model starts"
+    | first :: rest ->
+        let indent = String.make (String.length "  route:   ") ' ' in
+        String.concat "\n"
+          (("  route:   1. " ^ first)
+          :: List.mapi
+               (fun k m -> indent ^ string_of_int (k + 2) ^ ". " ^ m)
+               rest)
+  in
+  (* Every edge out, gap edges included and marked: a situation whose only exit
+     is a gap is NOT a dead end (§15), and a reader looking at one should be
+     able to see the difference rather than infer it. *)
+  let out =
+    List.filter_map
+      (fun (e : Space.edge) ->
+        if not (Space.same e.Space.src s) then None
+        else
+          match e.Space.dst with
+          | `To d ->
+              Some
+                (e.Space.via ^ " → "
+                ^ string_of_int (State.M.find d sp.Space.index))
+          | `Gap msg -> Some (e.Space.via ^ " → gap: " ^ msg))
+      sp.Space.edges
+  in
+  let moves =
+    match out with
+    | [] -> "  moves:   none — a dead end"
+    | _ -> "  moves:   " ^ String.concat "   " out
+  in
+  String.concat "\n"
+    [ head; "  cells:   " ^ cells_line sp s; route; moves ]

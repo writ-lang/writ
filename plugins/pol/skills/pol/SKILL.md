@@ -107,6 +107,12 @@ Time is a ladder of named ticks walked by an arrow, never a number.
   **derivation tree**: why the engine believes a fact, down to the model facts
   it rests on. Use it when the answer matters enough to show your working.
 
+A derivation answers with **state indices**, and an index is not an answer:
+`17` means nothing until you ask what it holds. One numbering runs through the
+whole tool — the index a rules row prints is the one `pol show --at 17`
+renders, `pol query --at 17` evaluates at, and a witness route walks to. So
+follow a derivation with `pol show` and quote the situation, not the number.
+
 A tool that fails answers with the engine's own message rather than dying —
 read it, it is usually enough to fix the file.
 

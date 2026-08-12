@@ -1660,6 +1660,7 @@ pol check    MODEL.pol [--claims F.claims]
 pol check    MODEL.pol --universal TYPE
 pol check    MODEL.pol --symmetries
 pol query    MODEL.pol NAME [--at STATE]
+pol show     MODEL.pol [--at STATE]…
 pol compare  OLD.pol NEW.pol [--map M.pol]
 pol compare  --git REV1 REV2 MODEL.pol [--map M.pol]
 pol control  MODEL.pol

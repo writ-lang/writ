@@ -243,6 +243,7 @@ what it costs.
 | `pol derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
 | `pol derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
 | `pol derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
+| `pol show MODEL [--at STATE]…` | print what a situation is — its cells, the fewest moves to it, and every move out |
 | `pol help VERB` · `pol VERB --help` | one verb's reference — usage, options, examples, exit status |
 | `pol --help` · `pol --version` | the full reference · the version this binary was built from |
 

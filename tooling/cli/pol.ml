@@ -86,6 +86,7 @@ let () =
       | [] -> Cmd_query.run model name None
       | [ "--at"; s ] -> Cmd_query.run model name (Some s)
       | _ -> die 2 usage)
+  | _ :: "show" :: model :: rest -> Cmd_show.run model rest
   | [ _; "control"; model ] -> Cmd_control.run model
   | [ _; "schema"; model ] -> Cmd_schema.run model
   | _ :: "sql" :: file :: rest ->

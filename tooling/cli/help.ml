@@ -223,6 +223,36 @@ rooted in an arrow name that two types share.|};
           "pol derive  model.pol org.rules --why \"(subordinate nabu cabinet)\"";
         ];
     };
+    {
+      name = "show";
+      summary = "print what one situation is, addressed by its state index";
+      usage = [ "pol show     MODEL.pol [--at STATE]…" ];
+      body =
+        {|Print a situation: every mutable cell as SRC.ARROW=VALUE (with the
+empty set sign for a vacant one), the fewest moves that reach it from
+the initial situation, and every move out of it with the index it
+leads to — gap edges marked as such, since a situation whose only
+exit is a gap is not a dead end. With no --at it shows the initial
+situation, index 0.
+
+This is the verb that reads back what the others answer WITH. `pol
+derive` prints a relation's rows as state indices, and one numbering
+is shared by the whole tool — the same index --at addresses here, that
+`pol query --at` evaluates a query at, and that a witness route walks
+to. So a derivation that answers "these situations are blocked" is
+followed by asking what one of them holds, and the moves-out line says
+whether it is stuck in fact or only in name.
+
+Repeat --at to show several, which is the shape a derivation's answer
+already has.|};
+      options =
+        [ "--at STATE       a situation's index; repeatable (default: 0)" ];
+      examples =
+        [
+          "pol show    model.pol --at 17";
+          "pol show    model.pol --at 17 --at 19";
+        ];
+    };
   ]
 
 (* ---- rendering ---------------------------------------------------------- *)
