@@ -41,6 +41,15 @@ fails  never-stuck            false — with the shortest counterexample
 **A witness under a holding `possible` is the answer, not evidence for it.** If
 you asked "is there a schedule", the witness is the schedule. Quote it.
 
+**`dead ends: 3` is a count, not a finding.** Some endings are the ones the
+model is for — the job finished, the transaction committed — and some are the
+world seizing up, and the report cannot tell them apart because it does not know
+what the model was supposed to reach. You do. Say it, as `(inevitable F)`: an
+ending that does not satisfy F is then a failure with a route to it, and the
+designed ones are silent. Two-phase commit with a coordinator that can crash
+reports twenty dead ends either way, and the modality is what says whether ten
+of them are the protocol blocking or none of them are.
+
 ## The four modalities
 
 | | asks |
