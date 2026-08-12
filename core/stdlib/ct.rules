@@ -4,7 +4,7 @@
 ; reachable situations, morphisms are move sequences, composition is
 ; concatenation, identities are "do nothing". `pol check` asks four questions
 ; about it — `possible`, `never`, `live` and `inevitable` — and the extension is
-; explicit that those three are the common case rather than the instrument
+; explicit that those four are the common case rather than the instrument
 ; (extension §2). This file is the instrument's vocabulary: the structure of
 ; that category, named, so a model can be asked what the four modalities have
 ; no spelling for.
@@ -196,6 +196,53 @@
 (form (trapped X C)
   (relation X 1)
   (rule (X S) (situation S) (not (C S))))
+
+; 8. Runs that never arrive — `inevitable`, the other way round
+;
+; §7 answers `possible`, `never` and `live`. The fourth modality's
+; counterexample set is this section, and having it here is not decoration: it
+; is a SECOND implementation of a question `pol check` already answers, arrived
+; at down a different road — a closure confined to the situations the goal fails
+; in, where the engine partitions the same subgraph and looks for components. A
+; disagreement between them is a bug in one of the two, which is the only kind
+; of test whose oracle its author did not choose.
+;
+; `inevitable G` fails exactly where some whole run avoids G, and a run avoids
+; it in two ways: it circles for ever without arriving, or it stops short. So
+; `escaping` has one rule for each, and `inevitable G` HOLDS iff its answer is
+; EMPTY — the same polarity as `trapped`, and the same trap.
+;
+; Four names to pass rather than §7's three, for §7's reason: a form cannot
+; invent a name, so every intermediate has to be handed one at the call site.
+; Written out, "can the transaction stay undecided for ever":
+;
+;   (satisfies decided (all (p participant)
+;                        (or (is p.state committed) (is p.state aborted))))
+;   (off-set   undecided decided)
+;   (stays     waiting   undecided)
+;   (escaping  forever   undecided waiting)
+;
+; WHAT IT DOES NOT COVER. A fairness assumption — `(inevitable G (fair …))` —
+; narrows which runs the question is about, and nothing here reads it. This is
+; the plain modality, over every run there is; cross-checking a fair verdict
+; against these forms would be comparing two different questions.
+;
+; And it is the section to reach for LAST, for §1's reason: `stays` is a closure
+; and its answer is a set of pairs. The engine's own answer to the same question
+; is linear. These forms are here to disagree with it, not to replace it.
+(form (off-set O R)
+  (relation O 1)
+  (rule (O S) (situation S) (not (R S))))
+
+(form (stays U O)
+  (relation U 2)
+  (rule (U S S) (O S))
+  (rule (U S T) (O S) (edge E S M) (U M T)))
+
+(form (escaping X O U)
+  (relation X 1)
+  (rule (X S) (O S) (edge E S M) (U M S))
+  (rule (X S) (O S) (not (moves S))))
 
 ; WHAT IS NOT HERE, and why. One limit, and it is mechanical.
 ;

@@ -227,5 +227,92 @@ let () =
     (count trap_goals "can-finish" + count trap_goals "lost"
     = count trap_goals "moves" + count trap_goals "dead-end")
 
+(* §8 — the two implementations of `inevitable`, against each other.
+
+   This is the one test in the file whose oracle its author did not choose. The
+   engine partitions the subgraph the goal fails in and looks for components;
+   the library confines a transitive closure to the same subgraph and looks for
+   a situation that returns to itself. Nothing is shared but the space they read
+   — different algorithms, different complexity, different module. Comparing the
+   SETS rather than the verdicts is the point: two implementations can agree on
+   "something escapes" while disagreeing about what, and the disagreement is
+   where the bug would be. *)
+
+let escape_calls goal =
+  "\n(satisfies goal " ^ goal ^ ")\n(off-set off goal)\n(stays confined off)\n\
+   (escaping escape off confined)\n"
+
+let cross label src goal =
+  let m =
+    match Parser.parse_model (read src) with
+    | Ok m -> m
+    | Error e -> failwith (label ^ ": " ^ Errors.to_string e)
+  in
+  let sp = space m in
+  let d = Derive.run sp (program m (ct ^ escape_calls goal)) in
+  let by_library =
+    match Derive_answers.query d "escape" [ None ] with
+    | Some (Ok rs) ->
+        List.sort compare
+          (List.map (fun r -> List.hd (Derive_answers.row d "escape" r)) rs)
+    | _ -> failwith (label ^ ": no `escape` relation")
+  in
+  let g =
+    match Grammar.guard (List.hd (read goal)) with
+    | Ok g -> g
+    | Error e -> failwith (label ^ ": " ^ Errors.to_string e)
+  in
+  let esc = Space.escapes_f sp (fun s -> Eval.guard_holds sp.Space.ctx s [] g) in
+  let by_engine =
+    List.filter_map
+      (fun i -> if esc.(i) then Some (string_of_int i) else None)
+      (List.init (Array.length esc) Fun.id)
+  in
+  check
+    (label ^ ": the library and the engine name the same escaping situations")
+    (by_library = List.sort compare by_engine);
+  (* And the modality's verdict is that set's emptiness — the polarity §8 warns
+     about, asserted rather than trusted. *)
+  let verdict =
+    Checker.check sp
+      {
+        Claims.name = "i";
+        text = "";
+        modality = Claims.Inevitable [];
+        formula = g;
+      }
+  in
+  check
+    (label ^ ": inevitable holds exactly when nothing escapes")
+    ((match verdict with Checker.Holds _ -> true | _ -> false)
+    = (by_library = []));
+  List.length by_library
+
+(* Four shapes, chosen so that between them every branch of §8 fires: a DAG
+   where nothing escapes, a loop where nothing does either (the goal is ON the
+   loop, which is the case an implementation that feared cycles would get
+   wrong), a loop that misses the goal, and a one-way door into a dead end. *)
+
+let detour_src =
+  "(schema s\n\
+  \   (type f (a b c))\n\
+  \   (type box (arrow p (to f))))\n\
+   (instance i s (box x (p a)))\n\
+   (use s)\n\
+   (initial i)\n\
+   (transition wander (when (is x.p a)) (do (set x.p b)))\n\
+   (transition back   (when (is x.p b)) (do (set x.p a)))\n\
+   (transition arrive (when (is x.p a)) (do (set x.p c)))\n"
+
+let () =
+  check "a DAG whose every run passes the goal: nothing escapes"
+    (cross "dag" (fixture "rules_base.pol") "(is nabu.stands vocal)" = 0);
+  check "a loop with the goal on it: nothing escapes either"
+    (cross "loop" (fixture "cycle.pol") "(is b.f hi)" = 0);
+  check "a loop that misses the goal: both its situations escape"
+    (cross "detour" detour_src "(is x.p c)" = 2);
+  check "a one-way door into a dead end: the dead end escapes"
+    (cross "trap" trap_src "(is x.q b)" = 1)
+
 let () =
   print_string ("ct.rules tests: " ^ string_of_int !passed ^ " checks passed\n")
