@@ -9,18 +9,22 @@
 #   1. dune already on PATH          — a normal opam setup, nothing to do
 #   2. $SWITCH                       — set it to force a particular switch
 #   3. ./_opam                       — a switch local to this checkout
-#   4. the global `writ` switch       — the central switch this project uses;
+#   4. the global `writ` switch      — the central switch this project uses;
 #                                      also what the VS Code OCaml extension finds
-#   5. ../tryocaml, and the absolute path to it
-#                                    — the sibling switch this repo was first
-#                                      developed against, kept as a fallback
 #
-# Exists because the Makefile and editor/vscode/install.sh both need it, and a
-# hardcoded switch path in the Makefile only ever worked on one machine.
+# Every entry is either supplied by the caller or discoverable from the checkout.
+# There was a fifth, an absolute path to the sibling switch this repo was first
+# developed against; it was removed once the `writ` switch existed, because a
+# path under one person's home directory is not a fallback — it is a build that
+# works on exactly one machine and fails everywhere else with "no OCaml
+# toolchain", which is the failure this script was written to prevent.
+#
+# Exists because the Makefile and the VS Code extension's install.sh both need
+# it, and a hardcoded switch path in the Makefile only ever worked on one machine.
 set -euo pipefail
 
 if ! command -v dune >/dev/null 2>&1; then
-  for switch in "${SWITCH:-}" ./_opam writ ../tryocaml /root/docs/projects/tryocaml; do
+  for switch in "${SWITCH:-}" ./_opam writ; do
     # A path switch must exist as a dir; a named switch (e.g. `writ`) has no path,
     # so let opam env be the arbiter — it fails silently for an unknown switch.
     [ -n "$switch" ] || continue
