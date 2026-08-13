@@ -101,6 +101,11 @@ let () =
         Cmd_sql.run file
           ~with_data:(List.mem "--with-data" rest)
           ~strict:(List.mem "--strict" rest)
+  | _ :: "mgtt" :: file :: rest ->
+      (* one direction, so --strict is the only option *)
+      let known = [ "--strict" ] in
+      if List.exists (fun f -> not (List.mem f known)) rest then die 2 usage
+      else Cmd_mgtt.run file ~strict:(List.mem "--strict" rest)
   | _ :: "derive" :: model :: rules :: rest -> (
       match rest with
       | [ q ] -> Cmd_derive.run model rules ~why:false q

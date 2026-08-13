@@ -421,6 +421,55 @@ let test_emit_declines_unsatisfiable_state () =
          contains ~sub:"impossible" dc.Mgtt_ast.what)
        declines)
 
+(* Every component must be able to fail on its own, or the model has no
+   dynamics: propagation only relays a failure, so with nothing to originate
+   one the initial situation is the only reachable situation and every question
+   answers vacuously. *)
+let test_emit_originations () =
+  let text, _ = emit_minimal () in
+  check "emit: a component can fail on its own"
+    (contains ~sub:"(transition store-fails-stopped" text)
+
+(* The finding the bridge exists for, end to end.
+
+   This is the shape recorded in mgtt's own divergence note: a component whose
+   `healthy:` override ignores the fact its type's state guard reads. mgtt's
+   simulate and diagnose then consult different facts and disagree. Here the
+   two routes are an `iff`, so a situation where they part is a violation of a
+   law rather than a difference nobody notices. *)
+let test_emit_catches_health_state_divergence () =
+  let diverging =
+    {|{"mgtt_export_version":1,"name":"d",
+       "components":[
+         {"name":"store","type":"datastore","depends":[],
+          "healthy":["connection_count < 500"],
+          "failure_modes":{"stopped":["upstream_failure"]}}],
+       "types":[
+         {"name":"datastore","provider":"p",
+          "facts":[{"name":"available","type":"mgtt.bool"},
+                   {"name":"connection_count","type":"mgtt.int"}],
+          "healthy":["available == true","connection_count < 500"],
+          "states":[{"name":"live","when":"available == true","triggered_by":[]},
+                    {"name":"stopped","when":"available == false","triggered_by":[]}],
+          "default_active_state":"live",
+          "failure_modes":{"stopped":["upstream_failure"]}}],
+       "declines":[]}|}
+  in
+  let text, _ = Emit_mgtt.file ~name:"d" (doc_of_string diverging) in
+  (* the override earns its own type, so the law ranges over that one component *)
+  check "emit: an overriding component gets its own type"
+    (contains ~sub:"(type datastore-store" text);
+  check "emit: and its own law"
+    (contains ~sub:"(equation datastore-store-health-matches-state" text);
+  (* the law compares the overridden health against the type's active state,
+     which is what makes the disagreement visible *)
+  check "emit: the law reads health against the active state"
+    (contains ~sub:"(is datastore-store.connection-count below-500)" text
+    && contains ~sub:"(is datastore-store.available yes)" text);
+  (* and the move that reaches the disagreement exists *)
+  check "emit: the move reaching the violation is present"
+    (contains ~sub:"(transition store-fails-stopped" text)
+
 (* mgtt's own declines travel through rather than being dropped at the seam. *)
 let test_emit_forwards_mgtt_declines () =
   let d =
@@ -463,6 +512,8 @@ let () =
   test_emit_domains_as_types ();
   test_emit_health_equation ();
   test_emit_names_transitions ();
+  test_emit_originations ();
+  test_emit_catches_health_state_divergence ();
   test_emit_declines_unsatisfiable_state ();
   test_emit_forwards_mgtt_declines ();
   print_string ("test_mgtt: " ^ string_of_int !passed ^ " passed\n")

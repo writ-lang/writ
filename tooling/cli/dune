@@ -24,9 +24,16 @@
   cmd_derive
   cmd_show
   cmd_sql
+  cmd_mgtt
   help
   version)
- (libraries writ_data writ_syntax writ_runtime writ_loadpath writ_sql))
+ (libraries
+  writ_data
+  writ_syntax
+  writ_runtime
+  writ_loadpath
+  writ_sql
+  writ_mgtt))
 
 ; `writ --version` reads the version dune already knows — the one in dune-project
 ; that opam publishes and `make release` names the tarball with. Generated

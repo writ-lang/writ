@@ -290,6 +290,118 @@ let emit_instance (b : Buffer.t) (d : doc) (ets : emitted_type list) :
 
 (* ---- the moves ----------------------------------------------------------- *)
 
+(* Every component can fail on its own.
+
+   Without this the model has no dynamics at all: propagation only RELAYS a
+   failure from a dependency, so with nothing to originate one the initial
+   situation is the only reachable situation and every question answers
+   vacuously. mgtt gets its origin from outside — an injected fact in a
+   scenario, a probe result at 3am — and its own scenario enumerator supplies
+   it the same way, by picking each component in turn as the root cause.
+
+   So each component gets one move per non-default state: from healthy into
+   that state, guarded on being healthy now. Enumerating from there gives
+   exactly the set of reachable failure configurations, which is the set mgtt
+   enumerates as chains. *)
+let emit_originations (b : Buffer.t) (d : doc) (ets : emitted_type list) :
+    decline list =
+  let declines = ref [] in
+  buf_add b ";; ---- origination ----\n";
+  buf_add b
+    ";; one move per component per non-default state: the component fails on \
+     its own.\n\
+     ;; mgtt injects this from a scenario or a probe; here it has to be a \
+     move, or\n\
+     ;; nothing would ever leave the initial situation.\n\n";
+  List.iter
+    (fun (c : comp) ->
+      match type_of_component ets c.cname with
+      | None -> ()
+      | Some et -> (
+          match state_named et.source et.source.default_state with
+          | None -> ()
+          | Some active -> (
+              match Mgtt_expr.parse active.swhen with
+              | Error _ -> ()
+              | Ok active_e ->
+                  let subject = Mgtt_guard.writ_name c.cname in
+                  List.iter
+                    (fun (s : Mgtt_ast.state) ->
+                      if s.sname <> et.source.default_state then
+                        let name =
+                          subject ^ "-fails-" ^ Mgtt_guard.writ_name s.sname
+                        in
+                        match Mgtt_expr.parse s.swhen with
+                        | Error m ->
+                            declines :=
+                              {
+                                what = name;
+                                why = "state guard not readable: " ^ m;
+                              }
+                              :: !declines
+                        | Ok target_e -> (
+                            match
+                              ( Mgtt_guard.to_writ_opt et.doms ~subject active_e,
+                                Mgtt_guard.witness et.doms target_e,
+                                Mgtt_guard.witness et.doms active_e )
+                            with
+                            | Ok active_g, Some target_a, Some active_a ->
+                                let changed =
+                                  List.filter
+                                    (fun (k, v) ->
+                                      List.assoc_opt k active_a <> Some v)
+                                    target_a
+                                in
+                                if changed = [] then
+                                  declines :=
+                                    {
+                                      what = name;
+                                      why =
+                                        "state `" ^ s.sname
+                                        ^ "` is realised by the same facts as \
+                                           the default state";
+                                    }
+                                    :: !declines
+                                else begin
+                                  buf_add b
+                                    (";; " ^ c.cname ^ " -> " ^ s.sname ^ "\n");
+                                  buf_add b ("(transition " ^ name ^ "\n");
+                                  buf_add b ("  (when " ^ active_g ^ ")\n");
+                                  let effects =
+                                    List.map
+                                      (fun (k, v) ->
+                                        let dm =
+                                          List.find
+                                            (fun (x : Mgtt_domains.domain) ->
+                                              x.Mgtt_domains.dfact = k)
+                                            et.doms
+                                        in
+                                        "(set " ^ subject ^ "."
+                                        ^ Mgtt_guard.arrow_of_domain dm
+                                        ^ " " ^ v ^ ")")
+                                      changed
+                                  in
+                                  buf_add b
+                                    ("  (do  " ^ String.concat " " effects
+                                   ^ "))\n\n")
+                                end
+                            | Error m, _, _ ->
+                                declines :=
+                                  { what = name; why = m } :: !declines
+                            | _, None, _ ->
+                                declines :=
+                                  {
+                                    what = name;
+                                    why =
+                                      "no assignment of facts satisfies state `"
+                                      ^ s.sname ^ "`";
+                                  }
+                                  :: !declines
+                            | _, _, None -> ()))
+                    et.source.states)))
+    d.components;
+  List.rev !declines
+
 (* mgtt's propagation protocol, as transitions. A failing state of a dependency
    emits `can_cause` labels; a state of the dependent declaring any of them in
    `triggered_by` becomes reachable from it. One transition per matching
@@ -297,6 +409,7 @@ let emit_instance (b : Buffer.t) (d : doc) (ets : emitted_type list) :
 let rec emit_transitions (b : Buffer.t) (d : doc) (ets : emitted_type list) :
     decline list =
   let declines = ref [] in
+  let emitted = ref 0 in
   buf_add b ";; ---- propagation ----\n";
   buf_add b
     ";; from `failure_modes.<state>.can_cause` on a dependency, matched against\n\
@@ -324,13 +437,34 @@ let rec emit_transitions (b : Buffer.t) (d : doc) (ets : emitted_type list) :
                                 (fun l -> List.mem l target.striggered)
                                 labels
                             then
-                              emit_one_transition b declines aet det dep
+                              emit_one_transition b declines emitted aet det dep
                                 dependent failing target)
                           det.source.states)
                     aet.source.states
               | _ -> ())
             dependent.depends)
     d.components;
+  (* A model with dependency edges but no propagation enumerates exactly one
+     situation, and would then report no findings — the most misleading answer
+     this bridge could give. mgtt's protocol needs BOTH halves: a dependency
+     declaring `can_cause` and the dependent declaring `triggered_by` for one
+     of those labels. Providers commonly ship the first and omit the second. *)
+  let edges =
+    List.fold_left
+      (fun n (c : comp) -> n + List.length c.depends)
+      0 d.components
+  in
+  if !emitted = 0 && edges > 0 then
+    declines :=
+      {
+        what = string_of_int edges ^ " dependency edges";
+        why =
+          "no propagation: nothing pairs a dependency's \
+           `failure_modes.<state>.can_cause` label with a \
+           `states.<state>.triggered_by` on the component that depends on it, \
+           so the model has no moves and enumerates one situation";
+      }
+      :: !declines;
   List.rev !declines
 
 (* One propagation move: the dependency is failing, the dependent is still in
@@ -338,9 +472,9 @@ let rec emit_transitions (b : Buffer.t) (d : doc) (ets : emitted_type list) :
    representative assignment of the triggered state — only the cells that
    actually change, so that `can be broken by` stays truthful about what each
    move touches. *)
-and emit_one_transition b declines (aet : emitted_type) (det : emitted_type)
-    (dep : comp) (dependent : comp) (failing : Mgtt_ast.state)
-    (target : Mgtt_ast.state) =
+and emit_one_transition b declines emitted (aet : emitted_type)
+    (det : emitted_type) (dep : comp) (dependent : comp)
+    (failing : Mgtt_ast.state) (target : Mgtt_ast.state) =
   let name =
     Mgtt_guard.writ_name dep.cname
     ^ "-"
@@ -403,7 +537,8 @@ and emit_one_transition b declines (aet : emitted_type) (det : emitted_type)
                       ^ " " ^ v ^ ")")
                     changed
                 in
-                buf_add b ("  (do  " ^ String.concat " " effects ^ "))\n\n")
+                buf_add b ("  (do  " ^ String.concat " " effects ^ "))\n\n");
+                incr emitted
               end
           | Error m, _, _, _ | _, Error m, _, _ -> fail m
           | _, _, None, _ ->
@@ -452,7 +587,9 @@ let file ~(name : string) (d : doc) : string * decline list =
 
   let inst_declines = emit_instance b d ets in
   buf_add b ("(use " ^ schema ^ ")\n(initial start)\n\n");
+  let or_declines = emit_originations b d ets in
   let tr_declines = emit_transitions b d ets in
 
   ( Buffer.contents b,
-    d.declines @ plan_declines @ eq_declines @ inst_declines @ tr_declines )
+    d.declines @ plan_declines @ eq_declines @ inst_declines @ or_declines
+    @ tr_declines )

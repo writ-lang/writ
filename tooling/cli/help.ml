@@ -122,7 +122,8 @@ entities by name; a law's body is not encoded (kernel §17).|};
       summary = "read a relational schema as an olog, or write one back";
       usage =
         [
-          "writ sql      SCHEMA.sql [--with-data] [--strict]   # DDL  -> a model";
+          "writ sql      SCHEMA.sql [--with-data] [--strict]   # DDL  -> a \
+           model";
           "writ sql      MODEL.writ  [--strict]                 # model -> DDL";
         ];
       body =
@@ -189,6 +190,69 @@ travel as `-- writ:` pragmas the import reads back.|};
         ];
     };
     {
+      name = "mgtt";
+      summary = "read an mgtt architecture model as a writ model";
+      usage =
+        [
+          "writ mgtt     MODEL.json [--strict]     # an mgtt export -> a model";
+        ];
+      body =
+        {|Read an mgtt model (https://github.com/mgt-tool/mgtt) as a writ
+model. mgtt describes a system's components, their dependencies, and
+what "healthy" means for each; writ then enumerates every reachable
+failure configuration and answers by exhaustion. Output goes to
+stdout, so the ordinary use is a redirect:
+
+  mgtt model export --json > system.json    # in the mgtt repo
+  writ mgtt system.json    > system.writ
+  writ check system.writ
+
+The input is the RESOLVED export, not the YAML: mgtt merges each
+provider type into the components using it and applies every
+component-level override before writing it out. So this verb never
+needs mgtt's provider registry, its install layout, or a credential —
+the boundary mgtt defends stays defended.
+
+WHAT CROSSES. A component type is a type, a component an entity, a
+fact an arrow. A dependency is wiring, so it costs the state space
+nothing. `failure_modes.<state>.can_cause` matched against a
+dependent's `states.<state>.triggered_by` becomes one named
+transition per edge, so a witness route reads as a failure chain.
+
+The load-bearing part is that facts become FINITE domains. mgtt's
+expressions compare a fact against a constant and have no arithmetic
+at all, so the constants a model mentions cut each fact's values into
+finitely many regions on which every predicate is constant. A region
+is a member, and regions nothing separates are merged — so
+`connection_count < 500` costs two members, not three. Two values in
+one region were already indistinguishable to mgtt's own engine, so
+nothing is approximated.
+
+THE LAW. A component is healthy exactly when it is in its default
+active state. mgtt derives one from `healthy:` and the other from the
+type's state guards, and nothing keeps them consistent. Here it is an
+`equation`, so `writ check` reports which move can break it and which
+reachable situations do, with a route.
+
+WHAT DOES NOT. A non-integer constant is refused rather than rounded,
+a state no assignment satisfies is declined as unreachable, and a
+fact no predicate mentions is not carried — writ has no values to
+name for it. Probe cost, TTL and staleness stay with mgtt: writ has
+no numbers and no clock. Everything declined is named on stderr,
+never dropped in silence, and mgtt's own declines are forwarded.
+
+Nothing is loaded; the emitted model is kernel-only.|};
+      options =
+        [ "--strict         exit 1 if anything in the input was declined" ];
+      examples =
+        [
+          "writ mgtt system.json > system.writ   # read an architecture as a \
+           model";
+          "writ mgtt system.json --strict        # exit 1 if anything was \
+           declined";
+        ];
+    };
+    {
       name = "derive";
       summary = "answer a .rules relation over the model's enumerated universe";
       usage =
@@ -223,7 +287,8 @@ rooted in an arrow name that two types share.|};
         [
           "writ derive  model.writ org.rules subordinate";
           "writ derive  model.writ org.rules \"(subordinate nabu X)\"";
-          "writ derive  model.writ org.rules --why \"(subordinate nabu cabinet)\"";
+          "writ derive  model.writ org.rules --why \"(subordinate nabu \
+           cabinet)\"";
         ];
     };
     {

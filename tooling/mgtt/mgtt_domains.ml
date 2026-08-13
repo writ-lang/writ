@@ -211,7 +211,32 @@ let of_type (ty : Mgtt_ast.ty) (comps : Mgtt_ast.comp list) :
   let single_domains, more_declines =
     List.fold_left
       (fun (doms, ds) (fact, ftype) ->
-        if paired fact then (doms, ds)
+        if paired fact then
+          (* A fact compared BOTH with a sibling and against a constant needs a
+             joint domain over the two facts' regions, not an ordering alone:
+             `ready_replicas == desired_replicas` and `desired_replicas == 0`
+             constrain the same pair of cells and an ordering cannot express
+             the second. Emitting the ordering alone and letting the constant
+             comparison fail is sound — the guards that need it are refused,
+             so moves are LOST rather than invented — but it is a real gap and
+             it says so here rather than leaving the caller to infer it from a
+             missing transition. *)
+          let consts =
+            List.filter
+              (function _, Mgtt_expr.Lit_int _ -> true | _ -> false)
+              (List.concat_map (constraints_on fact) exprs)
+          in
+          if consts = [] then (doms, ds)
+          else
+            ( doms,
+              {
+                Mgtt_ast.what = ty.Mgtt_ast.tname ^ "." ^ fact;
+                why =
+                  "compared both with a sibling fact and against a constant; \
+                   only the ordering is carried, so guards using the constant \
+                   are refused and the moves needing them are not emitted";
+              }
+              :: ds )
         else if not (List.mem fact mentioned) then
           ( doms,
             {
