@@ -1,5 +1,7 @@
 # writ
 
+<img src="docs/images/writ-mark-200.png" alt="writ" width="120" align="left" hspace="16" vspace="4">
+
 **Model a rule-governed world; get every consequence back, with the route.**
 
 A model is one page. What it *means* is every situation those rules can

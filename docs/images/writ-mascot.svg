@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="576" height="372" viewBox="0 0 192 124" role="img" aria-labelledby="writ-mascot-title writ-mascot-desc">
+<title id="writ-mascot-title">The writ tortoise</title>
+<desc id="writ-mascot-desc">A tortoise in side profile. The seams of its shell divide it into scutes, and a highlighted path crosses them from left to right.</desc>
+<defs>
+<marker id="writ-mascot-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<g transform="translate(1,-18)">
+<path d="M10,136 L190,136" stroke="#B8A992" stroke-width="2" stroke-linecap="round"/>
+<path d="M42,102 L64,102 L66,126 C66,132 60,134 53,134 C46,134 40,131 40,125 Z" fill="#1F2328"/>
+<path d="M134,102 L156,102 L158,124 C158,130 152,132 146,132 C139,132 136,129 136,123 Z" fill="#1F2328"/>
+<path d="M170,96 L186,102 L170,110 Z" fill="#1F2328"/>
+<path d="M36,70 C22,64 6,70 3,81 C5,94 20,99 38,95 L38,70 Z" fill="#1F2328"/>
+<circle cx="15" cy="78" r="3.2" fill="#EFE7DA"/>
+<circle cx="15" cy="78" r="1.4" fill="#1F2328"/>
+<path d="M4,87 L15,89" stroke="#EFE7DA" stroke-width="1.6" stroke-linecap="round"/>
+<rect x="26" y="92" width="148" height="13" rx="6" fill="#1F2328"/>
+<path d="M52,92 L52,105 M78,92 L78,105 M104,92 L104,105 M130,92 L130,105 M156,92 L156,105" stroke="#EFE7DA" stroke-width="1.6"/>
+<path d="M28,94 C28,48 60,24 100,24 C140,24 172,48 172,94 Z" fill="#2F4A42"/>
+<path d="M30,66 C60,50 140,50 170,66" fill="none" stroke="#EFE7DA" stroke-width="2"/>
+<path d="M57,57 C55,72 54,84 53,93 M85,52 C84,70 84,82 84,93 M115,52 C116,70 116,82 116,93 M143,57 C145,72 146,84 147,93" fill="none" stroke="#EFE7DA" stroke-width="2"/>
+<path d="M72,31 C71,41 71,47 71,53 M100,25 C100,36 100,44 100,50 M128,31 C129,41 129,47 129,53" fill="none" stroke="#EFE7DA" stroke-width="2"/>
+<path d="M42,78 L58,46 L86,40 L114,40 L130,76" fill="none" stroke="#D4693A" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#writ-mascot-arrow)"/>
+<circle cx="42" cy="78" r="4.5" fill="#D4693A"/>
+<circle cx="58" cy="46" r="4.5" fill="#D4693A"/>
+<circle cx="86" cy="40" r="4.5" fill="#D4693A"/>
+<circle cx="114" cy="40" r="4.5" fill="#D4693A"/>
+</g>
+</svg>

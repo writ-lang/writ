@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="writ-mono-title writ-mono-desc">
+<title id="writ-mono-title">writ</title>
+<desc id="writ-mono-desc">Monochrome outline of the writ mark: a tortoise carapace divided into scutes, drawn as a seal.</desc>
+<g transform="translate(256,256) scale(2.5)" fill="none" stroke="currentColor" color="#1F2328">
+<circle cx="0" cy="0" r="96" stroke-width="9"/>
+<polygon points="-30,-57 -30,-35 -72,-24 -60,-52" stroke-width="5"/>
+<polygon points="-30,-35 -30,35 -78,28 -78,-28" stroke-width="5"/>
+<polygon points="-30,35 -30,57 -60,52 -72,24" stroke-width="5"/>
+<polygon points="30,-57 30,-35 72,-24 60,-52" stroke-width="5"/>
+<polygon points="30,-35 30,35 78,28 78,-28" stroke-width="5"/>
+<polygon points="30,35 30,57 60,52 72,24" stroke-width="5"/>
+<polygon points="0,-68 30,-57 30,-35 0,-24 -30,-35 -30,-57" stroke-width="5"/>
+<polygon points="0,-22 30,-11 30,11 0,22 -30,11 -30,-11" stroke-width="5"/>
+<polygon points="0,24 30,35 30,57 0,68 -30,57 -30,35" stroke-width="5"/>
+</g>
+</svg>

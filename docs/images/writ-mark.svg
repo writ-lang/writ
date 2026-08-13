@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="writ-mark-title writ-mark-desc">
+<title id="writ-mark-title">writ</title>
+<desc id="writ-mark-desc">A tortoise carapace seen from above, drawn as a wax seal. Its scutes are states; the highlighted path across them is a witness route.</desc>
+<defs>
+<marker id="writ-mark-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<g transform="translate(256,256) scale(2.3)">
+<circle cx="0" cy="0" r="100" fill="#1F2328"/>
+<circle cx="0" cy="0" r="91.5" fill="none" stroke="#EFE7DA" stroke-width="17" stroke-dasharray="3 33"/>
+<circle cx="0" cy="0" r="83" fill="#2F4A42"/>
+<polygon points="-30,-57 -30,-35 -72,-24 -60,-52" fill="#2F4A42" stroke="#EFE7DA" stroke-width="4"/>
+<polygon points="-30,-35 -30,35 -78,28 -78,-28" fill="#4A6E5E" stroke="#EFE7DA" stroke-width="4"/>
+<polygon points="-30,35 -30,57 -60,52 -72,24" fill="#2F4A42" stroke="#EFE7DA" stroke-width="4"/>
+<polygon points="30,-57 30,-35 72,-24 60,-52" fill="#2F4A42" stroke="#EFE7DA" stroke-width="4"/>
+<polygon points="30,-35 30,35 78,28 78,-28" fill="#2F4A42" stroke="#EFE7DA" stroke-width="4"/>
+<polygon points="30,35 30,57 60,52 72,24" fill="#2F4A42" stroke="#EFE7DA" stroke-width="4"/>
+<polygon points="0,-68 30,-57 30,-35 0,-24 -30,-35 -30,-57" fill="#4A6E5E" stroke="#EFE7DA" stroke-width="4"/>
+<polygon points="0,-22 30,-11 30,11 0,22 -30,11 -30,-11" fill="#4A6E5E" stroke="#EFE7DA" stroke-width="4"/>
+<polygon points="0,24 30,35 30,57 0,68 -30,57 -30,35" fill="#4A6E5E" stroke="#EFE7DA" stroke-width="4"/>
+<path d="M-52,0 L0,-46 L0,0 L0,46" fill="none" stroke="#D4693A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#writ-mark-arrow)"/>
+<circle cx="-52" cy="0" r="8" fill="#D4693A"/>
+<circle cx="0" cy="-46" r="8" fill="#D4693A"/>
+<circle cx="0" cy="0" r="8" fill="#D4693A"/>
+</g>
+</svg>
