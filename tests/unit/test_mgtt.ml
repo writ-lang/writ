@@ -147,6 +147,178 @@ let test_read_carries_mgtt_declines () =
   check "read: mgtt's own declines survive the crossing"
     (List.length d.Mgtt_ast.declines = 1)
 
+(* ---- the expression language -------------------------------------------- *)
+
+let parse_ok what s =
+  match Mgtt_expr.parse s with
+  | Ok e -> e
+  | Error m -> failwith (what ^ ": " ^ s ^ ": " ^ m)
+
+let test_expr_comparison () =
+  match parse_ok "cmp" "connection_count < 500" with
+  | Mgtt_expr.Cmp c ->
+      check "expr: fact" (c.Mgtt_expr.fact = "connection_count");
+      check "expr: op" (c.Mgtt_expr.op = Mgtt_expr.Lt);
+      check "expr: rhs" (c.Mgtt_expr.rhs = Mgtt_expr.Lit_int 500)
+  | _ -> check "expr: parses a comparison" false
+
+let test_expr_bool () =
+  match parse_ok "bool" "available == true" with
+  | Mgtt_expr.Cmp c ->
+      check "expr: bool rhs" (c.Mgtt_expr.rhs = Mgtt_expr.Lit_bool true)
+  | _ -> check "expr: parses a bool comparison" false
+
+(* The subtlety that decides whether the whole reduction is correct: mgtt's
+   compareFactValue re-interprets a non-numeric right-hand side as a reference
+   to a sibling fact. Reading it as a string literal would silently turn this
+   into a comparison against the word "desired_replicas", which is never true. *)
+let test_expr_bare_word_is_a_fact_reference () =
+  match parse_ok "ref" "ready_replicas == desired_replicas" with
+  | Mgtt_expr.Cmp c ->
+      check "expr: bare word rhs is a fact reference"
+        (c.Mgtt_expr.rhs = Mgtt_expr.Fact_ref "desired_replicas")
+  | _ -> check "expr: parses a fact-to-fact comparison" false
+
+(* ...and quoting is how an author says they meant the word itself. *)
+let test_expr_quoted_is_a_literal () =
+  match parse_ok "lit" {|status == "running"|} with
+  | Mgtt_expr.Cmp c ->
+      check "expr: quoted rhs is a string literal"
+        (c.Mgtt_expr.rhs = Mgtt_expr.Lit_str "running")
+  | _ -> check "expr: parses a quoted comparison" false
+
+let test_expr_connectives () =
+  (match parse_ok "and" "a < 1 & b > 2" with
+  | Mgtt_expr.And _ -> check "expr: & is conjunction" true
+  | _ -> check "expr: parses a conjunction" false);
+  (match parse_ok "or" "a < 1 | b > 2" with
+  | Mgtt_expr.Or _ -> check "expr: | is disjunction" true
+  | _ -> check "expr: parses a disjunction" false);
+  match parse_ok "paren" "(a < 1 | b > 2) & c == true" with
+  | Mgtt_expr.And _ -> check "expr: parentheses group" true
+  | _ -> check "expr: parses a parenthesised expression" false
+
+let test_expr_facts_of () =
+  let e =
+    parse_ok "facts" "ready_replicas < desired_replicas & endpoints > 0"
+  in
+  let fs = List.sort compare (Mgtt_expr.facts_of e) in
+  check "expr: facts_of finds both sides of a reference"
+    (fs = [ "desired_replicas"; "endpoints"; "ready_replicas" ])
+
+(* Writ has no numbers to name a member after, and inventing an ordering for
+   a float would be a guess. Refusing loudly is what `writ sql` does with
+   arithmetic in a CHECK, and it is what keeps the crossing honest. *)
+let test_expr_refuses_non_integer_constant () =
+  check "expr: refuses a float constant"
+    (match Mgtt_expr.parse "ratio < 0.75" with
+    | Error _ -> true
+    | Ok _ -> false)
+
+let test_expr_refuses_malformed () =
+  check "expr: refuses a bare word"
+    (match Mgtt_expr.parse "available" with Error _ -> true | Ok _ -> false);
+  check "expr: refuses a dangling operator"
+    (match Mgtt_expr.parse "a <" with Error _ -> true | Ok _ -> false)
+
+(* ---- the reduction ------------------------------------------------------ *)
+
+let domains_for tyname =
+  let d = doc_of_string minimal in
+  let ty =
+    match Mgtt_ast.type_of d tyname with Some t -> t | None -> failwith tyname
+  in
+  fst (Mgtt_domains.of_type ty (Mgtt_ast.components_of_type d tyname))
+
+let members_of doms fact =
+  match
+    List.find_opt
+      (fun (d : Mgtt_domains.domain) -> d.Mgtt_domains.dfact = fact)
+      doms
+  with
+  | Some d -> d.Mgtt_domains.members
+  | None -> []
+
+let test_domains_bool () =
+  check "domains: a bool fact becomes yes/no"
+    (members_of (domains_for "datastore") "available" = [ "yes"; "no" ])
+
+(* `connection_count < 500` is the only predicate on it, so two members are
+   enough — nothing in the model distinguishes 500 from 501, and emitting a
+   third member would double the state space to represent a distinction the
+   engine could never have made. *)
+let test_domains_single_threshold () =
+  check "domains: one threshold, two members"
+    (members_of (domains_for "datastore") "connection_count"
+    = [ "below-500"; "at-or-above-500" ])
+
+(* A fact compared with a sibling gets ONE joint domain, because the predicate
+   reads the pair. Same-component only, which mgtt's evaluator guarantees. *)
+let test_domains_fact_pair () =
+  let doms = domains_for "workload" in
+  check "domains: a fact pair is one joint domain"
+    (members_of doms "desired_replicas:ready_replicas"
+    = [ "fewer"; "equal"; "more" ]);
+  check "domains: the paired facts get no independent domains"
+    (members_of doms "ready_replicas" = []
+    && members_of doms "desired_replicas" = [])
+
+let test_domains_equality_threshold () =
+  (* `== 5` and `< 5` together DO separate 5 from 6, so three members. *)
+  let ty =
+    {
+      Mgtt_ast.tname = "t";
+      facts = [ ("n", "mgtt.int") ];
+      thealthy = [ "n < 5" ];
+      states =
+        [
+          { Mgtt_ast.sname = "exact"; swhen = "n == 5"; striggered = [] };
+          { Mgtt_ast.sname = "low"; swhen = "n < 5"; striggered = [] };
+        ];
+      default_state = "low";
+      tmodes = [];
+    }
+  in
+  let doms, _ = Mgtt_domains.of_type ty [] in
+  check "domains: == and < separate the point from what is above it"
+    (members_of doms "n" = [ "below-5"; "exactly-5"; "above-5" ])
+
+let test_domains_satisfies () =
+  let doms = domains_for "datastore" in
+  let e = parse_ok "sat" "available == true & connection_count < 500" in
+  check "domains: healthy assignment satisfies"
+    (Mgtt_domains.satisfies doms e
+       [ ("available", "yes"); ("connection_count", "below-500") ]);
+  check "domains: a failing assignment does not"
+    (not
+       (Mgtt_domains.satisfies doms e
+          [ ("available", "no"); ("connection_count", "below-500") ]))
+
+let test_domains_declines_unbounded_fact () =
+  (* a fact no predicate ever mentions has no regions to name, so it cannot
+     become an arrow — say so rather than invent a domain for it *)
+  let ty =
+    {
+      Mgtt_ast.tname = "t";
+      facts = [ ("mentioned", "mgtt.bool"); ("unmentioned", "mgtt.int") ];
+      thealthy = [ "mentioned == true" ];
+      states =
+        [
+          {
+            Mgtt_ast.sname = "live";
+            swhen = "mentioned == true";
+            striggered = [];
+          };
+        ];
+      default_state = "live";
+      tmodes = [];
+    }
+  in
+  let doms, declines = Mgtt_domains.of_type ty [] in
+  check "domains: an unmentioned fact gets no domain"
+    (members_of doms "unmentioned" = []);
+  check "domains: and is declined rather than dropped" (declines <> [])
+
 let () =
   test_read ();
   test_read_type_lookup ();
@@ -155,4 +327,18 @@ let () =
   test_read_rejects_non_export ();
   test_read_rejects_empty_roster ();
   test_read_carries_mgtt_declines ();
+  test_expr_comparison ();
+  test_expr_bool ();
+  test_expr_bare_word_is_a_fact_reference ();
+  test_expr_quoted_is_a_literal ();
+  test_expr_connectives ();
+  test_expr_facts_of ();
+  test_expr_refuses_non_integer_constant ();
+  test_expr_refuses_malformed ();
+  test_domains_bool ();
+  test_domains_single_threshold ();
+  test_domains_fact_pair ();
+  test_domains_equality_threshold ();
+  test_domains_satisfies ();
+  test_domains_declines_unbounded_fact ();
   print_string ("test_mgtt: " ^ string_of_int !passed ^ " passed\n")
