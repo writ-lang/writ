@@ -32,12 +32,19 @@
   test_law_as_guard
   test_ct_rules
   test_facts
-  test_sql)
+  test_sql
+  test_mgtt)
  (deps
   (glob_files fixtures/*.{writ,claims,rules})
   (glob_files %{workspace_root}/tests/models/*.{writ,claims})
   (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
- (libraries writ_data writ_syntax writ_runtime writ_loadpath writ_sql))
+ (libraries
+  writ_data
+  writ_syntax
+  writ_runtime
+  writ_loadpath
+  writ_sql
+  writ_mgtt))
 
 ; The language-server tests drive [Server.handle] (pure: JSON in, JSON out), so
 ; they link the [writ_lsp] library alongside the engine. No I/O — the resolver

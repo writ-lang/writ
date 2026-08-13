@@ -1,0 +1,27 @@
+; The mgtt bridge: an mgtt model read as a writ model.
+;
+; It lives in tooling/ for the reason tooling/sql/ does, and the reason is worth
+; restating rather than inferred. `core/` is the LANGUAGE — the data model, the
+; front end, the standard library. Everything that bridges writ to something
+; foreign lives here: `json` and `loadpath`, `lsp` and `mcp`, `sql`. An mgtt
+; export reader is a bridge to a foreign NOTATION exactly as writ_lsp is a
+; bridge to a foreign PROTOCOL, and putting one beside writ_data would assert
+; that mgtt is part of what writ IS. It is not; the engine cannot tell this
+; library exists.
+;
+; Flat rather than lib/ + bin/, which is `json`'s and `sql`'s shape and not
+; `lsp`'s: those split because they produce their own executable. `writ mgtt`
+; is a verb of the one CLI, so there is no second binary to separate from.
+;
+; It depends on [writ_json] to read the export document and NOTHING ELSE — not
+; the data model, not the front end, not the interrogator. That is not an
+; accident of what it happens to need: the output is .writ TEXT, so a malformed
+; export can never reach the engine, and the whole mapping stays testable
+; without a filesystem or a parser.
+;
+; IO-free, like every library here; the `writ mgtt` verb in tooling/cli/ does
+; the reading and the writing.
+
+(library
+ (name writ_mgtt)
+ (libraries writ_json))
