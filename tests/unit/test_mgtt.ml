@@ -319,6 +319,123 @@ let test_domains_declines_unbounded_fact () =
     (members_of doms "unmentioned" = []);
   check "domains: and is declined rather than dropped" (declines <> [])
 
+(* ---- the emitter -------------------------------------------------------- *)
+
+let contains ~sub s =
+  let ls = String.length s and lsub = String.length sub in
+  let rec go i =
+    if i + lsub > ls then false
+    else if String.sub s i lsub = sub then true
+    else go (i + 1)
+  in
+  go 0
+
+let emit_minimal () = Emit_mgtt.file ~name:"storefront" (doc_of_string minimal)
+
+(* The strong oracle, and the reason it is written this way: asserting on the
+   TEXT would pass just as happily if the text were confidently wrong. Reading
+   it back through the real reader, expander and parser is the only check that
+   "it produced a model" rather than "it produced characters". *)
+let test_emit_is_a_model () =
+  let text, _ = emit_minimal () in
+  match Writ_syntax.Reader.read_string text with
+  | Error e ->
+      print_string text;
+      check ("emit: reads: " ^ Writ_data.Errors.to_string e) false
+  | Ok ds -> (
+      match Writ_syntax.Expander.expand ds with
+      | Error e ->
+          print_string text;
+          check ("emit: expands: " ^ Writ_data.Errors.to_string e) false
+      | Ok ds -> (
+          match Writ_syntax.Parser.parse_model ds with
+          | Error e ->
+              print_string text;
+              check ("emit: parses: " ^ Writ_data.Errors.to_string e) false
+          | Ok _ ->
+              check "emit: the output is a model the front end accepts" true))
+
+let test_emit_shape () =
+  let text, _ = emit_minimal () in
+  check "emit: is kernel-only, loading nothing"
+    (not (contains ~sub:"(load " text));
+  check "emit: declares the schema" (contains ~sub:"(schema storefront" text);
+  check "emit: declares an instance"
+    (contains ~sub:"(instance start storefront" text);
+  check "emit: names the initial situation"
+    (contains ~sub:"(initial start)" text);
+  (* underscores survive in the traceability comments on purpose — what must
+     be hyphenated is every identifier the language reads *)
+  check "emit: arrows are hyphenated"
+    (contains ~sub:"(arrow connection-count" text);
+  check "emit: no chain carries an underscore"
+    (not (contains ~sub:".connection_count" text))
+
+let test_emit_domains_as_types () =
+  let text, _ = emit_minimal () in
+  check "emit: a bool domain"
+    (contains ~sub:"(type datastore-available (yes no))" text);
+  check "emit: a merged threshold domain"
+    (contains
+       ~sub:"(type datastore-connection-count (below-500 at-or-above-500))" text)
+
+(* The law the bridge exists for. *)
+let test_emit_health_equation () =
+  let text, _ = emit_minimal () in
+  check "emit: the health law is present"
+    (contains ~sub:"-health-matches-state" text);
+  check "emit: written with iff" (contains ~sub:"(iff " text)
+
+let test_emit_names_transitions () =
+  let text, _ = emit_minimal () in
+  (* store.stopped can_cause upstream_failure; workload.degraded is
+     triggered_by it — so exactly one propagation move, and it is named. *)
+  check "emit: the propagation move is named"
+    (contains ~sub:"(transition store-stopped-triggers-api-degraded" text)
+
+(* A state no assignment satisfies cannot be triggered, and saying so is the
+   same finding mgtt's own validate reports for an unreachable state. *)
+let test_emit_declines_unsatisfiable_state () =
+  let unsat =
+    {|{"mgtt_export_version":1,"name":"x",
+       "components":[
+         {"name":"a","type":"t","depends":[],"healthy":["up == true"],
+          "failure_modes":{"broken":["upstream_failure"]}},
+         {"name":"b","type":"t","depends":[{"on":"a","while":""}],
+          "healthy":["up == true"],"failure_modes":{}}],
+       "types":[
+         {"name":"t","provider":"p",
+          "facts":[{"name":"up","type":"mgtt.bool"}],
+          "healthy":["up == true"],
+          "states":[{"name":"live","when":"up == true","triggered_by":[]},
+                    {"name":"broken","when":"up == false","triggered_by":[]},
+                    {"name":"impossible","when":"up == true & up == false",
+                     "triggered_by":["upstream_failure"]}],
+          "default_active_state":"live","failure_modes":{"broken":["upstream_failure"]}}],
+       "declines":[]}|}
+  in
+  let _, declines = Emit_mgtt.file ~name:"x" (doc_of_string unsat) in
+  check "emit: an unsatisfiable triggered state is declined"
+    (List.exists
+       (fun (dc : Mgtt_ast.decline) ->
+         contains ~sub:"impossible" dc.Mgtt_ast.what)
+       declines)
+
+(* mgtt's own declines travel through rather than being dropped at the seam. *)
+let test_emit_forwards_mgtt_declines () =
+  let d =
+    doc_of_string
+      {|{"mgtt_export_version":1,"name":"x",
+         "components":[{"name":"c","type":"t","depends":[],"healthy":[],"failure_modes":{}}],
+         "types":[],
+         "declines":[{"what":"c","why":"resolved to the generic fallback"}]}|}
+  in
+  let _, declines = Emit_mgtt.file ~name:"x" d in
+  check "emit: mgtt's declines are forwarded"
+    (List.exists
+       (fun (dc : Mgtt_ast.decline) -> contains ~sub:"generic" dc.Mgtt_ast.why)
+       declines)
+
 let () =
   test_read ();
   test_read_type_lookup ();
@@ -341,4 +458,11 @@ let () =
   test_domains_equality_threshold ();
   test_domains_satisfies ();
   test_domains_declines_unbounded_fact ();
+  test_emit_is_a_model ();
+  test_emit_shape ();
+  test_emit_domains_as_types ();
+  test_emit_health_equation ();
+  test_emit_names_transitions ();
+  test_emit_declines_unsatisfiable_state ();
+  test_emit_forwards_mgtt_declines ();
   print_string ("test_mgtt: " ^ string_of_int !passed ^ " passed\n")
