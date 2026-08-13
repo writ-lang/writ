@@ -286,5 +286,31 @@ let () =
         ^ string_of_int (List.length ds))
         false
 
+(* --- the claims vocabulary, in the copies that remain --------------------- *)
+
+(* This vocabulary lived in three places — the parser, the editor's completion
+   list and its hover table — and the third time a word was added, two of them
+   were updated. The modalities are now READ from the parser rather than listed
+   again, so completion cannot offer a word the parser refuses. What is left is
+   completion against hover, and it is pinned here WITHOUT naming a word: a test
+   that spelled the list out would be a fourth copy, and would go stale in the
+   same way and at the same moment. *)
+let () =
+  let offered = List.sort compare Completion.interrogator in
+  let described = List.sort compare (List.map fst Lookup.interrogator_desc) in
+  check "every word the editor offers, it can also explain" (offered = described);
+  (* And the parser's own list is covered by both, which is what makes the two
+     above worth comparing: an empty pair of lists would satisfy the equality. *)
+  let mods = List.map fst Pol_syntax.Claims_parser.modalities in
+  check "…including every modality the parser accepts"
+    (mods <> []
+    && List.for_all (fun m -> List.mem m offered && List.mem m described) mods);
+  (* `fair` is vocabulary but NOT a modality — it heads the clause an
+     `inevitable` may carry — so it must be offered and explained while the
+     parser refuses it where a modality belongs. *)
+  check "a clause head is offered without being a modality"
+    (List.mem "fair" offered && List.mem "fair" described
+    && Pol_syntax.Claims_parser.modality_of "fair" = None)
+
 let () =
   print_string ("lsp tests: " ^ string_of_int !passed ^ " checks passed\n")

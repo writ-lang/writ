@@ -55,24 +55,27 @@ let reserved =
     "some";
   ]
 
-(* The interrogator's file-format words (kernel §9) — NOT the language. *)
+(* The interrogator's file-format words (kernel §9) — NOT the language.
+
+   The modalities are read from [Claims_parser], not listed again: they are the
+   words the parser accepts, and a hand-kept copy of them is a copy that
+   eventually offers a word the parser refuses, or refuses to offer one it
+   accepts. The rest are file-format vocabulary the parser recognises
+   structurally rather than by name, so they are written out. *)
 let interrogator =
-  [
-    "property";
-    "never";
-    "possible";
-    "live";
-    "inevitable";
-    "query";
-    "where";
-    "accept";
-    "check";
-    "via";
-    "functor";
-    "from";
-    "over";
-    "map";
-  ]
+  ("property" :: List.map fst Pol_syntax.Claims_parser.modalities)
+  @ [
+      "fair";
+      "query";
+      "where";
+      "accept";
+      "check";
+      "via";
+      "functor";
+      "from";
+      "over";
+      "map";
+    ]
 
 let dedup xs =
   List.fold_left (fun a x -> if List.mem x a then a else x :: a) [] xs

@@ -49,8 +49,11 @@ let interrogator_desc =
     ("possible", "(possible F) — some reachable state satisfies F");
     ("live", "(live F) — from every reachable state, an F-state stays reachable");
     ( "inevitable",
-      "(inevitable F) — no run avoids F: every run reaches one, or is still \
-       going" );
+      "(inevitable F [(fair MOVE…)]) — every run reaches an F-state; stronger \
+       than live, which asks only that one stays reachable" );
+    ( "fair",
+      "(fair MOVE…) — inside an inevitable: assume these moves are not starved \
+       for ever" );
     ("query", "(query NAME (where …) GUARD) — reported bindings");
     ("where", "(where (VAR TYPE)…) — a query's binders");
     ("accept", "(accept TRANSITION EQUATION…) — acknowledge known breakage");

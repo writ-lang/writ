@@ -22,12 +22,20 @@ let rec map_r f = function
       let* ys = map_r f xs in
       Ok (y :: ys)
 
-let modality_of = function
-  | "never" -> Some Claims.Never
-  | "possible" -> Some Claims.Possible
-  | "live" -> Some Claims.Live
-  | "inevitable" -> Some (Claims.Inevitable [])
-  | _ -> None
+(* The modality words, as data rather than as a match, because a second copy of
+   this list exists for the editor and drifted the first time a word was added
+   to one of them. [Pol_lsp] reads it from here, so there is one list. An
+   [Inevitable] here carries no fairness clause: the clause is parsed after the
+   word is recognised, below. *)
+let modalities =
+  [
+    ("never", Claims.Never);
+    ("possible", Claims.Possible);
+    ("live", Claims.Live);
+    ("inevitable", Claims.Inevitable []);
+  ]
+
+let modality_of w = List.assoc_opt w modalities
 
 (* The optional trailing clause of an [inevitable]: the moves the question
    assumes are not starved. Named moves, never a guard — a fairness assumption
