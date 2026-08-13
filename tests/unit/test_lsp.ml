@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* LSP tests (rule 6): [Server.handle] is pure — a JSON message in, a list of
    JSON messages out — so the whole protocol surface is driven here with no I/O.
    The injected [resolve] serves fixture text from a small in-memory map keyed by

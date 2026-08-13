@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Cmd_derive] — the [pol derive] verb (extension §4): run a .rules file
    against a model's already-enumerated universe and print what it derives.
    Three forms, one code path: a bare RELATION is the fully unbound query, a

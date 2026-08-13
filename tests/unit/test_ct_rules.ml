@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* ct.rules (TCT): the standard rules library, driven against the two fixtures
    whose derived categories are small enough to count by hand.
 

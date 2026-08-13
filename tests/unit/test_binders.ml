@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Binder REJECTION tests. Split from test_names.ml for the reason that suite
    was itself split from test_data.ml — the 300-line cap — and they belong
    together conceptually: this is §7's namespace rule reaching the one

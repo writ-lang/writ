@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Cmd_schema] — the [pol schema] verb, beside its sibling verbs rather than
    inside the dispatch module.
 

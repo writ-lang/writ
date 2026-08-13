@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2026 Alex Kunich
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # install.sh — install `pol` from a portable release tarball.
 #
 # This script ships INSIDE the tarball built by `make release` (as ./install.sh)

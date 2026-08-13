@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The law-as-guard change, end to end: a chain may appear on the right of
    [is] (§10.2), and an [equation] holds a guard rather than only [(= A B)]
    (§8.6), which is what lets `=` leave the kernel for the standard library.

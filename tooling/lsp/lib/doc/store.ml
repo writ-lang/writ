@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Open documents, keyed by URI: the current text.
 
    The last-good parse that couples the store to the engine is reintroduced in

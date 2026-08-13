@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Sort inference tests (TRS): [Rules_sorts.infer], extension §3.
 
    These drive the checker directly. `pol derive` does not exist yet, so a unit

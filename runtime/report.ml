@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 open Pol_data
 
 (* The §15/§16 report tokens, as pure strings (fold F7: no [Printf]/[Format]/

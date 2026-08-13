@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The naming layer — the part of the mapping that must agree with itself in
    both directions, so it lives in one module that both emitters call.
 

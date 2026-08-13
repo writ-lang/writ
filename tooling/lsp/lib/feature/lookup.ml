@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Hover: the name under the cursor → a short description of what it is. One tree
    walk, one rendering. Two vocabularies answer: the closed kernel + interrogator
    words (a static table — they cannot be derived, the parser matches them as

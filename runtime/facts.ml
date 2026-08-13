@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 open Pol_data
 
 (* Extension §2's built-in relations — the derived category as data.

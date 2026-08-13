@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The role a buffer plays, decided from its path and its own top-level datums —
    kernel §6.1 (a .pol file is a MODEL when it declares a (use …), and a LIBRARY
    of bare declarations otherwise), §16 (a .claims file asks its questions OF a

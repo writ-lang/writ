@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The lexical layer: what a byte offset is inside, from bytes alone.
 
    Everything above this file works on a datum tree or on editor coordinates.

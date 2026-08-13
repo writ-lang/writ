@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The Olog: the world category. Types are objects, arrows are morphisms,
    equations are the relational routes that must agree. *)
 

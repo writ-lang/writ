@@ -1,0 +1,52 @@
+# Additional permission — models and generated output
+
+`pol` is licensed under the GNU Affero General Public License, version 3 or
+later (see [LICENSE](LICENSE)). This file grants an **additional permission**
+under section 7 of that licence. It only ever grants rights: it takes nothing
+away, and it changes nothing about the licence on `pol` itself.
+
+It exists because a tool's licence should not follow the tool's *output*. A
+compiler being copyleft does not make your program copyleft, and the same must
+be true here — otherwise nobody could safely model a proprietary system.
+
+## What this permits
+
+**1. Models you write.** A `.pol`, `.claims`, `.rules` or catalogue file you
+author is your own work, not a derivative of `pol`. Writing one, running `pol`
+over it, and distributing it — on any terms you choose, including
+proprietary — creates no obligation under the AGPL.
+
+**2. Output `pol` produces.** Everything the tool writes to stdout or to a
+file — models emitted by `pol sql`, `pol schema` and `pol control`, SQL emitted
+by `pol sql`, derivation rows and proof trees from `pol derive`, witness routes,
+reports, and diagrams — is yours. You may use, modify and distribute it on any
+terms, and you are not required to publish anything on account of it.
+
+**3. The bundled standard library.** You may copy `core/stdlib/stdlib.pol` and
+any `.pol` file under `core/stdlib/` into your own models, and distribute the
+result on any terms, without that copy placing your models under the AGPL.
+
+**4. Running `pol` over a network.** Section 13 of the AGPL is not triggered by
+your *models* or your *output*. If you offer an unmodified `pol` as part of a
+service, you owe nothing under section 13 in respect of the models it reads or
+the answers it prints.
+
+## What this does not permit
+
+This exception says nothing about `pol` itself. Modifying the engine, the CLI,
+`pol-lsp`, `pol-mcp` or the parser, and then distributing that modified
+version — or offering it to users over a network — carries the full AGPL
+obligations, including making the modified source available. That is the
+reciprocity the licence is for, and it is deliberately untouched.
+
+Linking `pol`'s OCaml libraries into another program is likewise outside this
+exception. Calling the `pol` binary as a separate process, exchanging files and
+reading its exit status, is not linking.
+
+---
+
+Copyright (C) 2026 Alex Kunich <alex.kunich@gmail.com>
+
+Modelled on the GCC Runtime Library Exception and the Bison parser exception,
+which solve the same problem for the same reason. Have counsel confirm the
+wording before you rely on it commercially.

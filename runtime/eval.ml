@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 open Pol_data
 
 (* Kleene evaluation over a state (kernel §3, §4). A path evaluates to a

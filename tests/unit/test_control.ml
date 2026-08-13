@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [pol control] unit tests (TD). Stdlib only: [Control.quiver] on small in-code
    [Model.t] values, asserting the §17 quiver shape (one edge per transition,
    self-loops on one node), the §7 fresh-name discipline, and that the emitted

@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The functor to Par(FinSet): the rosters (a finite set per type) and the
    valuation (the cell each mutable arrow takes at each source entity). *)
 

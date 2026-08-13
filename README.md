@@ -590,4 +590,11 @@ the same license and make its source available to those users (AGPL §13, which
 is what distinguishes the AGPL from the plain GPL). No warranty.
 
 A model you write in Pol is your own work, not a derivative of `pol` — the
-license covers the tool, not the `.pol` files it reads.
+license covers the tool, not the `.pol` files it reads. That is not just an
+opinion in a README: [`LICENSE.exception`](LICENSE.exception) grants it as an
+additional permission under AGPL §7, covering your models, everything the tool
+emits, and the bundled standard library. The kernel's syscall note is the same
+construct for the same reason.
+
+Patches are welcome — [`CONTRIBUTING.md`](CONTRIBUTING.md) explains the one-click
+contributor agreement, which leaves you owning your work.

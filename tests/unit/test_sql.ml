@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* `pol sql` unit tests.
 
    The load-bearing one is the ROUND TRIP, and it is checked the strong way:

@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Derivation tests (TDV): [Facts] and [Derive], extension §2 and §6 — the
    built-in relations, and the stratified semi-naive fixpoint over them.
 

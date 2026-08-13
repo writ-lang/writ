@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Everything about resolving a [(load "FILE")]: WHERE the file is looked for,
    and WHO gets blamed when it is not found.
 

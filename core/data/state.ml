@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The state representation (kernel §2): the model is split once into an
    immutable context and a compact mutable state vector. The context holds the
    schema, the fixed rosters, the fixed-arrow valuation, and a layout — the

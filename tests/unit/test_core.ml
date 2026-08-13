@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Core data-layer unit tests. Stdlib only, no framework: each [check] counts a
    pass or aborts the run with a located message. A green run prints a summary.
 

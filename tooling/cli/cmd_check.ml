@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Cmd_check] — the [pol check] verb, on its own so that the dispatch in [Pol]
    stays a table of verbs rather than a file that grows by one implementation
    every time the tool learns a new question.

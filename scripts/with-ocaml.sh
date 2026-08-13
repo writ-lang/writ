@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 Alex Kunich
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Run a command with an OCaml toolchain on PATH.
 #
 #   tools/with-ocaml.sh dune build

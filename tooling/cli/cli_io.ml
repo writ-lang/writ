@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Cli_io] — the filesystem, held in one place. Every verb needs the same four
    things: read a file, resolve a [(load "FILE")], turn a path into a model or a
    claims set, and die with the right exit status when the input is unreadable.

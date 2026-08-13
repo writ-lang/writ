@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The document outline, walked off the [Reader] datum tree rather than off the
    [Model]. [Model] keeps no positions — the data layer is a leaf that may not
    mention [Reader] — so a parsed model says WHAT it declares and never WHERE.

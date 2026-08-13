@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* JSON-RPC 2.0 as a function from values to strings and back — no I/O; the
    process loop that reads and writes these lives in the binary (P-T4).
 

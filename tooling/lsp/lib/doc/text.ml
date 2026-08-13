@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* THE coordinate module: the only place LSP positions are constructed, and the
    only file allowed to name the [character] field (the position gate enforces
    this). Every conversion between the engine's coordinates and the wire's lives

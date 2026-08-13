@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* A positioned diagnostic: what was wrong, and where. [pos] is [None] for the
    errors that hold no datum to blame, so an editor can tell "put a squiggle
    here" from "there is nowhere to put one" without parsing a string back.

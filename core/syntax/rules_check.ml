@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 open Pol_data
 
 (* Is a decoded .rules file a legal PROGRAM? [Rules_parser] judged each datum on

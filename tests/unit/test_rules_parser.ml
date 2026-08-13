@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* .rules front-end tests (TRP): [Rules_parser] and [Loader.read_rules].
 
    The parser decodes and rejects shapes; it infers nothing. So these tests read

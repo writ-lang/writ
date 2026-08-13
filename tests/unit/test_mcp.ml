@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* MCP tests (rule 6): [Server.handle] is pure — one JSON message in, at most
    one out — so the whole protocol surface is driven here with no process, no
    pipe and no client. The [resolve] is injected, so the tool calls read fixture

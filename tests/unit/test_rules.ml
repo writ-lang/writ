@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Rules tests (TR): the two functions in core/data/rules.ml — the substitution
    that lowers a positioned source guard into the kernel guard, and the ALL-CAPS
    variable test. Everything else in that module is types.

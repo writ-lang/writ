@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The pol verbs, as tool calls.
 
    Every function here answers with a [result] and never exits. The CLI dies

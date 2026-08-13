@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 open Pol_data
 
 (* BFS enumeration of the state category. Objects are reachable states; a real

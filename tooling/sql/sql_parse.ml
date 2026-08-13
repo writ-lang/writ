@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* DDL -> [Sql_ast.db]. A recursive-descent reader over [Sql_lex]'s tokens that
    recognises the handful of statements carrying schema MEANING and declines
    everything else by name and line.

@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The parsed model: a schema, an initial instance, and the transitions. A
    transition is one edge of the dynamics functor — a guard (its domain of
    definition) and the effects (the mapping). *)

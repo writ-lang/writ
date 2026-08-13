@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Text in, squiggles out — by running the engine's own front end, never a
    second copy of it. Every diagnostic here is the compiler's verdict from a
    [Loader.] entry; a rule enforced in a second implementation would drift from

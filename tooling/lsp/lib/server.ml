@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Routing and lifecycle: one message in, zero or more messages out.
 
    [handle] is a FUNCTION, not a loop and not a process. Everything that would

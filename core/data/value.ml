@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Cells and literal paths — the leaf datum every layer speaks in.
 
    A cell is the value an arrow takes at a source entity: a filled scalar or the

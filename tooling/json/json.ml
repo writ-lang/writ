@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The JSON value type and its serializer. No parser here (that is [Json_parse],
    split off up front because value + parser together broke the 300-line cap),
    and no I/O — this is pure values-to-strings so the library gate holds.

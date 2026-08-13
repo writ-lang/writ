@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Claims data: the questions the interrogator answers. It lives in core (not
    syntax) so the engine can consume it without ever touching the front end;
    syntax merely parses into it. *)

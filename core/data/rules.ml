@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The rules engine's data (extension §1, §2): relation declarations, rules,
    facts, derivations, and a positioned mirror of the kernel's guards.
 

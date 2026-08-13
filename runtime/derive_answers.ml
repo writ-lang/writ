@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Reading answers out of a [Derive_table.t]: what a relation's columns are, the
    rows matching a bound query, and the identity of one ground fact. Split from
    derive_table.ml at the seam between MAINTAINING the store — interning,

@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Sql_ast.db] -> a .pol file, as text.
 
    Text rather than datums, and the reason is not convenience: the output is a

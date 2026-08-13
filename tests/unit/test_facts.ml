@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The five built-in relations of extension §2, each cross-checked against what
    [Space.t] independently says — not against this engine's own output, which
    would only prove it agrees with itself. Split from test_derive.ml by SUBJECT,

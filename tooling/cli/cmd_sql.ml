@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Cmd_sql] — the [pol sql] verb, beside its sibling verbs.
 
    ONE verb, both directions, dispatched on the extension, because there is one

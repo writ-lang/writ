@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Report_derive], extension §7 and §9 — the strings `pol derive` prints.
 
    Every expectation below is written out in full rather than compared against

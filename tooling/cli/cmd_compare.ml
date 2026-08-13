@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Cmd_compare] — the [pol compare] verb and its [--git] form. It is the
    largest of the verbs because it is the one with I/O of its own: two models
    instead of one, a [--map] file to parse, and a shell out to git. Keeping all

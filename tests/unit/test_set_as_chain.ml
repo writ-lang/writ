@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* §10.3 widened: [(set CHAIN RHS)] takes a chain on the right, as [(is CHAIN
    RHS)] already did. The parser half is small; the two SEMANTIC decisions are
    what this file exists to pin, because both were genuinely open and either

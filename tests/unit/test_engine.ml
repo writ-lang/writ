@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Engine unit tests (TD). Stdlib only, no framework: each [check] counts a pass
    or aborts. Models are built directly as [Model.t] values, exercising BFS
    enumeration, shortest paths, the three modalities with witnesses,

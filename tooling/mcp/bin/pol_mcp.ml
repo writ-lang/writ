@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The MCP server as a process: the only module in [mcp/] that touches a file
    descriptor, and the only one allowed to.
 

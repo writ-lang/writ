@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [pol] — the standalone command line. This module is now only the dispatch:
    the argument shapes each verb accepts, and what a misuse costs. The verbs
    themselves live in [Cmd_check], [Cmd_query], [Cmd_compare], [Cmd_control]

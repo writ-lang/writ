@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The JSON parser (split from [Json] up front — value plus parser overflowed
    the 300-line cap last time). Pure, no I/O.
 

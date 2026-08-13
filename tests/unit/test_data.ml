@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Data tests (TC): the .pol standard library, the political domain library, and
    the worked model load + parse through the real front end.
 

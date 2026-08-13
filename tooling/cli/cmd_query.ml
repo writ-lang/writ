@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Cmd_query] — the [pol query] verb: name one of the questions in the model's
    sibling [.claims] file and run just that one, optionally at a state other
    than the initial one. Its own module for the same reason as its siblings —

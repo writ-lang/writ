@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Front-end REJECTION tests: sources built as strings and pushed through the
    real reader, expander and parser, asserting the exact line:col each is blamed
    at. Split from test_data.ml at the input seam — that suite loads real files

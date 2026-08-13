@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Rules checking tests (TRC): [Rules_check], extension §2, §4 and §5 — the
    read-time rejections that are not sort inference (those are TRS).
 

@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Rules fixture tests (TRF): the .rules files on disk, read through [Loader]
    and judged by [Rules_check.check].
 

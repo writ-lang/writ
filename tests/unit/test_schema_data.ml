@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [pol schema] unit tests, the sibling of test_control.ml one level up: where
    that asserts a model's DYNAMICS survive the trip out to data and back, this
    asserts its MAP does. Same discipline — the §7 fresh-name rule, and an

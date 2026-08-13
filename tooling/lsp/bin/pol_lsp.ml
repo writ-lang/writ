@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The language server as a process: the only module in [lsp/] that touches a
    file descriptor, and the only one allowed to.
 

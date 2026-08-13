@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The guard language (§10.2), in its own module because TWO things hold one:
    a transition's [when], and — since laws became guards — a [Schema.equation].
    It cannot live in [Model] any more, which is where it used to be: [Model]

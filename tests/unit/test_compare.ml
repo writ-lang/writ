@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Compare tests (T3): load the fixture pair through the real front end, run
    [Compare.run], and assert the §17 classification — a genuinely lost guarantee
    is reported LOST with the new model's witness, and a preserved equation stays

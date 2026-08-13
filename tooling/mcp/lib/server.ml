@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* The Model Context Protocol, as a pure function: one JSON message in, at most
    one JSON message out. Same shape as the language server's [Server.handle],
    and for the same reason — a protocol you can drive from a unit test without

@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* [Cmd_show] — the [pol show] verb: print what a situation IS, addressed by the
    index the rest of the tool already uses.
 

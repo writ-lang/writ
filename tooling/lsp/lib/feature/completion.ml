@@ -1,3 +1,6 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
 (* Completion — the one request that cannot use the datum tree. A document being
    completed is half-typed and therefore unparseable: the moment the author types
    [(] the reader errors and there is no tree, which is exactly the keystroke
