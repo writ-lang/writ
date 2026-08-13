@@ -6,9 +6,9 @@
 
    The file under test is the SHIPPED one — core/stdlib/ct.rules, not a copy —
    because a library that drifts from its tests is the failure this is for. Its
-   two fixtures are chosen to be opposites: rules_base.pol's four situations
+   two fixtures are chosen to be opposites: rules_base.writ's four situations
    form a DAG, where every edge is one-way and there is one final phase;
-   cycle.pol's two situations are a single cycle, where none is and both are.
+   cycle.writ's two situations are a single cycle, where none is and both are.
    A relation that quietly answered "everything" or "nothing" would pass one of
    them and fail the other.
 
@@ -16,13 +16,13 @@
    copied from what the engine printed — test_derive.ml's rule, and for its
    reason: a test that records the output cannot fail when the output is wrong.
 
-   rules_base.pol: two latches (quiet → vocal, each once), so the situations are
+   rules_base.writ: two latches (quiet → vocal, each once), so the situations are
    (q,q) → {(v,q), (q,v)} → (v,v), four of them and four edges, no way back.
-   cycle.pol: one flag, up and down, so two situations and two edges. *)
+   cycle.writ: one flag, up and down, so two situations and two edges. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 
@@ -34,7 +34,7 @@ let check name cond =
 
 let repo_root () =
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
     else if n = 0 then dir
     else up (Filename.dirname dir) (n - 1)
   in
@@ -99,11 +99,11 @@ let ct = library "ct.rules"
 
 let dag =
   Derive.run
-    (space (model_file "rules_base.pol"))
-    (program (model_file "rules_base.pol") ct)
+    (space (model_file "rules_base.writ"))
+    (program (model_file "rules_base.writ") ct)
 
 let loop =
-  let m = model_file "cycle.pol" in
+  let m = model_file "cycle.writ" in
   Derive.run (space m) (program m ct)
 
 (* The DAG. `reach` is four identities plus the five forward pairs — (q,q) to
@@ -172,7 +172,7 @@ let goals =
    (trapped stuck can-finish)\n"
 
 let dag_goals =
-  let m = model_file "rules_base.pol" in
+  let m = model_file "rules_base.writ" in
   Derive.run (space m) (program m (ct ^ goals))
 
 let () =
@@ -185,7 +185,7 @@ let () =
 
 (* A model where the goal CAN be lost, so `trapped` is non-empty and the forms
    are shown to tell the two cases apart. Written here rather than taken from a
-   fixture because the fixtures that trap — captured_trap.pol — reach their trap
+   fixture because the fixtures that trap — captured_trap.writ — reach their trap
    through `(load …)`, and this harness parses without the loader.
 
    `latch` is irreversible and `goal` needs p still at a. From (a,a): latch to
@@ -313,9 +313,9 @@ let detour_src =
 
 let () =
   check "a DAG whose every run passes the goal: nothing escapes"
-    (cross "dag" (fixture "rules_base.pol") "(is nabu.stands vocal)" = 0);
+    (cross "dag" (fixture "rules_base.writ") "(is nabu.stands vocal)" = 0);
   check "a loop with the goal on it: nothing escapes either"
-    (cross "loop" (fixture "cycle.pol") "(is b.f hi)" = 0);
+    (cross "loop" (fixture "cycle.writ") "(is b.f hi)" = 0);
   check "a loop that misses the goal: both its situations escape"
     (cross "detour" detour_src "(is x.p c)" = 2);
   check "a one-way door into a dead end: the dead end escapes"

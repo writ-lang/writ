@@ -1,0 +1,16 @@
+; gap.writ — a reachable state (hi) whose only enabled move is a (gap …). A gap
+; is an exit from the model, not a trap, so its source is NOT absorbing:
+; `writ check gap.writ` reports `reachable gaps: 1` and `absorbing states: 0`.
+
+(schema tiny
+  (type flag (lo hi))
+  (type box (arrow f (to flag))))
+
+(instance i tiny
+  (box b (f lo)))
+
+(use tiny)
+(initial i)
+
+(transition go   (when (is b.f lo)) (do (set b.f hi)))
+(transition boom (when (is b.f hi)) (do (gap "off the edge")))

@@ -14,7 +14,7 @@
    - DOMAIN TYPES (a column's SQL type) must round-trip exactly, because on the
      way back the arrow's codomain IS the SQL type — that is the whole reason
      the import needs no annotation file. `varchar(255)` becomes `varchar-255`
-     because parentheses are reader delimiters and a pol atom may not hold one.
+     because parentheses are reader delimiters and a writ atom may not hold one.
 
    - MEMBERS (the single element of an opaque domain) need NOT round-trip, and
      saying so is what buys them a short spelling. An opaque domain has exactly
@@ -25,7 +25,7 @@
 
 (* ---- identifiers -------------------------------------------------------- *)
 
-(* A pol atom may hold anything but whitespace, parens, a semicolon and a double
+(* A writ atom may hold anything but whitespace, parens, a semicolon and a double
    quote (reader.ml), and `.` besides, which is the path separator. SQL
    identifiers are far
    narrower than that in practice, so the test is on the SQL side: an ordinary
@@ -46,12 +46,12 @@ let translatable (s : string) : bool =
 let tr (from_c : char) (to_c : char) (s : string) : string =
   String.map (fun c -> if c = from_c then to_c else c) s
 
-(* SQL -> pol. Lowercased because unquoted SQL identifiers are case-insensitive
+(* SQL -> writ. Lowercased because unquoted SQL identifiers are case-insensitive
    and fold to lower in PostgreSQL, so `Orders` and `orders` are one table and
    must not become two types. *)
 let ident_to_pol (s : string) : string = tr '_' '-' (String.lowercase_ascii s)
 
-(* pol -> SQL. The inverse on everything [translatable] admits. *)
+(* writ -> SQL. The inverse on everything [translatable] admits. *)
 let ident_to_sql (s : string) : string = tr '-' '_' s
 
 (* ---- domain types ------------------------------------------------------- *)
@@ -62,7 +62,7 @@ let ident_to_sql (s : string) : string = tr '-' '_' s
 type domain =
   | Bool
   | Enum of string  (** a named enumerated domain: its members are known *)
-  | Opaque of string  (** a domain pol carries but cannot look inside *)
+  | Opaque of string  (** a domain writ carries but cannot look inside *)
 
 let domain_name = function Bool -> "bool" | Enum n -> n | Opaque n -> n
 
@@ -71,7 +71,7 @@ let domain_name = function Bool -> "bool" | Enum n -> n | Opaque n -> n
    rather than two identical ones with different names. The canonical spelling
    is the short one, which is also what [sql_of_domain] emits — so an export is
    normalised DDL, not a reproduction of the input's spelling. That is a real
-   difference and the reason round-tripping is defined on the MODEL (via `pol
+   difference and the reason round-tripping is defined on the MODEL (via `writ
    compare`) rather than on the text. *)
 let alias : (string * string) list =
   [
@@ -89,7 +89,7 @@ let alias : (string * string) list =
     ("time with time zone", "timetz");
     ("time without time zone", "time");
     (* the serial types are int columns with a sequence default; the sequence
-       is not a column fact, and pol has no numbers to receive it anyway *)
+       is not a column fact, and writ has no numbers to receive it anyway *)
     ("serial", "int");
     ("bigserial", "bigint");
     ("smallserial", "smallint");
@@ -171,7 +171,7 @@ let mnemonic (name : string) : string =
    two domains may not take one mnemonic. [taken] is threaded rather than held
    in a global because the emitters build a whole file at a time and a fresh
    run must give a fresh file: the same input twice must produce the same text,
-   or a `pol sql | diff` check would report drift that is not there.
+   or a `writ sql | diff` check would report drift that is not there.
 
    The fallback appends `*` — legal in an atom, absent from SQL identifiers, so
    it can never collide with a mnemonic OR with a translated name. *)

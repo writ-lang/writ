@@ -1,4 +1,4 @@
-; `KNIGHT` names an element of `kind-t` in caps_base.pol, and it also reads as a
+; `KNIGHT` names an element of `kind-t` in caps_base.writ, and it also reads as a
 ; rule variable. Rejected at the atom rather than answered wrongly.
 
 (relation p (islander))

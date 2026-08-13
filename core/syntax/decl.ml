@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Schema and instance decoding, split out of parser.ml so each file stays under
    the 300-line cap (design fold F8). Syntax layer: uses core + Grammar, never

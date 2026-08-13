@@ -6,19 +6,19 @@
    It reads the SCHEMA and nothing else, which is what makes it a reading of the
    model rather than of the file: the instance is one starting configuration,
    not the table's contents, and transitions are moves, not DDL. So there is no
-   `--with-data` here — a pol instance exported as INSERTs would be a handful
+   `--with-data` here — a writ instance exported as INSERTs would be a handful
    of rows with an opaque domain's single member standing in for every string,
    which is data in shape only.
 
    Two conventions carry what SQL has no way to state, both written as
-   `-- pol:` pragmas that [Sql_parse] reads back:
+   `-- writ:` pragmas that [Sql_parse] reads back:
 
-     -- pol: mutable   a foreign key the model UPDATEs
-     -- pol: fixed     a non-reference column the model never writes
+     -- writ: mutable   a foreign key the model UPDATEs
+     -- writ: fixed     a non-reference column the model never writes
 
    Their absence is the common case, so the DDL stays ordinary SQL. *)
 
-open Pol_data
+open Writ_data
 
 type note = { line : int; what : string; why : string }
 
@@ -52,7 +52,7 @@ let members (t : Schema.ty) =
 let is_bool (t : Schema.ty) = t.name = "bool" && members t = [ "true"; "false" ]
 
 (* An opaque domain is one whose single member carries no information — which
-   is the whole of what "pol cannot look inside a varchar" amounts to. *)
+   is the whole of what "writ cannot look inside a varchar" amounts to. *)
 let is_opaque (t : Schema.ty) =
   match members t with [ _ ] -> true | _ -> false
 
@@ -67,7 +67,7 @@ let sql_type_of (s : Schema.t) (cod : string) : string =
 
 let key_column (s : Schema.t) (t : Schema.ty) : string =
   let taken = List.map (fun (a : Schema.arrow) -> a.name) (arrows_of s t) in
-  if List.mem "id" taken then "pol_id" else "id"
+  if List.mem "id" taken then "writ_id" else "id"
 
 (* ---- equations as CHECK constraints ------------------------------------- *)
 
@@ -132,15 +132,15 @@ let ddl (s : Schema.t) : string * note list =
   let tables = List.filter is_table s.types in
   let domains = List.filter (fun t -> not (is_table t)) s.types in
   buf_add b
-    ("-- Emitted from the pol schema `" ^ s.name
-   ^ "` by `pol sql`.\n\
+    ("-- Emitted from the writ schema `" ^ s.name
+   ^ "` by `writ sql`.\n\
       --\n\
       -- Every type that takes its members from the instance is a table; every\n\
       -- type whose members the schema fixes is a domain. A domain with ONE\n\
-      -- member is a value pol carries but cannot look inside, and comes back\n\
+      -- member is a value writ carries but cannot look inside, and comes back\n\
       -- as the SQL type its name records.\n\
       --\n\
-      -- Each table gets a synthetic key, because a pol entity IS its identity\n\
+      -- Each table gets a synthetic key, because a writ entity IS its identity\n\
       -- and carries no column saying so.\n\n");
   (* enumerated domains that are not opaque and not boolean *)
   List.iter
@@ -177,8 +177,8 @@ let ddl (s : Schema.t) : string * note list =
             | None -> false
           in
           let pragma =
-            if is_ref && not a.fixed then "   -- pol: mutable"
-            else if (not is_ref) && a.fixed then "   -- pol: fixed"
+            if is_ref && not a.fixed then "   -- writ: mutable"
+            else if (not is_ref) && a.fixed then "   -- writ: fixed"
             else ""
           in
           buf_add b

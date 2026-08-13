@@ -1,20 +1,20 @@
 ; The command line — the only module tree with I/O besides the LSP process. It
 ; links all three engine libraries: the data model, the front end (to read
 ; models), and the interrogator (to answer questions about them). The exe main
-; module is [Pol], which is only the argument dispatch: one [Cmd_*] sibling per
+; module is [Writ], which is only the argument dispatch: one [Cmd_*] sibling per
 ; verb, [Cli_io] for the filesystem they share, [Help] for the `--help` text,
 ; and [Version] generated below. One module per verb so that adding a verb adds
 ; a file rather than growing the one everything already lives in.
 
-; (public_name pol) is what makes `opam install .` put this binary on the PATH
-; as `pol`; without it the exe exists only inside _build.
+; (public_name writ) is what makes `opam install .` put this binary on the PATH
+; as `writ`; without it the exe exists only inside _build.
 
 (executable
- (name pol)
- (public_name pol)
- (package pol)
+ (name writ)
+ (public_name writ)
+ (package writ)
  (modules
-  pol
+  writ
   cli_io
   cmd_check
   cmd_query
@@ -26,12 +26,12 @@
   cmd_sql
   help
   version)
- (libraries pol_data pol_syntax pol_runtime pol_loadpath pol_sql))
+ (libraries writ_data writ_syntax writ_runtime writ_loadpath writ_sql))
 
-; `pol --version` reads the version dune already knows — the one in dune-project
+; `writ --version` reads the version dune already knows — the one in dune-project
 ; that opam publishes and `make release` names the tarball with. Generated
 ; rather than written down, because a hand-kept copy of a version number is a
-; copy that is eventually wrong, and a binary lying about which pol it is
+; copy that is eventually wrong, and a binary lying about which writ it is
 ; wastes far more time than it saves.
 
 (rule
@@ -39,4 +39,4 @@
  (action
   (with-stdout-to
    version.ml
-   (echo "let v = \"%{version:pol}\"\n"))))
+   (echo "let v = \"%{version:writ}\"\n"))))

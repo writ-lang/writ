@@ -14,7 +14,7 @@
    written out here. The library form heads ARE derived — from the [(form …)]
    declarations the loaded libraries bring in. NEVER raises. *)
 
-open Pol_syntax
+open Writ_syntax
 
 (* LSP CompletionItemKind: Keyword=14, Enum=13, EnumMember=20. *)
 let item ?detail label kind =
@@ -66,7 +66,7 @@ let reserved =
    accepts. The rest are file-format vocabulary the parser recognises
    structurally rather than by name, so they are written out. *)
 let interrogator =
-  ("property" :: List.map fst Pol_syntax.Claims_parser.modalities)
+  ("property" :: List.map fst Writ_syntax.Claims_parser.modalities)
   @ [
       "fair";
       "query";

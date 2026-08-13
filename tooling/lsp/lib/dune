@@ -1,12 +1,12 @@
 ; The language server as a pure library: strings in, strings out, no I/O. It
 ; links the three engine libraries so diagnostics come from the real parser,
-; never a second one written for the editor; JSON comes from [pol_json], shared
+; never a second one written for the editor; JSON comes from [writ_json], shared
 ; with the MCP server, and the JSON-RPC layer is hand-written against the stdlib. Files are grouped into layer folders (wire,
 ; doc, feature) for navigation; include_subdirs flattens them into the one
-; [pol_lsp] library, so module names stay unqualified within it.
+; [writ_lsp] library, so module names stay unqualified within it.
 
 (include_subdirs unqualified)
 
 (library
- (name pol_lsp)
- (libraries pol_data pol_syntax pol_runtime pol_json))
+ (name writ_lsp)
+ (libraries writ_data writ_syntax writ_runtime writ_json))

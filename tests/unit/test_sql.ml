@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* `pol sql` unit tests.
+(* `writ sql` unit tests.
 
    The load-bearing one is the ROUND TRIP, and it is checked the strong way:
    not by diffing two texts, but by reading each side back through the real
@@ -12,13 +12,13 @@
    equally wrong. Comparing the olog compares what the mapping claims to
    preserve.
 
-   The rest of the file is the boundary: what the DDL says that pol declines,
+   The rest of the file is the boundary: what the DDL says that writ declines,
    asserted to be declined rather than quietly half-carried. Those tests fail
    loudly the day someone "improves" the parser into guessing. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_sql
+open Writ_data
+open Writ_syntax
+open Writ_sql
 
 let passed = ref 0
 
@@ -50,7 +50,7 @@ let model_of_string (what : string) (s : string) : Model.t =
 
 let import ?(name = "t") (sql : string) : string * Sql_ast.db =
   let db = Sql_parse.parse sql in
-  let text, _ = Emit_pol.file ~name ~source:"t.sql" db in
+  let text, _ = Emit_writ.file ~name ~source:"t.sql" db in
   (text, db)
 
 (* The schema as a comparable value: every type with its members, every arrow
@@ -158,21 +158,21 @@ let () =
     (match ty "customers-tier" with
     | Some { flavor = Schema.Enumerated [ "free"; "pro" ]; _ } -> true
     | _ -> false);
-  (* a single-row CHECK becomes a law — the thing `pol check` then reports a
+  (* a single-row CHECK becomes a law — the thing `writ check` then reports a
      move can BREAK *)
   check "CHECK -> equation"
     (List.exists
        (fun (e : Schema.equation) -> e.name = "shipped-needs-stamp")
        s.equations)
 
-(* --- what SQL says and pol declines -------------------------------------- *)
+(* --- what SQL says and writ declines -------------------------------------- *)
 
 let declined_for ~(sub : string) (sql : string) =
   let _, db = import sql in
   List.exists (fun (d : Sql_ast.decline) -> contains ~sub d.why) db.declines
 
 let () =
-  (* UNIQUE is unsayable, not unimplemented: a pol law ranges over ONE entity
+  (* UNIQUE is unsayable, not unimplemented: a writ law ranges over ONE entity
      of its subject type, and a bare `some` binder is not comparable, so "two
      distinct rows agree" has no spelling at all. *)
   check "UNIQUE column constraint is declined"
@@ -280,7 +280,7 @@ ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
    export would be lossy in a way no re-import could detect, so this test is
    the round trip's real edge. *)
 let () =
-  let pol =
+  let writ =
     "(form (text A) (arrow A (to text)))\n\
      (form (ref A T) (arrow A (to T)))\n\
      (schema m\n\
@@ -290,12 +290,12 @@ let () =
      (instance seed m)\n\
      (use m) (initial seed)\n"
   in
-  let m1 = model_of_string "pragma" pol in
+  let m1 = model_of_string "pragma" writ in
   let ddl, _ = Emit_ddl.ddl m1.Model.schema in
   check "a mutable foreign key exports a pragma"
-    (contains ~sub:"-- pol: mutable" ddl);
+    (contains ~sub:"-- writ: mutable" ddl);
   check "a fixed non-reference column exports a pragma"
-    (contains ~sub:"-- pol: fixed" ddl);
+    (contains ~sub:"-- writ: fixed" ddl);
   let pol2, _ = import ~name:"m" ddl in
   let m2 = model_of_string "pragma (back)" pol2 in
   check "mutability survives the round trip"

@@ -1,15 +1,15 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [pol schema] unit tests, the sibling of test_control.ml one level up: where
+(* [writ schema] unit tests, the sibling of test_control.ml one level up: where
    that asserts a model's DYNAMICS survive the trip out to data and back, this
    asserts its MAP does. Same discipline — the §7 fresh-name rule, and an
    emitted library that re-parses through the front end rather than merely
    balancing its parentheses. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 

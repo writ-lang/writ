@@ -1,7 +1,7 @@
 
-# Pol Interrogator — Relational Extension
+# Writ Interrogator — Relational Extension
 
-An extension to the Pol interrogator: a **stratified, finite, witness-producing
+An extension to the Writ interrogator: a **stratified, finite, witness-producing
 rules engine** over a model's universe, and a **solver** that searches for
 structure-preserving maps. Both are tooling — nothing here touches the
 language, and no kernel word changes. Deleting any datum described in this
@@ -45,9 +45,9 @@ never adds a situation, an edge, or a cell (Extension §5).
 
 ## 1. The `.rules` file
 
-A rules file is a third file type alongside `.pol`
+A rules file is a third file type alongside `.writ`
 ([§6.1](kernel-spec.md#61-roles)) and `.claims`
-([§16](kernel-spec.md#16-claims-files)). It shares Pol's reader
+([§16](kernel-spec.md#16-claims-files)). It shares Writ's reader
 ([§5](kernel-spec.md#5-lexical-structure)) and form expander
 ([§11](kernel-spec.md#11-forms)). It contains **relation declarations** and
 **rules**, and may `load` libraries of rule forms.
@@ -63,7 +63,7 @@ A rules file is a third file type alongside `.pol`
   (subordinate Z Y))              ; exclude; the tool is where it belongs
 ```
 
-**The standard rules library.** `ct.rules` ships beside `stdlib.pol` and is
+**The standard rules library.** `ct.rules` ships beside `stdlib.writ` and is
 loaded the same way — `(load "ct.rules")`, resolved by the search order of
 design D3. It names the derived state category's own structure, which every
 scenario otherwise rebuilds: `reach` (the hom-sets, and the three lines every
@@ -225,7 +225,7 @@ run-it-backward move, obtained here by backward image over an enumerated
 graph — no unification machinery required, because the graph is already
 data.
 
-## 3. `pol solve` — searching for structure-preserving maps
+## 3. `writ solve` — searching for structure-preserving maps
 
 Functor checking ([§16.4](kernel-spec.md#164-dictionaries--functor-check--via))
 verifies a hand-written map. Over finite schemas, functor *finding* is a
@@ -233,11 +233,11 @@ finite constraint problem — exactly what relational search does well. The
 solver enumerates rather than verifies:
 
 ```bash
-pol solve --functor SOURCE.pol TARGET.pol [--over T1 T2 …]
-pol solve --simulation A.pol B.pol
+writ solve --functor SOURCE.writ TARGET.writ [--over T1 T2 …]
+writ solve --simulation A.writ B.writ
 ```
 
-These are the extension's two modes; `pol solve --morphism`, which searches
+These are the extension's two modes; `writ solve --morphism`, which searches
 between two *instances* of one schema, is specified by the kernel spec
 ([§17](kernel-spec.md#17-comparison-search-and-export)) and is not repeated
 here.
@@ -250,7 +250,7 @@ here.
   exists, reported with the obstruction (the first unmappable arrow or the
   first equation no assignment preserves).
 - `--simulation` runs the same search between two models' control quivers
-  (as exported by `pol control`, [§17](kernel-spec.md#17-comparison-search-and-export)):
+  (as exported by `writ control`, [§17](kernel-spec.md#17-comparison-search-and-export)):
   every move of A assigned a counterpart in B, preserving src/tgt —
   comparison by move structure, discovered rather than declared.
 
@@ -261,17 +261,17 @@ transcript as witness.
 ## 4. Command line
 
 ```bash
-pol derive  MODEL.pol RULES.rules RELATION
-pol derive  MODEL.pol RULES.rules "(RELATION ARG…)"      # bound query
-pol derive  MODEL.pol RULES.rules --why "(RELATION ARG…)" # derivation tree
-pol solve   --functor SOURCE.pol TARGET.pol [--over T1 T2 …]
-pol solve   --simulation A.pol B.pol
+writ derive  MODEL.writ RULES.rules RELATION
+writ derive  MODEL.writ RULES.rules "(RELATION ARG…)"      # bound query
+writ derive  MODEL.writ RULES.rules --why "(RELATION ARG…)" # derivation tree
+writ solve   --functor SOURCE.writ TARGET.writ [--over T1 T2 …]
+writ solve   --simulation A.writ B.writ
 ```
 
 ```bash
-pol derive oversight.pol org.rules subordinate            # all rows
-pol derive oversight.pol org.rules "(subordinate nabu X)" # bound query
-pol derive oversight.pol org.rules --why "(subordinate nabu cabinet)"
+writ derive oversight.writ org.rules subordinate            # all rows
+writ derive oversight.writ org.rules "(subordinate nabu X)" # bound query
+writ derive oversight.writ org.rules --why "(subordinate nabu cabinet)"
 ```
 
 **One question, one fixpoint.** A `.rules` file declares a vocabulary and
@@ -285,11 +285,11 @@ positively and negatively alike, so `--why` still finds every premise.
 
 Exit status follows the kernel spec's per-flag rule
 ([§18](kernel-spec.md#18-command-line)): a search exits `1` for "nothing
-found" only where the absence is the bad news. For both `pol solve` modes
+found" only where the absence is the bad news. For both `writ solve` modes
 here it is — zero solutions exits `1` with the obstruction — which is the
-opposite of `pol solve --morphism`, where finding nothing is an ordinary
+opposite of `writ solve --morphism`, where finding nothing is an ordinary
 negative answer and exits `0`. The two flags ask different questions.
-`pol derive` exits `0` for any well-formed query, empty answer set included:
+`writ derive` exits `0` for any well-formed query, empty answer set included:
 an empty relation is an answer. Unreadable input is `2` throughout.
 
 ## 5. What is deliberately absent
@@ -317,7 +317,7 @@ For Ologs, the categorically native query story is not relational
 programming but the **data-migration adjoint triple** Δ ⊣ Σ ⊣ Π: queries as
 functors between schemas, answers as migrated instances. That triple is the
 kernel spec's own reading of migration
-([Appendix I.6](kernel-spec.md#i6-adjunctions)), where Δ is `pol migrate
+([Appendix I.6](kernel-spec.md#i6-adjunctions)), where Δ is `writ migrate
 --along` and Σ and Π are the adjoints not yet exposed as verbs.
 
 Over finite instances, those migrations and stratified Datalog meet in

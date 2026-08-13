@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* BFS enumeration of the state category. Objects are reachable states; a real
    edge is a fired transition ([`To]); a [`Gap] edge is an exit with no
@@ -23,7 +23,7 @@ type t = {
      free — the alternative is [shortest_path] rediscovering it afterwards by
      scanning every edge for a predecessor at distance d-1, which is
      O(edges) per step of every route and was, measured, the dominant cost of
-     `pol check` on a large space. *)
+     `writ check` on a large space. *)
   parent : (State.t * string) State.M.t;
   transitions : Model.transition list;
 }
@@ -440,7 +440,7 @@ let dead_ends (t : t) : (State.t * string list) list =
   (* ONE pass over the edges marks every state that has an outgoing one; a dead
      end is a state the pass never marked. The obvious spelling — [enabled_of]
      per state — rescans the whole edge list for each, which is O(states ×
-     edges) and measured as 28 of the 31 seconds `pol check` spent on a
+     edges) and measured as 28 of the 31 seconds `writ check` spent on a
      16 870-state space. The search that built that space took 2. *)
   let has_out =
     List.fold_left

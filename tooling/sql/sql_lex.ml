@@ -3,7 +3,7 @@
 
 (* Reading a .sql file down to statements and tokens.
 
-   The job here is smaller than "lex SQL" and the difference matters: `pol sql`
+   The job here is smaller than "lex SQL" and the difference matters: `writ sql`
    must survive a whole pg_dump, of which it understands a few statements and
    must SKIP the rest without being derailed. So the lexer's real obligation is
    to find statement boundaries correctly in text it does not otherwise
@@ -31,7 +31,7 @@ type token =
 type tok = { tk : token; line : int }
 type stmt = { sline : int; toks : tok list }
 
-(* A `-- pol: …` trailing comment. The export writes these to record the two
+(* A `-- writ: …` trailing comment. The export writes these to record the two
    facts SQL has no way to state — that an arrow is `fixed`, or that a foreign
    key is not — and the import reads them back, which is what closes the round
    trip for a mutable reference. Keyed by LINE, because that is how a reader
@@ -81,17 +81,22 @@ let lex (src : string) : lexed =
   while !i < n do
     let c = src.[!i] in
     if c = '-' && !i + 1 < n && src.[!i + 1] = '-' then begin
-      (* line comment; a `pol:` one is kept, the rest discarded *)
+      (* line comment; a `writ:` one is kept, the rest discarded *)
       let start = !i + 2 in
       let j = ref start in
       while !j < n && src.[!j] <> '\n' do
         incr j
       done;
       let body = String.trim (String.sub src start (!j - start)) in
-      if starts_with ~prefix:"pol:" body then
+      let pragma = "writ:" in
+      if starts_with ~prefix:pragma body then begin
+        (* length-derived, not a literal: the prefix has changed once
+           already, and a stale offset here loses the pragma silently *)
+        let k = String.length pragma in
         pragmas :=
-          (!line, String.trim (String.sub body 4 (String.length body - 4)))
-          :: !pragmas;
+          (!line, String.trim (String.sub body k (String.length body - k)))
+          :: !pragmas
+      end;
       i := !j
     end
     else if c = '/' && !i + 1 < n && src.[!i + 1] = '*' then begin

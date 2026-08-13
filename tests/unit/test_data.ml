@@ -1,18 +1,18 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Data tests (TC): the .pol standard library, the political domain library, and
+(* Data tests (TC): the .writ standard library, the political domain library, and
    the worked model load + parse through the real front end.
 
    IO is fine here (this is tests/unit, not the engine libraries): [resolve] mimics the CLI search
    path — a filename is looked up in core/stdlib/ first, then in the model's directory.
-   The repo root is found by ascending from the cwd until core/stdlib/stdlib.pol is seen,
+   The repo root is found by ascending from the cwd until core/stdlib/stdlib.writ is seen,
    so the test runs the same under `dune exec` (cwd = root) and `dune runtest`
    (cwd = the build dir). *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 
@@ -30,10 +30,10 @@ let read_file path =
   s
 
 (* Ascend from the cwd to the repo root — the nearest ancestor holding
-   core/stdlib/stdlib.pol. *)
+   core/stdlib/stdlib.writ. *)
 let repo_root () =
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
     else if n = 0 then dir
     else up (Filename.dirname dir) (n - 1)
   in
@@ -55,18 +55,18 @@ let resolve : Loader.resolve =
 
 (* The stdlib and the domain library both parse as libraries. *)
 let () =
-  (match Loader.load_library resolve "stdlib.pol" with
-  | Ok _ -> check "load_library: stdlib.pol parses" true
-  | Error e -> check ("load_library stdlib.pol: " ^ Errors.to_string e) false);
-  match Loader.load_library resolve "politics.lib.pol" with
-  | Ok _ -> check "load_library: politics.lib.pol parses" true
+  (match Loader.load_library resolve "stdlib.writ" with
+  | Ok _ -> check "load_library: stdlib.writ parses" true
+  | Error e -> check ("load_library stdlib.writ: " ^ Errors.to_string e) false);
+  match Loader.load_library resolve "politics.lib.writ" with
+  | Ok _ -> check "load_library: politics.lib.writ parses" true
   | Error e ->
-      check ("load_library politics.lib.pol: " ^ Errors.to_string e) false
+      check ("load_library politics.lib.writ: " ^ Errors.to_string e) false
 
 (* The worked model loads (stdlib + politics.lib), expands, and parses. *)
 let () =
-  match Loader.read_model resolve "tests/models/any_model.pol" with
-  | Error e -> check ("read_model any_model.pol: " ^ Errors.to_string e) false
+  match Loader.read_model resolve "tests/models/any_model.writ" with
+  | Error e -> check ("read_model any_model.writ: " ^ Errors.to_string e) false
   | Ok m -> (
       (* The transcription yields 18 transitions: bill-cycle 4, case-pipeline 2,
          swing 2, captured-by ×2, restored-by ×2, declare/lift/gap emergency 3,
@@ -109,11 +109,11 @@ let () =
    arrow outright (exit 2); now only the SHAPE is decoded and arrow resolution is
    deferred to [Checker.check], which returns [Not_applicable] (exit 0). *)
 let () =
-  match Loader.read_model resolve "na.pol" with
-  | Error e -> check ("read_model na.pol: " ^ Errors.to_string e) false
+  match Loader.read_model resolve "na.writ" with
+  | Error e -> check ("read_model na.writ: " ^ Errors.to_string e) false
   | Ok m -> (
       match Space.build m with
-      | Error e -> check ("space na.pol: " ^ e) false
+      | Error e -> check ("space na.writ: " ^ e) false
       | Ok sp -> (
           match Loader.read_claims resolve m "na.claims" with
           | Error e ->
@@ -146,7 +146,7 @@ let rec sexp (d : Reader.t) =
   | Reader.List (xs, _) -> "(" ^ String.concat " " (List.map sexp xs) ^ ")"
 
 let () =
-  match Loader.load_library resolve "stdlib.pol" with
+  match Loader.load_library resolve "stdlib.writ" with
   | Error e -> check ("stdlib for span: " ^ Errors.to_string e) false
   | Ok lib ->
       let expand src =
@@ -201,17 +201,17 @@ let contains_sub ~sub s =
    Uses the real loader and the real stdlib rather than a hand-built pair. *)
 let () =
   let src =
-    "(load \"stdlib.pol\")\n\
+    "(load \"stdlib.writ\")\n\
      (schema m (type hom (a b)))\n\
      (instance i m)\n\
      (use m)\n\
      (initial i)"
   in
-  let files = [ ("dup.pol", src) ] in
+  let files = [ ("dup.writ", src) ] in
   let resolve name =
     match List.assoc_opt name files with Some s -> Ok s | None -> resolve name
   in
-  match Loader.read_model resolve "dup.pol" with
+  match Loader.read_model resolve "dup.writ" with
   | Ok _ ->
       check "a model may not redeclare a type the loaded stdlib declares" false
   | Error e ->

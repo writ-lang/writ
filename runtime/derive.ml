@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 open Derive_table
 
 (* Extension §6 — the stratified, semi-naive least fixpoint over the finite
@@ -285,7 +285,7 @@ let extensional t =
    contribute to it reads, positively or negatively, transitively. Built-ins are
    not in it because they are extensional — complete before stratum 0 and free.
 
-   WHY IT EXISTS. A .rules file declares a VOCABULARY, and `pol derive` asks it
+   WHY IT EXISTS. A .rules file declares a VOCABULARY, and `writ derive` asks it
    ONE question; without this, every other relation in the file is computed too
    and thrown away. That is not a rounding error where a library is involved:
    `ct.rules` declares `reach`, whose answer is quadratic in the situation

@@ -11,8 +11,8 @@
    path surfacing through the parser with a [line:col]; and the loader detecting
    a load cycle and rejecting a library that contains [use]. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let passed = ref 0
 
@@ -267,16 +267,16 @@ let resolve_of files name : (string, Errors.t) result =
 
 let () =
   let files =
-    [ ("a.pol", "(load \"b.pol\")"); ("b.pol", "(load \"a.pol\")") ]
+    [ ("a.writ", "(load \"b.writ\")"); ("b.writ", "(load \"a.writ\")") ]
   in
-  match Loader.load_library (resolve_of files) "a.pol" with
+  match Loader.load_library (resolve_of files) "a.writ" with
   | Ok _ -> check "loader: a load cycle must be rejected" false
   | Error e ->
       check "loader: names the cycle" (contains_sub ~sub:"cycle" e.Errors.msg)
 
 let () =
-  let files = [ ("lib.pol", "(schema s (type v (a b)))\n(use s)") ] in
-  match Loader.load_library (resolve_of files) "lib.pol" with
+  let files = [ ("lib.writ", "(schema s (type v (a b)))\n(use s)") ] in
+  match Loader.load_library (resolve_of files) "lib.writ" with
   | Ok _ -> check "loader: a library containing (use …) must be rejected" false
   | Error e ->
       check "loader: rejects a model masquerading as a library"

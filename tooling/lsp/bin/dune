@@ -1,13 +1,13 @@
-; The language server process. It is the only executable that links [pol_lsp],
+; The language server process. It is the only executable that links [writ_lsp],
 ; and the only file in the LSP tree allowed to perform I/O — the read/write loop
 ; lives here so every module it drives stays a function from values to values.
 
-; Installed alongside `pol` as `pol-lsp`, so an editor on a machine that only
-; ran `opam install pol` still gets diagnostics from the real engine.
+; Installed alongside `writ` as `writ-lsp`, so an editor on a machine that only
+; ran `opam install writ` still gets diagnostics from the real engine.
 
 (executable
- (name pol_lsp)
- (public_name pol-lsp)
- (package pol)
- (modules pol_lsp)
- (libraries pol_data pol_syntax pol_runtime pol_lsp pol_loadpath))
+ (name writ_lsp)
+ (public_name writ-lsp)
+ (package writ)
+ (modules writ_lsp)
+ (libraries writ_data writ_syntax writ_runtime writ_lsp writ_loadpath))

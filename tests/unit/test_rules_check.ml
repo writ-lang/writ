@@ -10,8 +10,8 @@
    tests/unit/fixtures/ — the same ones the run's fitness gates drive through
    the CLI — are exercised next door, in test_rules_fixtures.ml. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let passed = ref 0
 
@@ -51,7 +51,7 @@ let org =
      (transition speak (when (is nabu.stands quiet)) (do (set nabu.stands \
      vocal)))"
 
-(* The shape of pol-problems' access: a mutable [role] under a [some] binder,
+(* The shape of writ-problems' access: a mutable [role] under a [some] binder,
    which is the formula §8's oracle needs to be able to write. *)
 let acc =
   model_of
@@ -243,7 +243,7 @@ let () =
 (* A kernel [some] binder is not a rule variable: it is bound by the
    quantifier and scoped to its own guard body, so §4's "must already be bound"
    does not reach it. Without that reading this formula — the one at
-   pol-problems access/access.claims:13 — would be rejected. *)
+   writ-problems access/access.claims:13 — would be rejected. *)
 let () =
   accepted "a some binder under a negation inside holds" acc
     "(relation quiet-day (Situation))\n\

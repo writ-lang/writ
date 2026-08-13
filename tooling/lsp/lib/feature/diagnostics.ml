@@ -12,7 +12,7 @@
    implicit prelude — a name used without loading its library surfaces here as
    the front end's own unknown-name error.
 
-   FILE ROLE decides which entry runs (kernel §6.1, §16). A .pol buffer with a
+   FILE ROLE decides which entry runs (kernel §6.1, §16). A .writ buffer with a
    [(use …)] is a MODEL ([read_model]); without one it is a LIBRARY
    ([load_library], which does not demand a model's use/initial). A .claims
    buffer is checked as CLAIMS against its sibling model, and a .rules buffer as
@@ -26,8 +26,8 @@
    shape already carries an array, so widening this later changes nothing a
    client sees. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let ( let* ) = Result.bind
 
@@ -40,7 +40,7 @@ let mark ~range msg =
     [
       ("range", Text.json_of_range range);
       ("severity", Json.Int severity_error);
-      ("source", Json.String "pol");
+      ("source", Json.String "writ");
       ("message", Json.String msg);
     ]
 
@@ -87,7 +87,7 @@ let datums_of (t : Text.t) : Reader.t list =
 
    [open_heads] must be passed through, and forgetting it was a real bug rather
    than a tidiness point: a .rules file with no sibling model — ct.rules itself,
-   which has no ct.pol and never will — took THIS path, where the expander
+   which has no ct.writ and never will — took THIS path, where the expander
    refuses a template head it cannot know (`situation`, `holds`, any relation
    the file declares). The editor therefore squiggled the standard library while
    the command line accepted it, which is the one divergence a language server

@@ -17,7 +17,7 @@
    parenthesised form ([Text.form_range]) and the selectionRange is the name token
    inside it ([Text.token_range]) — never the zero-width span at the opening '('. *)
 
-open Pol_syntax
+open Writ_syntax
 
 (* LSP SymbolKind codes, chosen to read distinctly; cosmetic. *)
 let k_schema = 3 (* Namespace *)

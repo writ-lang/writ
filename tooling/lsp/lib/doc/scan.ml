@@ -10,7 +10,7 @@
    kind or value names should be offered.
 
    THE SCAN RUNS FORWARD from the start of the document, never backward from the
-   offset, and the reason is in models/presidential.pol: its (cite "…") holds
+   offset, and the reason is in models/presidential.writ: its (cite "…") holds
    "(veto, override)" INSIDE a quoted atom. Read from the right, an opening quote
    cannot be told from a closing one, so those parentheses count and the depth is
    wrong for the whole rest of the file. Read from the left, strings and comments

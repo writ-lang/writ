@@ -1,9 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
-(* [pol control] — render a model's move list as a re-parseable instance of the
+(* [writ control] — render a model's move list as a re-parseable instance of the
    standard library's [quiver] schema (kernel §17, design D6): one [edge] entity
    per transition, every [src]/[tgt] a self-loop on a single [node] (§12.3).
    Re-parsing the emitted string against the [quiver] schema validates it.
@@ -54,9 +54,9 @@ let quiver (name : string) (m : Model.t) : string =
   let node = node_name edges in
   let buf = Buffer.create 256 in
   let add = Buffer.add_string buf in
-  (* The leading [(load "stdlib.pol")] makes the output a self-contained
+  (* The leading [(load "stdlib.writ")] makes the output a self-contained
      library, so [quiver] resolves when the string is re-parsed. *)
-  add "(load \"stdlib.pol\")\n\n";
+  add "(load \"stdlib.writ\")\n\n";
   add ("(instance " ^ name ^ "-control quiver\n");
   add ("  (node " ^ node ^ ")\n");
   (* One clause per edge, endpoints beside the name — the same entity-major

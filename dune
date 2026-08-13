@@ -1,9 +1,9 @@
 ; The standard library ships WITH the binary. Installed into the `share`
-; section it lands at <prefix>/share/pol/lib/, the fourth entry of the `(load
-; "FILE")` search order in tooling/cli/cli_io.ml — so an installed `pol`, run from
-; any directory, resolves (load "stdlib.pol") without $POL_LIB being set.
+; section it lands at <prefix>/share/writ/lib/, the fourth entry of the `(load
+; "FILE")` search order in tooling/cli/cli_io.ml — so an installed `writ`, run from
+; any directory, resolves (load "stdlib.writ") without $WRIT_LIB being set.
 ;
-; TWO files, and the second is not .pol: `ct.rules` is a library of RELATIONS
+; TWO files, and the second is not .writ: `ct.rules` is a library of RELATIONS
 ; (interrogator extension §1), loaded by a .rules file rather than a model. It
 ; resolves by the same search order, because the resolver matches on the NAME
 ; and never on the extension.
@@ -15,14 +15,14 @@
 ; the one place to remember.
 ;
 ; The stanza lives in the ROOT dune rather than core/stdlib/dune so that
-; core/stdlib/ stays what its name says: pol data, and nothing else.
+; core/stdlib/ stays what its name says: writ data, and nothing else.
 
 ; The `static` profile is what `make release` builds with. A dynamically linked
 ; binary carries its build machine's glibc version as a floor — a tarball built
 ; on glibc 2.43 refuses to start on Debian 12 (2.36) — which makes "portable
 ; release" a false claim. Linking libc in removes the floor entirely: the
 ; resulting binary runs on any Linux of the same architecture, glibc or musl.
-; The only cost is the linker's `dlopen` warning, and `pol` never dlopens
+; The only cost is the linker's `dlopen` warning, and `writ` never dlopens
 ; anything (no Dynlink, no NSS lookups). It needs a static libc (libc.a) on the
 ; BUILD host; where there is none — macOS has none by design — build the tarball
 ; with `make release STATIC=0` and accept a same-machine-family binary.
@@ -37,7 +37,7 @@
 
 (install
  (section share)
- (package pol)
+ (package writ)
  (files
-  (core/stdlib/stdlib.pol as lib/stdlib.pol)
+  (core/stdlib/stdlib.writ as lib/stdlib.writ)
   (core/stdlib/ct.rules as lib/ct.rules)))

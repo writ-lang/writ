@@ -6,13 +6,13 @@
 
    Every expected row set below is enumerated BY HAND from the fixture, never
    copied from what the engine printed: a test that records the output cannot
-   fail when the output is wrong. rules_base.pol wires nabu → mid → cabinet and
+   fail when the output is wrong. rules_base.writ wires nabu → mid → cabinet and
    flips two stances once each, so its derived category is four situations and
    four edges — small enough to count. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 
@@ -24,7 +24,7 @@ let check name cond =
 
 let fixture name =
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
     else if n = 0 then dir
     else up (Filename.dirname dir) (n - 1)
   in
@@ -77,7 +77,7 @@ let rows d rel args =
   | None -> failwith ("no relation `" ^ rel ^ "`")
 
 let all d rel = rows d rel (List.init (arity d rel) (fun _ -> None))
-let base = model_file "rules_base.pol"
+let base = model_file "rules_base.writ"
 let base_sp = space base
 let closure = Derive.run base_sp (program base "closure.rules")
 let reach = Derive.run base_sp (program base "space.rules")
@@ -146,7 +146,7 @@ let () =
 (* The same recursion over a state graph that loops. Every pair is reachable,
    so this is where a derivation graph gets the chance to close a cycle — see
    the acyclicity check at the end, which a DAG could not put under strain. *)
-let cycle_m = model_file "cycle.pol"
+let cycle_m = model_file "cycle.writ"
 let cycle_sp = space cycle_m
 let cycle = Derive.run cycle_sp (program cycle_m "space.rules")
 

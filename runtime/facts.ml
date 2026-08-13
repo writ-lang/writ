@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Extension §2's built-in relations — the derived category as data.
 
@@ -66,7 +66,7 @@ let phases (sp : Space.t) : (int * int) list * (int * int) list =
 
 (* [(holds S G)] — G is true in S, by the KERNEL's evaluator. One guard
    semantics, the kernel's: a rules engine that re-implemented [holds] would be
-   able to disagree with `pol check` about the same formula. The environment is
+   able to disagree with `writ check` about the same formula. The environment is
    empty because the caller has already substituted the rule's variables
    ([Rules.lower]); what remains free is a kernel [some] binder, which [Eval]
    binds itself. *)

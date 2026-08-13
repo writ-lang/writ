@@ -9,7 +9,7 @@
    totality rules (layout, domains, initial vector, missing-fixed, unset
    vacatable, out-of-domain); State.M state identity; Value's total order. *)
 
-open Pol_data
+open Writ_data
 
 let passed = ref 0
 

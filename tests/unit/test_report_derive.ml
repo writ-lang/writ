@@ -1,18 +1,18 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Report_derive], extension §7 and §9 — the strings `pol derive` prints.
+(* [Report_derive], extension §7 and §9 — the strings `writ derive` prints.
 
    Every expectation below is written out in full rather than compared against
    what the printer produced: spacing IS the contract here (two spaces of row
    indent, two spaces per tree level), and a test that echoes the output cannot
-   fail when the output is wrong. The fixture is rules_base.pol, whose wiring —
+   fail when the output is wrong. The fixture is rules_base.writ, whose wiring —
    nabu → mid → cabinet, cabinet vacant — is small enough to enumerate by
    hand. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 
@@ -24,7 +24,7 @@ let check name cond =
 
 let fixture name =
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
     else if n = 0 then dir
     else up (Filename.dirname dir) (n - 1)
   in
@@ -73,7 +73,7 @@ let bound t rel args =
 let all t rel = bound t rel (List.init (arity_of t rel) (fun _ -> None))
 let lines s = String.split_on_char '\n' s
 let joined ls = String.concat "\n" ls
-let base = model_file "rules_base.pol"
+let base = model_file "rules_base.writ"
 let closure = derive base (fixture "closure.rules")
 let space_rules = derive base (fixture "space.rules")
 

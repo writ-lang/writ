@@ -135,7 +135,7 @@ let strings (ts : tok list) : string list =
 (* The expressible fragment: boolean structure over null-ness and membership.
    Anything else — arithmetic, ordering, a function call, a subquery — returns
    [None] and becomes a decline. That boundary is not this parser's limitation
-   but the target language's: pol has no numbers, so `price > 0` has no
+   but the target language's: writ has no numbers, so `price > 0` has no
    reading, and inventing one would be the first lie the tool told. *)
 let rec p_or (ts : tok list) : check option * tok list =
   match p_and ts with
@@ -282,7 +282,7 @@ let parse_column ~(tname : string) ~(pragmas : (int * string) list)
   | None -> fail "unreadable column definition"
   | Some (raw_name, rest) ->
       if not (Sql_names.translatable raw_name) then
-        fail "column name is not a pol atom"
+        fail "column name is not a writ atom"
       else
         let base, rest = type_words [] rest in
         let args, rest =
@@ -308,7 +308,7 @@ let parse_column ~(tname : string) ~(pragmas : (int * string) list)
         in
         if base = [] then fail "column has no type"
         else if is_array then
-          fail "array column — pol has no unbounded collections"
+          fail "array column — writ has no unbounded collections"
         else begin
           let decls = ref []
           and checks = ref []
@@ -340,7 +340,7 @@ let parse_column ~(tname : string) ~(pragmas : (int * string) list)
             | { tk = Word "unique"; _ } :: r ->
                 decls :=
                   dec
-                    "UNIQUE — a pol law ranges over one entity, so \"no two \
+                    "UNIQUE — a writ law ranges over one entity, so \"no two \
                      rows agree\" has no spelling"
                   :: !decls;
                 mods r
@@ -369,7 +369,7 @@ let parse_column ~(tname : string) ~(pragmas : (int * string) list)
           (* A reference is wiring by default: a `fixed` arrow is not part of a
              state at all, so the assuming import builds the smaller model, and
              promoting one to mutable is a modelling decision made with the
-             move that motivates it. A `-- pol:` pragma overrides either way. *)
+             move that motivates it. A `-- writ:` pragma overrides either way. *)
           let fixed =
             match List.assoc_opt line pragmas with
             | Some "fixed" -> true
@@ -453,7 +453,7 @@ let parse_constraint ~(tname : string) (ts : tok list) : tcon =
       | None -> dec "unreadable FOREIGN KEY")
   | { tk = Word "unique"; _ } :: _ ->
       dec
-        "UNIQUE — a pol law ranges over one entity, so \"no two rows agree\" \
+        "UNIQUE — a writ law ranges over one entity, so \"no two rows agree\" \
          has no spelling"
   | { tk = Word "check"; _ } :: ({ tk = Punct '('; _ } :: _ as rest) -> (
       match balanced rest with
@@ -855,7 +855,7 @@ let promote_enums (db : db) : db =
                             dline = column.cline;
                             what = "CHECK " ^ col ^ " IN (…)";
                             why =
-                              "an enumerated member is not a pol atom, so the \
+                              "an enumerated member is not a writ atom, so the \
                                domain cannot be named";
                           }
                           :: !decls;
@@ -960,7 +960,7 @@ let vet_keys (db : db) : db =
             dline = t.tline;
             what = "PRIMARY KEY (" ^ String.concat ", " t.pk ^ ") on " ^ t.tname;
             why =
-              "composite key — uniqueness over a tuple of rows has no pol \
+              "composite key — uniqueness over a tuple of rows has no writ \
                spelling; the table itself crosses";
           }
           :: !decls)
@@ -1045,7 +1045,7 @@ let parse ?(with_data = false) (src : string) : db =
                   dline = st.sline;
                   what = head_words 4 st.toks;
                   why =
-                    "UNIQUE — a pol law ranges over one entity, so \"no two \
+                    "UNIQUE — a writ law ranges over one entity, so \"no two \
                      rows agree\" has no spelling";
                 }
                 :: db.declines;
@@ -1057,7 +1057,7 @@ let parse ?(with_data = false) (src : string) : db =
                 {
                   dline = st.sline;
                   what = head_words 3 toks;
-                  why = "statement carries no schema meaning pol can hold";
+                  why = "statement carries no schema meaning writ can hold";
                 }
                 :: db.declines;
             })

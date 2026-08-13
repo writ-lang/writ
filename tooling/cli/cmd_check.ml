@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_check] — the [pol check] verb, on its own so that the dispatch in [Pol]
+(* [Cmd_check] — the [writ check] verb, on its own so that the dispatch in [Writ]
    stays a table of verbs rather than a file that grows by one implementation
    every time the tool learns a new question.
 
@@ -10,8 +10,8 @@
    initial situation. A finding — a failing property, or a violated / unadmitted
    / stale law — makes the exit status 1. *)
 
-open Pol_data
-open Pol_runtime
+open Writ_data
+open Writ_runtime
 open Cli_io
 
 let run (model : string) (claims_path : string option) =

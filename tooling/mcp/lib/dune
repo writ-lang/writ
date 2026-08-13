@@ -1,14 +1,14 @@
 ; The MCP server as a pure library: JSON in, JSON out, no I/O. It links the
-; three engine libraries for the same reason [pol_lsp] does — an answer from a
-; tool call must be an answer `pol check` would give, and a second
+; three engine libraries for the same reason [writ_lsp] does — an answer from a
+; tool call must be an answer `writ check` would give, and a second
 ; implementation would be a second set of bugs.
 
 (library
- (name pol_mcp)
- (libraries pol_data pol_syntax pol_runtime pol_json))
+ (name writ_mcp)
+ (libraries writ_data writ_syntax writ_runtime writ_json))
 
 ; The same generated version the CLI reports, for `initialize`'s serverInfo: a
-; client that asks which pol it is talking to must not get a hand-kept copy.
+; client that asks which writ it is talking to must not get a hand-kept copy.
 ; It lives in the library rather than beside the binary — see bin/dune.
 
 (rule
@@ -16,4 +16,4 @@
  (action
   (with-stdout-to
    version.ml
-   (echo "let v = \"%{version:pol}\"\n"))))
+   (echo "let v = \"%{version:writ}\"\n"))))

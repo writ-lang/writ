@@ -9,7 +9,7 @@ request. Signing once covers everything you contribute to this repository from
 then on.
 
 **Copyright holder:** Alex Kunich <alex.kunich@gmail.com> ("the Owner")
-**Project:** pol
+**Project:** writ
 
 ---
 

@@ -12,8 +12,8 @@
    through the CLI. Keeping the two apart keeps each file's preamble honest
    about what it needs — and keeps both under the 300-line limit. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let passed = ref 0
 
@@ -34,7 +34,7 @@ let contains_sub ~sub s =
 
 let repo_root () =
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
     else if n = 0 then dir
     else up (Filename.dirname dir) (n - 1)
   in
@@ -72,7 +72,7 @@ let fixture_rejected name m file ~sub =
         (contains_sub ~sub e.Errors.msg)
 
 let () =
-  let base = model_file "rules_base.pol" in
+  let base = model_file "rules_base.writ" in
   (match fixture base "closure.rules" with
   | Ok _ -> check "closure.rules is a legal program" true
   | Error e -> check ("closure.rules: " ^ Errors.to_string e) false);
@@ -87,7 +87,7 @@ let () =
   fixture_rejected "the built-in namespace" base "redefine_builtin.rules"
     ~sub:"built-in";
   fixture_rejected "the ALL-CAPS collision"
-    (model_file "caps_base.pol")
+    (model_file "caps_base.writ")
     "caps_collision.rules" ~sub:"reads as a variable here but names an element"
 
 let () =

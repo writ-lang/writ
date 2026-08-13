@@ -2,7 +2,7 @@
 ;
 ; A model's meaning IS a category (kernel Appendix I.1): objects are the
 ; reachable situations, morphisms are move sequences, composition is
-; concatenation, identities are "do nothing". `pol check` asks four questions
+; concatenation, identities are "do nothing". `writ check` asks four questions
 ; about it — `possible`, `never`, `live` and `inevitable` — and the extension is
 ; explicit that those four are the common case rather than the instrument
 ; (extension §2). This file is the instrument's vocabulary: the structure of
@@ -11,10 +11,10 @@
 ;
 ; WHERE IT LIVES. It is a RULES library — it declares relations, never types —
 ; so `(load "ct.rules")` belongs in a .rules file and nowhere else. Loading it
-; into a .pol model would be accepted and useless: nothing here is a declaration
+; into a .writ model would be accepted and useless: nothing here is a declaration
 ; a model's universe can hold.
 ;
-; THE COST, stated as stdlib.pol states its own. Ten relation names: a .rules
+; THE COST, stated as stdlib.writ states its own. Ten relation names: a .rules
 ; file that loads this one gives up `reach`, `mutual`, `recurrent`, `before`,
 ; `phase-before`, `one-way`, `escapes`, `final-phase`, `moves` and `dead-end`,
 ; and may not redeclare any of them — which is exactly what the corpus's
@@ -201,7 +201,7 @@
 ;
 ; §7 answers `possible`, `never` and `live`. The fourth modality's
 ; counterexample set is this section, and having it here is not decoration: it
-; is a SECOND implementation of a question `pol check` already answers, arrived
+; is a SECOND implementation of a question `writ check` already answers, arrived
 ; at down a different road — a closure confined to the situations the goal fails
 ; in, where the engine partitions the same subgraph and looks for components. A
 ; disagreement between them is a bug in one of the two, which is the only kind

@@ -24,8 +24,8 @@
    disk. The library itself does no I/O — there is no implicit prelude
    (kernel §0.7): only the loads a buffer actually writes pull anything in. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 type state = {
   store : Store.t;

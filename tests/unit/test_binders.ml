@@ -9,8 +9,8 @@
    Same shape as its parent suite: a source string, the real reader, expander
    and parser, and the exact line:col the binder is blamed at. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let passed = ref 0
 

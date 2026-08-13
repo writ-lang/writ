@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Extension §3 — sorts, by a program-wide least fixpoint over
    [(relation, column) → sort], seeded by built-in positions, by a typed
@@ -18,7 +18,7 @@ open Pol_data
 
    Why chain resolution lives INSIDE the loop: the dom of a path's first arrow
    seeds its root, but only when the arrow name is owned by exactly one type —
-   [river.pol] gives [at] to both [traveler] and [cargo]. An ambiguous name does
+   [river.writ] gives [at] to both [traveler] and [cargo]. An ambiguous name does
    not seed, and the variable waits for another occurrence, possibly in another
    rule and possibly only after a column it feeds has itself been learned.
    Resolution and inference are therefore one fixpoint, not two phases — which

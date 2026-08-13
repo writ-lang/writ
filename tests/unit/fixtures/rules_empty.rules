@@ -1,5 +1,5 @@
 ; A relation with no rules: the answer set is empty, and an empty answer set is
-; an answer (extension §4 — `pol derive` exits 0). The column is declared with a
+; an answer (extension §4 — `writ derive` exits 0). The column is declared with a
 ; sort because nothing else could supply one: no rule ever puts a term in it,
 ; and extension §3 rejects a column the fixpoint never reaches.
 

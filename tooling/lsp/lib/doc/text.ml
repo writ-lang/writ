@@ -69,7 +69,7 @@ let base_offset t i =
   !b
 
 (* Engine position (1-based line, 1-based byte col) -> LSP position. *)
-let lsp_of_pos t (p : Pol_data.Errors.pos) =
+let lsp_of_pos t (p : Writ_data.Errors.pos) =
   let line = p.line - 1 in
   { line; character = units_of_prefix (line_at t line) (p.col - 1) }
 

@@ -6,9 +6,9 @@
    is reported LOST with the new model's witness, and a preserved equation stays
    preserved. Stdlib only; the resolver reads tests/unit/fixtures then core/stdlib. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 
@@ -28,12 +28,12 @@ let contains ~sub s =
   go 0
 
 (* Ascend from the cwd to the repo root (the nearest ancestor with
-   core/stdlib/stdlib.pol), then resolve a name under core/stdlib/ then
+   core/stdlib/stdlib.writ), then resolve a name under core/stdlib/ then
    tests/unit/fixtures/ — dune runs the test from _build/default/tests/unit, not
    the repo root. *)
 let repo_root () =
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
     else if n = 0 then dir
     else up (Filename.dirname dir) (n - 1)
   in
@@ -76,10 +76,10 @@ let space path m =
       exit 1
 
 let () =
-  let old_m = model "compare_old.pol" in
-  let new_m = model "compare_new.pol" in
-  let old_sp = space "compare_old.pol" old_m in
-  let new_sp = space "compare_new.pol" new_m in
+  let old_m = model "compare_old.writ" in
+  let new_m = model "compare_new.writ" in
+  let old_sp = space "compare_old.writ" old_m in
+  let new_sp = space "compare_new.writ" new_m in
   let claims =
     match Loader.read_claims resolve old_m "compare_old.claims" with
     | Ok c -> c

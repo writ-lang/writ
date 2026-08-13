@@ -23,7 +23,7 @@
      5. A tool that does not exist IS a JSON-RPC error, because reading it helps
         nobody — the client had the list. *)
 
-open Pol_data
+open Writ_data
 
 let passed = ref 0
 
@@ -56,14 +56,14 @@ let model_src =
 let claims_src =
   "(property reachable \"hi is reachable\" (possible (is b.f hi)))\n"
 
-let files = [ ("tiny.pol", model_src); ("tiny.claims", claims_src) ]
+let files = [ ("tiny.writ", model_src); ("tiny.claims", claims_src) ]
 
 let resolve _base name : (string, Errors.t) result =
   match List.assoc_opt name files with
   | Some s -> Ok s
   | None -> Error { Errors.pos = None; msg = "no such file: " ^ name }
 
-let handle msg = Pol_mcp.Server.handle ~resolve ~version:"test" msg
+let handle msg = Writ_mcp.Server.handle ~resolve ~version:"test" msg
 
 (* --- message helpers ------------------------------------------------------ *)
 
@@ -108,7 +108,7 @@ let () =
   check "initialize: names itself and its version"
     (match Option.bind r (Json.member "serverInfo") with
     | Some si ->
-        Option.bind (Json.member "name" si) Json.to_string_opt = Some "pol"
+        Option.bind (Json.member "name" si) Json.to_string_opt = Some "writ"
         && Option.bind (Json.member "version" si) Json.to_string_opt
            = Some "test"
     | None -> false);
@@ -165,42 +165,42 @@ let () =
 
 let () =
   let r =
-    result (handle (call "pol_check" [ ("model", Json.String "tiny.pol") ]))
+    result (handle (call "writ_check" [ ("model", Json.String "tiny.writ") ]))
   in
-  check "pol_check: answers" (not (is_error r));
-  check "pol_check: reports the space" (contains ~sub:"states:" (content r))
+  check "writ_check: answers" (not (is_error r));
+  check "writ_check: reports the space" (contains ~sub:"states:" (content r))
 
 let () =
   let r =
     result
       (handle
-         (call "pol_check"
+         (call "writ_check"
             [
-              ("model", Json.String "tiny.pol");
+              ("model", Json.String "tiny.writ");
               ("claims", Json.String "tiny.claims");
             ]))
   in
-  check "pol_check: with claims, answers the property"
+  check "writ_check: with claims, answers the property"
     (contains ~sub:"holds  reachable" (content r))
 
 let () =
   let r =
-    result (handle (call "pol_check" [ ("model", Json.String "absent.pol") ]))
+    result (handle (call "writ_check" [ ("model", Json.String "absent.writ") ]))
   in
   (* The point of the whole design: the model must SEE this. *)
   check "a failing tool answers isError, not a JSON-RPC error" (is_error r);
   check "and carries the engine's own message"
-    (contains ~sub:"absent.pol" (content r))
+    (contains ~sub:"absent.writ" (content r))
 
 let () =
-  let r = result (handle (call "pol_check" [])) in
+  let r = result (handle (call "writ_check" [])) in
   check "a missing required argument is an isError, and says which"
     (is_error r && contains ~sub:"model" (content r))
 
 (* --- 5. an unknown tool is a PROTOCOL error ------------------------------- *)
 
 let () =
-  let j = handle (call "pol_nonesuch" []) in
+  let j = handle (call "writ_nonesuch" []) in
   check "an unknown tool is a JSON-RPC error, not content"
     (Option.bind j (Json.member "error") <> None);
   check "an unknown method is a JSON-RPC error"

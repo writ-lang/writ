@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* The §15/§16 report tokens, as pure strings (fold F7: no [Printf]/[Format]/
    [print_*] — the CLI does the printing). Spacing is literal and pinned by the
@@ -74,8 +74,8 @@ let build (sp : Space.t) : string =
 (* A situation's mutable cells in layout order, [SRC.ARROW=VALUE] with [∅]
    (U+2205) for a vacant cell. Named apart from [stuck_line] because it is what
    a situation IS, and two things want to print it: a failing property, and
-   `pol show` answering "what is situation 17" for a caller holding a row from
-   `pol derive`. One layout, so the two cannot drift. *)
+   `writ show` answering "what is situation 17" for a caller holding a row from
+   `writ derive`. One layout, so the two cannot drift. *)
 let cells_line (sp : Space.t) (s : State.t) : string =
   let cells = sp.Space.ctx.State.layout.cells in
   let cell i (cr : Instance.cellref) =
@@ -148,10 +148,10 @@ let query_rows (q : Claims.query) (idx : int)
 
 (* --- one situation, addressed by index ------------------------------------- *)
 
-(* What `pol derive` answers with is a state index, and an index is not an
+(* What `writ derive` answers with is a state index, and an index is not an
    answer a reader can act on. This renders one: its cells, the fewest moves to
    it, and where it can go. The numbering is the space's own, so it is the same
-   17 that `pol query --at` addresses and that a rules row printed.
+   17 that `writ query --at` addresses and that a rules row printed.
 
    The three lines are chosen to close the loop a derivation opens. A `blocked`
    row wants the cells (what the situation is), the route (how it got there) and

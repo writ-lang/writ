@@ -1,9 +1,9 @@
-# The pol runtime image: `pol`, the standard library, and git.
+# The writ runtime image: `writ`, the standard library, and git.
 #
 # WHAT IT IS FOR, since a Dockerfile in a compiler repository is a fair thing to
 # ask about. It is this repository's distributable — `make image` tags it
 # locally and .github/workflows/image.yml publishes it as
-# ghcr.io/sajonaro/pol on a version tag. github.com/sajonaro/pol-problems
+# ghcr.io/writ-lang/writ on a version tag. github.com/writ-lang/writ-problems
 # builds FROM it, which is how the worked scenarios run with nothing installed
 # on the host but Docker. It is a product, not a test rig.
 #
@@ -13,17 +13,17 @@
 # than a file that could move again.
 #
 # Two stages: stage 1 compiles with dune; stage 2 is a minimal Debian carrying
-# the result. The stdlib lands at ../share/pol/lib relative to the binary, which
-# is where the resolver looks, so `(load "stdlib.pol")` works from any
+# the result. The stdlib lands at ../share/writ/lib relative to the binary, which
+# is where the resolver looks, so `(load "stdlib.writ")` works from any
 # directory.
 #
-# It carries `pol` and `pol-mcp`, and NOT pol-lsp.
+# It carries `writ` and `writ-mcp`, and NOT writ-lsp.
 #
-# pol-mcp is here so the Claude plugin can run the server in a container and
+# writ-mcp is here so the Claude plugin can run the server in a container and
 # never put native code on the host — the platform problem that stopped the
-# plugin bundling a binary. It reads models from a mount; see plugins/pol/bin/.
+# plugin bundling a binary. It reads models from a mount; see plugins/writ/bin/.
 #
-# pol-lsp stays out because an editor extension spawns its server locally and
+# writ-lsp stays out because an editor extension spawns its server locally and
 # gains nothing from a container.
 #
 # Stage 1 lists every library each binary links, and that list is still the
@@ -43,13 +43,13 @@ USER root
 RUN mkdir -p /src && chown opam:opam /src
 USER opam
 WORKDIR /src
-# Only what `tooling/cli/pol.exe` needs — the three engine libraries under core/
+# Only what `tooling/cli/writ.exe` needs — the three engine libraries under core/
 # and runtime/, the shared load-path library, plus the CLI itself. Every library
 # the CLI links must be COPYed or the build stops here, by design: this list is
-# the check that `pol` really is a small closed set of libraries. No tooling/lsp,
+# the check that `writ` really is a small closed set of libraries. No tooling/lsp,
 # tests/
-# (keeps the build lean and free of ocamlformat/test deps). pol has NO external
-# libraries. The stdlib .pol data ships beside the binary.
+# (keeps the build lean and free of ocamlformat/test deps). writ has NO external
+# libraries. The stdlib .writ data ships beside the binary.
 COPY --chown=opam:opam dune-project ./
 COPY --chown=opam:opam core ./core
 COPY --chown=opam:opam runtime ./runtime
@@ -58,44 +58,44 @@ COPY --chown=opam:opam tooling/loadpath ./tooling/loadpath
 COPY --chown=opam:opam tooling/json ./tooling/json
 COPY --chown=opam:opam tooling/mcp ./tooling/mcp
 RUN opam install -y dune \
- && opam exec -- dune build tooling/cli/pol.exe tooling/mcp/bin/pol_mcp.exe \
- && mkdir -p /tmp/out/bin /tmp/out/share/pol/lib \
- && cp _build/default/tooling/cli/pol.exe /tmp/out/bin/pol \
- && cp _build/default/tooling/mcp/bin/pol_mcp.exe /tmp/out/bin/pol-mcp \
- && cp core/stdlib/* /tmp/out/share/pol/lib/
+ && opam exec -- dune build tooling/cli/writ.exe tooling/mcp/bin/writ_mcp.exe \
+ && mkdir -p /tmp/out/bin /tmp/out/share/writ/lib \
+ && cp _build/default/tooling/cli/writ.exe /tmp/out/bin/writ \
+ && cp _build/default/tooling/mcp/bin/writ_mcp.exe /tmp/out/bin/writ-mcp \
+ && cp core/stdlib/* /tmp/out/share/writ/lib/
 
 # ---- stage 2: runtime -------------------------------------------------------
 FROM debian:12-slim
 
-# git is a RUNTIME dependency of the tool, not of anyone's tests. `pol compare
+# git is a RUNTIME dependency of the tool, not of anyone's tests. `writ compare
 # --git R1 R2 MODEL` shells out to read two revisions of a model
 # (tooling/cli/cmd_compare.ml), so an image without git ships a verb that
-# cannot work. Nothing else pol does needs anything.
+# cannot work. Nothing else writ does needs anything.
 RUN apt-get update && apt-get install -y --no-install-recommends git \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /tmp/out/bin/ /usr/local/bin/
-COPY --from=build /tmp/out/share/pol/lib /usr/local/share/pol/lib
+COPY --from=build /tmp/out/share/writ/lib /usr/local/share/writ/lib
 
 # Prove the image is wired before anyone uses it: a model written HERE, so the
 # check depends on nothing that could be removed from somewhere else. It also
-# exercises the load path — `(load "stdlib.pol")` must resolve from a directory
+# exercises the load path — `(load "stdlib.writ")` must resolve from a directory
 # that is not the install prefix — and it does that TWICE, once for a model and
 # once for a .rules file, because the two libraries ship by the same copy and a
-# glob narrowed back to *.pol would drop the second silently.
+# glob narrowed back to *.writ would drop the second silently.
 RUN printf '%s\n' \
-      '(load "stdlib.pol")' \
+      '(load "stdlib.writ")' \
       '(schema s (type v (lo hi)) (type box (arrow f (to v))))' \
       '(instance i s (box b (f lo)))' \
       '(use s)' '(initial i)' \
       '(transition raise (when (is b.f lo)) (do (set b.f hi)))' \
-      > /tmp/smoke.pol \
- && cd /tmp && pol check /tmp/smoke.pol | grep -q 'states: 2' \
+      > /tmp/smoke.writ \
+ && cd /tmp && writ check /tmp/smoke.writ | grep -q 'states: 2' \
  && printf '%s\n' '(load "ct.rules")' > /tmp/smoke.rules \
- && pol derive /tmp/smoke.pol /tmp/smoke.rules reach | grep -q '(3 rows)' \
+ && writ derive /tmp/smoke.writ /tmp/smoke.rules reach | grep -q '(3 rows)' \
  && printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
-      | pol-mcp | grep -q '"protocolVersion"' \
- && rm -f /tmp/smoke.pol /tmp/smoke.rules
+      | writ-mcp | grep -q '"protocolVersion"' \
+ && rm -f /tmp/smoke.writ /tmp/smoke.rules
 
-ENTRYPOINT ["pol"]
+ENTRYPOINT ["writ"]
 CMD ["--help"]

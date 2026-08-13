@@ -19,8 +19,8 @@
    Both halves are pinned here, because the second only makes sense given the
    first. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let passed = ref 0
 
@@ -87,13 +87,13 @@ let () =
 let () =
   (* Ascend to the repo root — the nearest ancestor holding the library — the
      same walk test_data.ml does, and for the same reason: the test runs deep
-     inside _build, where dune has copied core/stdlib/*.pol alongside it. *)
+     inside _build, where dune has copied core/stdlib/*.writ alongside it. *)
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
-    else if n = 0 then failwith "cannot find core/stdlib/stdlib.pol"
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
+    else if n = 0 then failwith "cannot find core/stdlib/stdlib.writ"
     else up (Filename.dirname dir) (n - 1)
   in
-  let path = Filename.concat (up (Sys.getcwd ()) 8) "core/stdlib/stdlib.pol" in
+  let path = Filename.concat (up (Sys.getcwd ()) 8) "core/stdlib/stdlib.writ" in
   let src = In_channel.with_open_text path In_channel.input_all in
   let has_maybe =
     List.exists
@@ -126,7 +126,7 @@ let () =
    the file type that needs it.
 
    A template head the expander cannot resolve is a typo or a forward reference
-   in a .pol or .claims file, and it stays an error there. In a .rules file it is
+   in a .writ or .claims file, and it stays an error there. In a .rules file it is
    a RELATION, which does not exist until the program is parsed, so the check
    rejects correct programs and catches nothing — [Loader.read_rules] opts out
    of it, and nothing else may. The same template is used both ways below, so
@@ -135,7 +135,7 @@ let () =
   let src = "(form (satisfies R G) (relation R 1) (rule (R S) (holds S G)))" in
   (match Expander.expand (read_all src) with
   | Ok _ ->
-      check "a .pol file still refuses a head the expander cannot know" false
+      check "a .writ file still refuses a head the expander cannot know" false
   | Error e ->
       check "the refusal names the head"
         (contains_sub ~sub:"mentions `holds`" e.Errors.msg));

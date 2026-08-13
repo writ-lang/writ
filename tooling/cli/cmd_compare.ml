@@ -1,19 +1,19 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_compare] — the [pol compare] verb and its [--git] form. It is the
+(* [Cmd_compare] — the [writ compare] verb and its [--git] form. It is the
    largest of the verbs because it is the one with I/O of its own: two models
    instead of one, a [--map] file to parse, and a shell out to git. Keeping all
-   of that here leaves [Compare] a pure string builder and [Pol] a dispatch.
+   of that here leaves [Compare] a pure string builder and [Writ] a dispatch.
 
-   [pol compare OLD NEW [--map M]] (kernel §17): the guarantees to weigh come
+   [writ compare OLD NEW [--map M]] (kernel §17): the guarantees to weigh come
    from OLD's sibling [.claims] (the old contract), applied to BOTH models;
    [Compare.run] classifies each equation/property preserved / LOST / gained.
    A LOST is a finding -> exit 1. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 open Cli_io
 
 let empty_claims : Claims.t = { props = []; queries = []; accepts = [] }
@@ -66,7 +66,7 @@ let run (old_p : string) (new_p : string) (map_p : string option) =
    it back, and delete it — Stdlib only ([Sys.command] + [Filename.temp_file]),
    no [unix] dependency. *)
 let git_show (rev : string) (path : string) : string =
-  let tmp = Filename.temp_file "pol-git-" ".pol" in
+  let tmp = Filename.temp_file "writ-git-" ".writ" in
   let cmd =
     "git show "
     ^ Filename.quote (rev ^ ":" ^ path)

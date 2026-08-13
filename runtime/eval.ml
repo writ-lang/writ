@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Kleene evaluation over a state (kernel §3, §4). A path evaluates to a
    [Value.cell option]: [None] means undefined (a vacant cell or a step off a
@@ -121,7 +121,7 @@ let target_index (ctx : State.ctx) (st : State.t) (p : Value.path) : int option
    is still an EDGE, from a situation to itself, and [Space.dead_ends] marks a
    state as having an out-edge on [e.src] alone — so a self-loop would quietly
    stop a stuck situation being reported as stuck, and dead ends are one of the
-   answers `pol check` exists to give.
+   answers `writ check` exists to give.
 
    [`Blocked] outranks [`Gap]: a move whose effects cannot be carried out is
    not available at all, so it contributes no edge of any kind. *)

@@ -3,7 +3,7 @@
 
 (* Sort inference tests (TRS): [Rules_sorts.infer], extension §3.
 
-   These drive the checker directly. `pol derive` does not exist yet, so a unit
+   These drive the checker directly. `writ derive` does not exist yet, so a unit
    test is the ONLY way to prove any of this now — and the run's fitness gates
    will exercise the same fixtures through the CLI once it does.
 
@@ -12,8 +12,8 @@
    variable", and only the parser's positioned IR can say where the variable
    was. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let passed = ref 0
 
@@ -42,7 +42,7 @@ let model_of src =
   | Ok m -> m
   | Error e -> failwith ("model error: " ^ Errors.to_string e)
 
-(* The org chart of tests/unit/fixtures/rules_base.pol: [reports-to] is fixed
+(* The org chart of tests/unit/fixtures/rules_base.writ: [reports-to] is fixed
    wiring, [stands] is mutable. *)
 let org =
   model_of
@@ -55,7 +55,7 @@ let org =
      (transition speak (when (is nabu.stands quiet)) (do (set nabu.stands \
      vocal)))"
 
-(* Kernel §7 scopes arrow names to their dom, and river.pol really does give
+(* Kernel §7 scopes arrow names to their dom, and river.writ really does give
    [at] to two types — the case that makes an annotation unavoidable. *)
 let amb =
   model_of

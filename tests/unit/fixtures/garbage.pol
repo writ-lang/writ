@@ -1,6 +1,0 @@
-; garbage.pol — unbalanced parens, so the reader cannot parse it.
-; `pol check garbage.pol` exits 2 (unreadable input).
-
-(schema oops
-  (type flag (lo hi)
-  (type box (arrow f (to flag))))

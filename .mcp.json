@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "pol": {
-      "command": "_build/default/tooling/mcp/bin/pol_mcp.exe",
+    "writ": {
+      "command": "_build/default/tooling/mcp/bin/writ_mcp.exe",
       "args": [],
       "env": {}
     }

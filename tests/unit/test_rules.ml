@@ -8,7 +8,7 @@
    No I/O and no model: [lower] is a pure substitution, so it is checked by
    comparing the [Model.guard] it builds against the one written out by hand. *)
 
-open Pol_data
+open Writ_data
 
 let passed = ref 0
 

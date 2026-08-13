@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Datums -> the POSITIONED atoms of a rule: terms, paths and guards
    ([Rules.term], [Rules.gpath], [Rules.gexp]).
@@ -53,7 +53,7 @@ let gpath (d : Reader.t) : (Rules.gpath, Errors.t) result =
       | [] | [ _ ] ->
           (* [Value.path] permits no steps at all and the evaluator answers
              [Some (Filled root)], so this would quietly become an equality
-             primitive. Pol has none, and this run does not add one by
+             primitive. Writ has none, and this run does not add one by
              accident. *)
           Errors.err ~pos:p
             ("a rule body needs a path with at least one arrow; `" ^ s
@@ -100,14 +100,14 @@ let rec guard (d : Reader.t) : (Rules.gexp, Errors.t) result =
 
 (* A [some] binder names a KERNEL variable, scoped to its own guard body. An
    ALL-CAPS one would also read as a rule variable and shadow it, and kernel §7
-   is explicit that Pol has no shadowing — so it is rejected at the binder. *)
+   is explicit that Writ has no shadowing — so it is rejected at the binder. *)
 and binder (d : Reader.t) : (string * string * Errors.pos, Errors.t) result =
   match d with
   | Reader.List ([ Reader.Atom (x, xp); Reader.Atom (ty, _) ], _) ->
       if Rules.is_var x then
         Errors.err ~pos:xp
           ("`" ^ x
-         ^ "` reads as a rule variable, so it cannot also bind here; Pol has \
+         ^ "` reads as a rule variable, so it cannot also bind here; Writ has \
             no shadowing")
       else Ok (x, ty, xp)
   | _ -> Reader.err_at d "expected a binder shaped (VAR TYPE)"

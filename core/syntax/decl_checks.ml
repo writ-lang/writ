@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* §8's constraints that can only be stated once the schema is *whole*, split out
    of decl.ml at the seam that file's own comments already draw: decoding turns a

@@ -12,8 +12,8 @@
    is a file the run's gates also use, and a private copy would not rot with
    it. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let passed = ref 0
 
@@ -45,7 +45,7 @@ let schema_of src =
   | Ok s -> s
   | Error e -> failwith ("schema error: " ^ Errors.to_string e)
 
-(* The org chart of tests/unit/fixtures/rules_base.pol. *)
+(* The org chart of tests/unit/fixtures/rules_base.writ. *)
 let org =
   schema_of
     "(schema org (type stance (quiet vocal)) (type person (arrow reports-to \
@@ -73,7 +73,7 @@ let rejected name ~sub ?schema src =
 (* --- the fixtures, through the loader --------------------------------------- *)
 let repo_root () =
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
     else if n = 0 then dir
     else up (Filename.dirname dir) (n - 1)
   in
@@ -95,7 +95,7 @@ let resolve : Loader.resolve =
    will read it: loads inlined, forms expanded, then parsed. *)
 let () =
   let m =
-    match Loader.read_model resolve "rules_base.pol" with
+    match Loader.read_model resolve "rules_base.writ" with
     | Ok m -> m
     | Error e -> failwith ("read_model: " ^ Errors.to_string e)
   in
@@ -224,7 +224,7 @@ let () =
   (* a stepless path would be an accidental equality primitive *)
   rejected "guard: a stepless path" ~sub:"at least one arrow"
     "(rule (p X) (is X Y))";
-  (* an ALL-CAPS binder would shadow the kernel's own, which Pol forbids *)
+  (* an ALL-CAPS binder would shadow the kernel's own, which Writ forbids *)
   rejected "guard: an ALL-CAPS some binder" ~sub:"no shadowing"
     "(rule (p X) (holds S (some (A person) (is A.stands quiet))))"
 

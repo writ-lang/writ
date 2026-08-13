@@ -10,7 +10,7 @@
    A word in neither is simply [None] — an unrecognised token has nothing to say.
    NEVER raises. *)
 
-open Pol_syntax
+open Writ_syntax
 
 (* Kernel §9 reserved words, each with the shape a reference card would show. *)
 let reserved_desc =

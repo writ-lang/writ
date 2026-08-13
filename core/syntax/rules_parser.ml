@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* [.rules] datums -> relation declarations and rules (extension §1, §2).
    [(relation NAME ARITY)] or the typed [(relation NAME (T1 … Tn))];

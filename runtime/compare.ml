@@ -1,9 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
-(* [pol compare OLD NEW [--map M]] — classify every equation and property as
+(* [writ compare OLD NEW [--map M]] — classify every equation and property as
    preserved / LOST / gained across an amendment (kernel §17, design D5), and
    render the §17 block as a pure string plus an [any_lost] flag (a LOST makes
    the exit status 1). No I/O and no front end — the CLI builds the two spaces,

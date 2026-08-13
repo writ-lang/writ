@@ -83,8 +83,8 @@ let p name ty desc =
 
 let descriptors =
   [
-    ( "pol_check",
-      "Build a Pol model's situation space and report it: how many situations \
+    ( "writ_check",
+      "Build a Writ model's situation space and report it: how many situations \
        and edges, the declared gaps, the dead ends, and whether any law can be \
        broken. With a .claims file it also answers every property — `holds` \
        with a shortest witness route, `fails` with the shortest counterexample \
@@ -92,26 +92,26 @@ let descriptors =
        witness under a holding `possible` IS a solution.",
       obj
         [
-          p "model" "string" "Path to the .pol model.";
+          p "model" "string" "Path to the .writ model.";
           p "claims" "string"
             "Optional path to a .claims file of properties and queries to \
              answer.";
         ]
         [ "model" ] );
-    ( "pol_query",
+    ( "writ_query",
       "Run ONE named query from the model's sibling .claims file, optionally \
-       at a situation other than the initial one. Use when pol_check's full \
+       at a situation other than the initial one. Use when writ_check's full \
        report is more than you need.",
       obj
         [
-          p "model" "string" "Path to the .pol model.";
+          p "model" "string" "Path to the .writ model.";
           p "name" "string" "The query's name, as written in the .claims file.";
           p "at" "integer"
             "Optional index into the enumerated space; defaults to the initial \
              situation (0).";
         ]
         [ "model"; "name" ] );
-    ( "pol_derive",
+    ( "writ_derive",
       "Answer a relation from a .rules file over the model's space. Leave an \
        argument null to ask for every value it can take. With why=true you get \
        the DERIVATION TREE instead of the rows — why the engine believes a \
@@ -119,7 +119,7 @@ let descriptors =
        given.",
       obj
         [
-          p "model" "string" "Path to the .pol model.";
+          p "model" "string" "Path to the .writ model.";
           p "rules" "string" "Path to the .rules file.";
           p "relation" "string" "The relation to ask about.";
           ( "args",
@@ -161,14 +161,14 @@ let call ~resolve name (a : Json.t) =
   in
   let ( let* ) = Result.bind in
   match name with
-  | "pol_check" ->
+  | "writ_check" ->
       let* model = need "model" in
       Tools.check ~resolve ~model ~claims:(str a "claims")
-  | "pol_query" ->
+  | "writ_query" ->
       let* model = need "model" in
       let* n = need "name" in
       Tools.query ~resolve ~model ~name:n ~at:(int_ a "at")
-  | "pol_derive" ->
+  | "writ_derive" ->
       let* model = need "model" in
       let* rules = need "rules" in
       let* relation = need "relation" in
@@ -190,7 +190,7 @@ let handle ~resolve ~version (msg : Json.t) : Json.t option =
              ( "serverInfo",
                Json.Assoc
                  [
-                   ("name", Json.String "pol"); ("version", Json.String version);
+                   ("name", Json.String "writ"); ("version", Json.String version);
                  ] );
            ])
   (* Notifications carry no id and expect no reply; answering one is a protocol

@@ -1,10 +1,10 @@
 ; The [(load "FILE")] search order (design D3), shared by the two executables
-; that resolve loads — the `pol` command line and the LSP process.
+; that resolve loads — the `writ` command line and the LSP process.
 ;
 ; It has its own library precisely because it was duplicated once and drifted:
 ; the editor searched the document's directory then [lib/], while the command
 ; line searched design D3's four places. [core/stdlib] was in one list and not
-; the other, so `pol check` passed on a model whose buffer showed a red error.
+; the other, so `writ check` passed on a model whose buffer showed a red error.
 ; One copy, linked by both, is what makes that class of divergence impossible.
 ;
 ; Computing the candidate paths is ALL this library does — reading them is I/O
@@ -12,5 +12,5 @@
 ; touching a file descriptor is untouched.
 
 (library
- (name pol_loadpath)
- (libraries pol_data))
+ (name writ_loadpath)
+ (libraries writ_data))

@@ -1,6 +1,6 @@
 # Keep the build context small and reproducible. The build stage compiles
-# tooling/cli/pol.exe from core/ + runtime/ + tooling/cli/; the runtime stage
-# builds pol from source; the worked examples live in a repository of their own.
+# tooling/cli/writ.exe from core/ + runtime/ + tooling/cli/; the runtime stage
+# builds writ from source; the worked examples live in a repository of their own.
 _build
 dist
 .git

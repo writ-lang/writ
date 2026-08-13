@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Extension §4 — range restriction, by simulating the join.
 
@@ -34,7 +34,7 @@ open Pol_data
    because the reading it implements is not obvious: "must already be bound"
    applies to RULE variables, and a binder's variable is bound by construction.
    It never reaches here as a [Var] because it is lower case (an ALL-CAPS one is
-   rejected at the binder, since it would shadow, and Pol has no shadowing). So
+   rejected at the binder, since it would shadow, and Writ has no shadowing). So
    [(holds S (not (some (a account) (is a.role admin))))] is a closed test with
    no free rule variables at all — accepted, as the oracle needs. *)
 

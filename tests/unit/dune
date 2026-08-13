@@ -2,10 +2,10 @@
 ; assertions that raise on failure and print a pass summary. They link the three
 ; engine libraries — the data model, the front end, and the interrogator.
 
-; The .pol data the tests read is declared as a dependency, so dune copies it
+; The .writ data the tests read is declared as a dependency, so dune copies it
 ; into the build context the tests actually run in. Without this they only
 ; worked by climbing OUT of _build to the source tree — which broke the moment
-; `dune build @install` put core/stdlib/*.pol inside _build, because the climb
+; `dune build @install` put core/stdlib/*.writ inside _build, because the climb
 ; then stopped at _build/default, where tests/models and the fixtures were not.
 
 (tests
@@ -34,23 +34,23 @@
   test_facts
   test_sql)
  (deps
-  (glob_files fixtures/*.{pol,claims,rules})
-  (glob_files %{workspace_root}/tests/models/*.{pol,claims})
-  (glob_files %{workspace_root}/core/stdlib/*.{pol,rules}))
- (libraries pol_data pol_syntax pol_runtime pol_loadpath pol_sql))
+  (glob_files fixtures/*.{writ,claims,rules})
+  (glob_files %{workspace_root}/tests/models/*.{writ,claims})
+  (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
+ (libraries writ_data writ_syntax writ_runtime writ_loadpath writ_sql))
 
 ; The language-server tests drive [Server.handle] (pure: JSON in, JSON out), so
-; they link the [pol_lsp] library alongside the engine. No I/O — the resolver
+; they link the [writ_lsp] library alongside the engine. No I/O — the resolver
 ; serves fixture text from an in-memory map.
 
 (test
  (name test_lsp)
- (libraries pol_data pol_syntax pol_runtime pol_lsp))
+ (libraries writ_data writ_syntax writ_runtime writ_lsp))
 
 ; The MCP server tests, likewise: [Server.handle] is pure (JSON in, JSON out),
-; so they link [pol_mcp] and drive the whole protocol with no process and no
+; so they link [writ_mcp] and drive the whole protocol with no process and no
 ; pipe. The resolver serves fixture text from an in-memory map.
 
 (test
  (name test_mcp)
- (libraries pol_data pol_syntax pol_runtime pol_mcp pol_json))
+ (libraries writ_data writ_syntax writ_runtime writ_mcp writ_json))

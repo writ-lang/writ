@@ -1,8 +1,8 @@
-; compare_old.claims — the OLD contract's guarantee, the property `pol compare`
+; compare_old.claims — the OLD contract's guarantee, the property `writ compare`
 ; judges against BOTH models. `live` means every reachable situation can still
 ; reach an F-situation: here, that the machine can always still reach `safe`.
-; It HOLDS on compare_old.pol (the `restore` move rescues a broken machine) and
-; FAILS on compare_new.pol (restore deleted -> broken is a trap), so compare
+; It HOLDS on compare_old.writ (the `restore` move rescues a broken machine) and
+; FAILS on compare_new.writ (restore deleted -> broken is a trap), so compare
 ; reports `still-safe` LOST.
 
 (property still-safe "the machine can always still reach safe"

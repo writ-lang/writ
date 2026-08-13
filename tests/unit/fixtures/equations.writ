@@ -1,0 +1,40 @@
+; equations.writ — kernel-spec §2's oversight schema and the `same-agency`
+; equation (investigator ; independence = prosecutor ; independence).
+;
+; `capture-watchdog` writes an `independence` arrow that appears in the
+; equation's paths, so it CAN break the law; with no (accept …) for it, that is
+; an `undeclared` finding. `conclude` writes only `stage`, which the equation
+; never mentions, so it can never break the law — an (accept conclude
+; same-agency) in equations.claims is therefore `stale`.
+
+(load "stdlib.writ")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
+
+(schema oversight
+  (type indep-status (independent captured))
+  (type stage-t (open concluded))
+  (type bureau
+    (arrow independence (to indep-status)))
+  (type case
+    (arrow stage        (to stage-t))
+    (arrow investigator (to bureau) fixed)
+    (arrow prosecutor   (to bureau) fixed))
+  (equation same-agency
+    (= case.investigator.independence case.prosecutor.independence)))
+
+(instance day-one oversight
+  (bureau watchdog (independence independent))
+  (bureau prosecutions (independence independent))
+  (case docket (investigator watchdog)
+               (prosecutor prosecutions)
+               (stage open)))
+
+(use oversight)
+(initial day-one)
+
+(transition capture-watchdog
+  (when (is watchdog.independence independent))
+  (do (set watchdog.independence captured)))
+
+(transition conclude
+  (when (is docket.stage open))
+  (do (set docket.stage concluded)))

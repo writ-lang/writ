@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Query bindings: the rows of a roster tuple satisfying the guard at the
    initial state or an addressed state. No proofs are attached here — those

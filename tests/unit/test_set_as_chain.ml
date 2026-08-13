@@ -18,9 +18,9 @@
    a stuck situation being reported as stuck. Not a vacated target either, which
    would write [vacant] through [set] and §8.3 forbids that outright. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 
@@ -43,8 +43,8 @@ let contains_sub ~sub s =
 let resolve _ = Error { Errors.pos = None; msg = "no loads in these fixtures" }
 
 let model_of src =
-  Loader.read_model resolve "t.pol" |> ignore;
-  Reader.read_string ~file:"t.pol" src |> Result.map_error Errors.to_string
+  Loader.read_model resolve "t.writ" |> ignore;
+  Reader.read_string ~file:"t.writ" src |> Result.map_error Errors.to_string
   |> fun r ->
   Result.bind r (fun ds ->
       Expander.expand ds |> Result.map_error Errors.to_string)

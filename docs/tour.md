@@ -1,4 +1,4 @@
-# A tour of Pol
+# A tour of Writ
 
 Ten steps. Each one is a complete model you can run, each adds a few words,
 and the output shown is the output you get. At the end: [the whole language
@@ -7,7 +7,7 @@ on one page](#cheat-sheet).
 This is the on-ramp. [`kernel-spec.md`](kernel-spec.md) is the reference —
 precise, normative, and not meant to be read front to back first.
 
-You need `pol` on your `PATH` (`make install-pol`). Put each file in an empty
+You need `writ` on your `PATH` (`make install-writ`). Put each file in an empty
 directory and run the command under it.
 
 Every block carries **line numbers, restarting at 1 in each block**, so a line
@@ -19,7 +19,7 @@ leading number and two spaces before running.
 ## 1. A thing exists
 
 ```lisp
- 1  ;; library.pol
+ 1  ;; library.writ
  2  (schema library
  3    (type book))
  4
@@ -31,7 +31,7 @@ leading number and two spaces before running.
 ```
 
 ```console
- 1  $ pol check library.pol
+ 1  $ writ check library.writ
  2  states: 1   edges: 0
  3  gaps: none
  4  dead ends: 1
@@ -52,7 +52,7 @@ cost no vocabulary. An instance is a list of them, and there is only ever this
 one shape.
 
 One situation, because nothing can vary; no moves, so it is a dead end.
-**`pol` reports the size of a model before you ask it anything.**
+**`writ` reports the size of a model before you ask it anything.**
 
 ## 2. A thing with a state
 
@@ -70,7 +70,7 @@ One situation, because nothing can vary; no moves, so it is a dead end.
 ```
 
 ```console
- 1  $ pol check library.pol
+ 1  $ writ check library.writ
  2  states: 1   edges: 0
  3  gaps: none
  4  dead ends: 1
@@ -114,7 +114,7 @@ one *state*. A state is one the model can reach, and nothing yet moves.
  4    (do  (set hamlet.status lent)))```
 
 ```console
- 1  $ pol check library.pol
+ 1  $ writ check library.writ
  2  states: 2   edges: 1
  3  gaps: none
  4  dead ends: 1
@@ -147,7 +147,7 @@ why step 6 needs forms.
  3    (do  (set hamlet.status available)))```
 
 ```console
- 1  $ pol check library.pol
+ 1  $ writ check library.writ
  2  states: 2   edges: 2
  3  gaps: none
  4  dead ends: none
@@ -168,7 +168,7 @@ models.
 ```
 
 ```console
- 1  $ pol check library.pol --claims library.claims
+ 1  $ writ check library.writ --claims library.claims
  2  states: 2   edges: 2
  3  gaps: none
  4  dead ends: none
@@ -242,7 +242,7 @@ and nobody is not a person.
 ```
 
 ```console
- 1  $ pol check library.pol --claims library.claims
+ 1  $ writ check library.writ --claims library.claims
  2  states: 3   edges: 4
  3  gaps: none
  4  dead ends: none
@@ -264,7 +264,7 @@ above is where they first appear — guards work in a `when` exactly as they wor
 inside a modality (step 4). `(when (not (defined hamlet.holder)))` is a legal
 transition guard, and means what it says here.
 
-`hamlet` has two slots now, and one of them holds nothing — `pol` prints an
+`hamlet` has two slots now, and one of them holds nothing — `writ` prints an
 empty slot as `∅`:
 
 ```
@@ -299,7 +299,7 @@ closed — name the shape once:
 ```
 
 ```console
- 1  $ pol check library.pol --claims library.claims
+ 1  $ writ check library.writ --claims library.claims
  2  states: 3   edges: 4
  3  gaps: none
  4  dead ends: none
@@ -328,7 +328,7 @@ from its own branch. That is two routes through the schema that must agree —
 which is what an `equation` is.
 
 ```lisp
- 1  (load "stdlib.pol")
+ 1  (load "stdlib.writ")
  2
  3  (schema library
  4    (type shelf-state (available lent))
@@ -352,7 +352,7 @@ which is what an `equation` is.
 ```
 
 ```console
- 1  $ pol check library.pol
+ 1  $ writ check library.writ
  2  states: 3   edges: 4
  3  gaps: none
  4  dead ends: none
@@ -369,7 +369,7 @@ which is what an `equation` is.
 - `fixed` — marks an arrow as **wiring**: set once by the instance, never
   varying. `member-of` and `home` are facts about the world, not state.
 - `load` — pulls in another file. Needed here because `=` is *not* a kernel
-  word: it is a form from `stdlib.pol`.
+  word: it is a form from `stdlib.writ`.
 
 An equation holds **a guard** — any guard — so `=` is a choice, not a fixture.
 It is the *vacuous* comparison: true whenever either side has no answer. Write
@@ -405,7 +405,7 @@ Two honest answers. Acknowledge the breakage:
  2  (accept lend-ben borrow-local)```
 
 ```console
- 1  $ pol check library.pol --claims library.claims
+ 1  $ writ check library.writ --claims library.claims
  2  states: 3   edges: 4
  3  gaps: none
  4  dead ends: none
@@ -432,7 +432,7 @@ Or fix the rule, by tightening the guard:
  5         (do  (set hamlet.status lent) (set hamlet.holder WHO))))```
 
 ```console
- 1  $ pol check library.pol
+ 1  $ writ check library.writ
  2  states: 2   edges: 2
  3  gaps: none
  4  dead ends: none
@@ -457,7 +457,7 @@ Some questions the rules simply do not answer. Say so:
  3    (do  (gap "the rules do not say what happens to a lost book")))```
 
 ```console
- 1  $ pol check library.pol
+ 1  $ writ check library.writ
  2  states: 2   edges: 3
  3  gaps: 1
  4    lose — "the rules do not say what happens to a lost book" (min 1 moves)
@@ -504,7 +504,7 @@ One more move — withdrawing a book from circulation, with no way back:
 ```
 
 ```console
- 1  $ pol check library.pol --claims library.claims
+ 1  $ writ check library.writ --claims library.claims
  2  states: 3   edges: 4
  3  gaps: 1
  4    lose — "the rules do not say what happens to a lost book" (min 1 moves)
@@ -529,7 +529,7 @@ One more move — withdrawing a book from circulation, with no way back:
 
 `lendable` still holds — a loan is possible. `always-lendable` **fails**, and
 the gap between those two answers is the whole reason for the tool: one lawful
-move puts the book somewhere no future move can lend it from again. `pol` names
+move puts the book somewhere no future move can lend it from again. `writ` names
 the move (`withdraw`), the state it strands you in, and prints the empty slot
 as `∅`.
 
@@ -541,8 +541,8 @@ the cheat sheet.
 Assembled, this is what you have been building:
 
 ```lisp
- 1  ;; library.pol
- 2  (load "stdlib.pol")
+ 1  ;; library.writ
+ 2  (load "stdlib.writ")
  3
  4  (schema library
  5    (type shelf-state (available lent withdrawn))
@@ -665,7 +665,7 @@ words below are claims vocabulary; every `GUARD` in them is the language's own
  6  (accept   TRANSITION EQUATION…)                 ; "we know this move can break that law"
 ```
 
-## What `stdlib.pol` gives you
+## What `stdlib.writ` gives you
 
 | Form                | What it is                                                                            |
 | ------------------- | ------------------------------------------------------------------------------------- |
@@ -681,12 +681,12 @@ words below are claims vocabulary; every `GUARD` in them is the language's own
 ## Commands, and what they exit with
 
 ```
- 1  pol check   MODEL [--claims F]     size, gaps, dead ends, laws, properties
- 2  pol query   MODEL NAME [--at N]    one query's bindings, at a state
- 3  pol compare OLD NEW [--map M]      preserved / LOST / gained
- 4  pol derive  MODEL RULES.rules R    the same universe, asked relationally
- 5  pol control MODEL                  the move list, as data
- 6  pol schema  MODEL                  the schema, as data
+ 1  writ check   MODEL [--claims F]     size, gaps, dead ends, laws, properties
+ 2  writ query   MODEL NAME [--at N]    one query's bindings, at a state
+ 3  writ compare OLD NEW [--map M]      preserved / LOST / gained
+ 4  writ derive  MODEL RULES.rules R    the same universe, asked relationally
+ 5  writ control MODEL                  the move list, as data
+ 6  writ schema  MODEL                  the schema, as data
 ```
 
 **0** clean · **1** a finding — a failed property, a violated or unadmitted or
@@ -700,13 +700,13 @@ stale law, a lost guarantee · **2** unreadable input.
   report as `n/a` rather than failing. To ask "is it held at all", use
   `(defined hamlet.holder)`.
 - **Forms are per file.** A `.claims` file using `=` or `all` needs its own
-  `(load "stdlib.pol")`; there is no implicit prelude.
+  `(load "stdlib.writ")`; there is no implicit prelude.
 - **`is` is strict, `=` is vacuous.** `(is X v)` is false when the chain has no
   answer. `(= A B)` is *true* when either side has none. Both are deliberate;
   pick by whether an empty slot should break the rule.
 - **Name your transitions**, especially inside forms, or witnesses and law
   reports have nothing to print.
-- **`pol query` reads the model's sibling `.claims`** — `MODEL.pol` →
+- **`writ query` reads the model's sibling `.claims`** — `MODEL.writ` →
   `MODEL.claims`. There is no `--claims` flag on it.
 - **A gap is not a dead end.** One is declared silence, the other is silence
   nobody declared. They are reported separately on purpose.
@@ -723,5 +723,5 @@ stale law, a lost guarantee · **2** unreadable input.
 Next: [the language design](kernel-spec.md#2-language-design) — why partial,
 why not Turing-complete, why s-expressions — then
 [the spec](kernel-spec.md) as reference, and
-[pol-problems](https://github.com/sajonaro/pol-problems) for worked models
+[writ-problems](https://github.com/writ-lang/writ-problems) for worked models
 larger than a book on a shelf.

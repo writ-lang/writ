@@ -1,0 +1,22 @@
+{
+  "name": "writ",
+  "version": "0.1.0",
+  "description": "Answer questions about rule-governed worlds by exhaustive search: deadlock, reachability, scheduling feasibility and optimality \u2014 with a witness route, not a guess. Bundles the writ skill and wires up the writ-mcp server.",
+  "author": {
+    "name": "Alex Kunich"
+  },
+  "repository": "https://github.com/writ-lang/writ",
+  "homepage": "https://github.com/writ-lang/writ",
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "writ",
+    "olog",
+    "modelling",
+    "formal methods",
+    "state machine",
+    "verification"
+  ],
+  "skills": [
+    "./skills/writ/"
+  ]
+}

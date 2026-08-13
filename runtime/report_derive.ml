@@ -1,9 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
-(* Extension §9's output for `pol derive`: the answer rows of a relation, and
+(* Extension §9's output for `writ derive`: the answer rows of a relation, and
    the derivation tree behind one fact. Pure strings, as [Report] is — the CLI
    does every print (fold F7).
 

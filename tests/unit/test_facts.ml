@@ -8,9 +8,9 @@
    the derived state category as relations, [Derive] is the fixpoint over them.
    The two failed for different reasons and are worth reading apart. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 
@@ -22,7 +22,7 @@ let check name cond =
 
 let fixture name =
   let rec up dir n =
-    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.pol") then dir
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
     else if n = 0 then dir
     else up (Filename.dirname dir) (n - 1)
   in
@@ -71,7 +71,7 @@ let rows d rel args =
   | None -> failwith ("no relation `" ^ rel ^ "`")
 
 let all d rel = rows d rel (List.init (arity d rel) (fun _ -> None))
-let base = model_file "rules_base.pol"
+let base = model_file "rules_base.writ"
 let base_sp = space base
 
 (* ── The five built-ins, against what Space.t says ───────────────────────── *)
@@ -127,9 +127,9 @@ let () =
     (all reach "gap-edge" = [] && space_gaps base_sp = [])
 
 (* A gap edge exists only where a model declares one, so [gap-edge] is
-   cross-checked against the fixture that does: gap.pol's `hi` can only exit. *)
+   cross-checked against the fixture that does: gap.writ's `hi` can only exit. *)
 let () =
-  let gm = model_file "gap.pol" in
+  let gm = model_file "gap.writ" in
   let gsp = space gm in
   let d =
     Derive.run gsp
@@ -233,7 +233,7 @@ let phase_agrees label m sp =
     (all d "phase-step" = want);
   d
 
-(* rules_base.pol is a DAG — two latches, each thrown once — so no situation
+(* rules_base.writ is a DAG — two latches, each thrown once — so no situation
    reaches itself the long way and every one is a phase of its own. Counted by
    hand from the fixture: 0 → {1, 2} → 3. *)
 let () =
@@ -244,11 +244,11 @@ let () =
     (all d "phase-step"
     = [ [ "0"; "1" ]; [ "0"; "2" ]; [ "1"; "3" ]; [ "2"; "3" ] ])
 
-(* cycle.pol is the opposite: one flag up and down, so the two situations are
+(* cycle.writ is the opposite: one flag up and down, so the two situations are
    one phase and nothing crosses out of it. A partition that quietly answered
    "everything is its own class" passes the fixture above and fails this one. *)
 let () =
-  let cm = model_file "cycle.pol" in
+  let cm = model_file "cycle.writ" in
   let csp = space cm in
   let d = phase_agrees "cycle (one loop)" cm csp in
   check "a loop: both situations are one phase, named by the initial one"

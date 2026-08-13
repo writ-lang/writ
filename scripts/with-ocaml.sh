@@ -9,7 +9,7 @@
 #   1. dune already on PATH          — a normal opam setup, nothing to do
 #   2. $SWITCH                       — set it to force a particular switch
 #   3. ./_opam                       — a switch local to this checkout
-#   4. the global `pol` switch       — the central switch this project uses;
+#   4. the global `writ` switch       — the central switch this project uses;
 #                                      also what the VS Code OCaml extension finds
 #   5. ../tryocaml, and the absolute path to it
 #                                    — the sibling switch this repo was first
@@ -20,8 +20,8 @@
 set -euo pipefail
 
 if ! command -v dune >/dev/null 2>&1; then
-  for switch in "${SWITCH:-}" ./_opam pol ../tryocaml /root/docs/projects/tryocaml; do
-    # A path switch must exist as a dir; a named switch (e.g. `pol`) has no path,
+  for switch in "${SWITCH:-}" ./_opam writ ../tryocaml /root/docs/projects/tryocaml; do
+    # A path switch must exist as a dir; a named switch (e.g. `writ`) has no path,
     # so let opam env be the arbiter — it fails silently for an unknown switch.
     [ -n "$switch" ] || continue
     case "$switch" in */*|.*) [ -d "$switch" ] || continue ;; esac

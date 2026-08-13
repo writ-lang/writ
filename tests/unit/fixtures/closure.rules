@@ -1,4 +1,4 @@
-; Extension §1's own example, over rules_base.pol: the transitive closure the
+; Extension §1's own example, over rules_base.writ: the transitive closure the
 ; language's paths deliberately exclude. Kept verbatim from the specification.
 
 (relation subordinate 2)          ; name and arity

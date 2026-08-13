@@ -1,4 +1,4 @@
-# Contributing to pol
+# Contributing to writ
 
 Bug reports, questions and patches are all welcome. Start with an issue if the
 change is larger than a fix — it is cheaper to agree on the shape before the

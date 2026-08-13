@@ -1,15 +1,15 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Design D3 — the search order for [(load "FILE")], first readable wins:
 
    (1) the directory of the INCLUDING file: a model's own libraries sit beside
        it, and this is the only candidate that depends on who is loading;
-   (2) [$POL_LIB]: the operator's override, ahead of every built-in location;
-   (3) the executable's own directory, then its [../share/pol/lib]: the
-       installed layout, so a machine that only ran `opam install pol` still
+   (2) [$WRIT_LIB]: the operator's override, ahead of every built-in location;
+   (3) the executable's own directory, then its [../share/writ/lib]: the
+       installed layout, so a machine that only ran `opam install writ` still
        resolves the standard library;
    (4) [core/stdlib]: the dev checkout, run from the repository root.
 
@@ -20,14 +20,14 @@ open Pol_data
 let candidates ~(base : string) (name : string) : string list =
   let exe_dir = Filename.dirname Sys.executable_name in
   let env_dir =
-    match Sys.getenv_opt "POL_LIB" with
+    match Sys.getenv_opt "WRIT_LIB" with
     | Some d -> [ Filename.concat d name ]
     | None -> []
   in
   (Filename.concat (Filename.dirname base) name :: env_dir)
   @ [
       Filename.concat exe_dir name;
-      Filename.concat (Filename.concat exe_dir "../share/pol/lib") name;
+      Filename.concat (Filename.concat exe_dir "../share/writ/lib") name;
       Filename.concat "core/stdlib" name;
     ]
 

@@ -1,9 +1,9 @@
 ; The interrogator: eval, state space, checker, query, observe, report, compare,
-; control. It computes over the core data model, so it depends on pol_data ONLY
-; — deliberately NOT pol_syntax. dune's dependency graph therefore makes it
+; control. It computes over the core data model, so it depends on writ_data ONLY
+; — deliberately NOT writ_syntax. dune's dependency graph therefore makes it
 ; impossible for the engine to reference the front end (Reader/Parser/Loader):
 ; the layering is enforced by the build, not by a grep.
 
 (library
- (name pol_runtime)
- (libraries pol_data))
+ (name writ_runtime)
+ (libraries writ_data))

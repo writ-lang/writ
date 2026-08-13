@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # The version dune-project holds is the one `pol --version` prints and
+      # The version dune-project holds is the one `writ --version` prints and
       # `make release` names its tarball with. Read it rather than repeating
       # it: a hand-kept copy of a version number is one that goes wrong.
       - id: v
@@ -58,4 +58,4 @@ jobs:
       - run: |
           docker run --rm ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} --version
           docker run --rm --entrypoint sh ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} \
-            -c 'command -v git >/dev/null || { echo "no git: pol compare --git would not run" >&2; exit 1; }'
+            -c 'command -v git >/dev/null || { echo "no git: writ compare --git would not run" >&2; exit 1; }'

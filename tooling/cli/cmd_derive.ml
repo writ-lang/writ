@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_derive] — the [pol derive] verb (extension §4): run a .rules file
+(* [Cmd_derive] — the [writ derive] verb (extension §4): run a .rules file
    against a model's already-enumerated universe and print what it derives.
    Three forms, one code path: a bare RELATION is the fully unbound query, a
    [(RELATION ARG…)] datum binds the arguments that are not ALL-CAPS, and
@@ -10,12 +10,12 @@
    Exit status is narrower here than for the other verbs (§9, kernel §18):
    0 for any well-formed query INCLUDING an empty answer set — an empty
    relation is an answer — and 2 for input this cannot read, which covers a
-   relation the rules file never declared. It never exits 1: nothing `pol
+   relation the rules file never declared. It never exits 1: nothing `writ
    derive` can be asked is bad news. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 open Cli_io
 
 (* The query argument is read by the LANGUAGE's own reader, so [(reach 0 X)]

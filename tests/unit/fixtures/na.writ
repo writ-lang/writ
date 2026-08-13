@@ -1,0 +1,17 @@
+; na.writ — a minimal well-formed model. Its sibling na.claims asks a property
+; whose path names an arrow the schema lacks; kernel §8 makes that property n/a
+; (never a pass, never a fail), so `writ check na.writ --claims na.claims` reports
+; `n/a  phantom-arrow` and exits 0.
+
+(schema tiny
+  (type flag (lo hi))
+  (type box (arrow f (to flag))))
+
+(instance i tiny
+  (box b (f lo)))
+
+(use tiny)
+(initial i)
+
+(transition raise (when (is b.f lo)) (do (set b.f hi)))
+(transition lower (when (is b.f hi)) (do (set b.f lo)))

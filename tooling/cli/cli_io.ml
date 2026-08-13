@@ -13,15 +13,15 @@
    2 = unreadable input (a missing file, a parse error, or a bad command line).
    Everything raised in here is a 2. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
-open Pol_loadpath
+open Writ_data
+open Writ_syntax
+open Writ_runtime
+open Writ_loadpath
 
 let say s = print_string (s ^ "\n")
 
 let die code msg =
-  prerr_endline ("pol: " ^ msg);
+  prerr_endline ("writ: " ^ msg);
   exit code
 
 let read_file (path : string) : (string, string) result =
@@ -37,16 +37,16 @@ let read_file (path : string) : (string, string) result =
    shared with the LSP process so the editor and the command line can never
    disagree about where a library lives; the reading is here, because I/O is.
 
-   [POL_TRACE_LOADS] prints, per load, which candidate won and which were
+   [WRIT_TRACE_LOADS] prints, per load, which candidate won and which were
    skipped. It exists because D3's FIRST candidate is the including file's own
    directory — deliberately, so a model's libraries sit beside it — and the
-   consequence is that a `stdlib.pol` lying next to a model SILENTLY replaces
+   consequence is that a `stdlib.writ` lying next to a model SILENTLY replaces
    the installed one. That is the intended rule, and it is also invisible:
    there is no error, the wrong library simply loads, and the symptom is one
    library form resolving while another does not. An env var rather than a flag
-   because it must work identically for every verb, and because [POL_LIB] has
+   because it must work identically for every verb, and because [WRIT_LIB] has
    already established that the search order is tuned from the environment. *)
-let trace_loads = Sys.getenv_opt "POL_TRACE_LOADS" <> None
+let trace_loads = Sys.getenv_opt "WRIT_TRACE_LOADS" <> None
 
 let make_resolve (base : string) : Loader.resolve =
  fun name ->
@@ -56,9 +56,9 @@ let make_resolve (base : string) : Loader.resolve =
         match read_file p with
         | Ok s ->
             if trace_loads then (
-              prerr_endline ("pol: resolved \"" ^ name ^ "\" -> " ^ p);
+              prerr_endline ("writ: resolved \"" ^ name ^ "\" -> " ^ p);
               List.iter
-                (fun q -> prerr_endline ("pol:   (skipped " ^ q ^ ")"))
+                (fun q -> prerr_endline ("writ:   (skipped " ^ q ^ ")"))
                 (List.rev skipped));
             Ok s
         | Error _ -> try_ (p :: skipped) rest)
@@ -106,7 +106,7 @@ let read_rules (resolve : Loader.resolve) (m : Model.t) (path : string) :
       | Ok p -> p)
 
 (* The questions live beside the model, in the sibling [.claims] file
-   ([MODEL.pol] -> [MODEL.claims]) — the convention [pol query] and
-   [pol compare] both read the contract by. *)
+   ([MODEL.writ] -> [MODEL.claims]) — the convention [writ query] and
+   [writ compare] both read the contract by. *)
 let claims_beside (model : string) : string =
   Filename.remove_extension model ^ ".claims"

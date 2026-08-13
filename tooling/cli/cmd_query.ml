@@ -1,13 +1,13 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_query] — the [pol query] verb: name one of the questions in the model's
+(* [Cmd_query] — the [writ query] verb: name one of the questions in the model's
    sibling [.claims] file and run just that one, optionally at a state other
    than the initial one. Its own module for the same reason as its siblings —
-   the dispatch in [Pol] should read as a list of verbs, not contain them. *)
+   the dispatch in [Writ] should read as a list of verbs, not contain them. *)
 
-open Pol_data
-open Pol_runtime
+open Writ_data
+open Writ_runtime
 open Cli_io
 
 (* [--at] indexes the enumerated space, so a value outside it is a bad command

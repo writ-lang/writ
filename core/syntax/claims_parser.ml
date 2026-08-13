@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* [.claims] datums -> [Claims.t] (core). [(property NAME "text" (MODALITY
    FORMULA))] with MODALITY ∈ never/possible/live; [(query NAME (where (x
@@ -27,7 +27,7 @@ let rec map_r f = function
 
 (* The modality words, as data rather than as a match, because a second copy of
    this list exists for the editor and drifted the first time a word was added
-   to one of them. [Pol_lsp] reads it from here, so there is one list. An
+   to one of them. [Writ_lsp] reads it from here, so there is one list. An
    [Inevitable] here carries no fairness clause: the clause is parsed after the
    word is recognised, below. *)
 let modalities =

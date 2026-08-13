@@ -1,7 +1,7 @@
 ; The data model layer: errors, values, schema/instance, state, model, claims.
-; A LEAF library — no dependencies at all, not even sibling pol_* libraries, so
-; the OCaml stdlib is all it may use. Every other pol library is built on top of
+; A LEAF library — no dependencies at all, not even sibling writ_* libraries, so
+; the OCaml stdlib is all it may use. Every other writ library is built on top of
 ; this one; nothing here may reach up to the front end or the interrogator.
 
 (library
- (name pol_data))
+ (name writ_data))

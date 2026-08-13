@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Form declarations: [(form PATTERN TEMPLATE…)] collected into a [form_def]
    with hygiene checks (kernel §0.2, §6). Blank names are the ALL-CAPS words
@@ -128,7 +128,7 @@ let rec parse_items acc = function
    that the rule is unanswerable there rather than unwanted.
 
    A template's heads are checked against what the expander knows: reserved
-   words, the form's own blanks, and forms already declared. In a .pol or
+   words, the form's own blanks, and forms already declared. In a .writ or
    .claims file that is the whole vocabulary, so an unknown head IS a typo or a
    forward reference. In a .rules file it is not: a rule body's heads are
    RELATIONS, which do not exist until the program is parsed — the extension's

@@ -7,11 +7,11 @@
 ; named `span` for exactly that reason (extension §10), and this file is what
 ; notices if it is ever renamed back.
 ;
-; The declarations that stdlib.pol brings in — the `quiver` and `olog` schemas
+; The declarations that stdlib.writ brings in — the `quiver` and `olog` schemas
 ; — are skipped here rather than rejected: a loaded library carries
 ; declarations, and a .rules file asks questions.
 
-(load "stdlib.pol")
+(load "stdlib.writ")
 
 (relation subordinate (person person))
 

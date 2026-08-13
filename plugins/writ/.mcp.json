@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "writ": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/writ-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}

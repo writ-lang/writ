@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* §7, *Names*: "Global names — types, entities, forms, equations. One namespace
    across the loaded universe; declaring an existing name is an error. There is

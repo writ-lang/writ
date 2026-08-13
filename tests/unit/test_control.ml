@@ -1,15 +1,15 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [pol control] unit tests (TD). Stdlib only: [Control.quiver] on small in-code
+(* [writ control] unit tests (TD). Stdlib only: [Control.quiver] on small in-code
    [Model.t] values, asserting the §17 quiver shape (one edge per transition,
    self-loops on one node), the §7 fresh-name discipline, and that the emitted
    library re-parses — through §7 as well as the reader, for the round-trip a
    model read from source has to survive. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let passed = ref 0
 
@@ -91,8 +91,8 @@ let () =
   let out = Control.quiver "ctrlfix" m in
   check "control: names its schema positionally"
     (contains ~sub:"-control quiver" out);
-  check "control: self-contained via (load \"stdlib.pol\")"
-    (contains ~sub:"(load \"stdlib.pol\")" out);
+  check "control: self-contained via (load \"stdlib.writ\")"
+    (contains ~sub:"(load \"stdlib.writ\")" out);
   check "control: instance is NAME-control"
     (contains ~sub:"(instance ctrlfix-control " out);
   (* One clause per edge, carrying its own endpoints: two named transitions
@@ -143,9 +143,9 @@ let () =
    transitions of one name gave one `edge` entity per transition and therefore a
    roster naming `dup` twice, which §7 refuses —
 
-     pol: q.pol:5:13: entity `dup` is already declared
+     writ: q.writ:5:13: entity `dup` is already declared
 
-   so [pol control]'s own output stopped re-parsing. The fix is upstream, in
+   so [writ control]'s own output stopped re-parsing. The fix is upstream, in
    §10.1's freshness rule, so this pins both ends of the chain: the model can no
    longer be read, and what control emits from a model that CAN be read survives
    §7 and not merely the reader. *)

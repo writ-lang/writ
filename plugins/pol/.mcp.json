@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "pol": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/pol-mcp",
-      "args": [],
-      "env": {}
-    }
-  }
-}

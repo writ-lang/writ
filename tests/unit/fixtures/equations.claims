@@ -2,7 +2,7 @@
 ; `stale` finding. `conclude` writes only `stage`, never an arrow the equation
 ; mentions, so declaring it as breaking `same-agency` is stale. Meanwhile
 ; `capture-watchdog` (which CAN break it) is left unaccepted, so it is reported
-; as `undeclared`. `pol check equations.pol --claims equations.claims` prints
+; as `undeclared`. `writ check equations.writ --claims equations.claims` prints
 ; both tokens.
 
 (accept conclude same-agency)

@@ -1,18 +1,18 @@
-# pol — Partial Olog: an abstract language for modelling real-world domains,
+# writ — Partial Olog: an abstract language for modelling real-world domains,
 #       with an interrogator over the finite state space a model generates.
 #
 #   make build     # compile the engine
 #   make test      # run the test suite
 #   make lint      # format check + warnings-as-errors typecheck
-#   make run FILE=tests/models/any_model.pol
-#   make image     # the runtime image, tagged pol:latest
+#   make run FILE=tests/models/any_model.writ
+#   make image     # the runtime image, tagged writ:latest
 #
 # The worked scenarios and the editor client are their own repositories now —
-# github.com/sajonaro/pol-problems and .../pol-vscode — so there is no target
-# here that runs them; each needs an installed pol, or the image above.
+# github.com/writ-lang/writ-problems and .../writ-vscode — so there is no target
+# here that runs them; each needs an installed writ, or the image above.
 #
-# Three ways to get a `pol` you can run anywhere:
-#   make install-pol   # this checkout -> ~/.local (plain cp; no opam needed)
+# Three ways to get a `writ` you can run anywhere:
+#   make install-writ   # this checkout -> ~/.local (plain cp; no opam needed)
 #   make opam-install  # the opam package: `opam install .` (needs a switch)
 #   make release       # a portable tarball: binary + stdlib + install.sh
 #
@@ -22,13 +22,13 @@
 DUNE = scripts/with-ocaml.sh dune
 
 .PHONY: build dev test lint fmt run image \
-        install-pol uninstall-pol opam-install opam-uninstall release \
+        install-writ uninstall-writ opam-install opam-uninstall release \
         clean
 build:
 	$(DUNE) build
 
 # The edit loop, in one command. `build` deliberately does NOT touch $(PREFIX)
-# — a build should not install — and that is exactly how the `pol` on PATH
+# — a build should not install — and that is exactly how the `writ` on PATH
 # comes to be a different program from the one just tested: you rebuild, the
 # suites pass, and then you type at yesterday's binary and read its answer as
 # today's. That failure is silent, which is what makes it expensive; this
@@ -36,10 +36,10 @@ build:
 #
 # A symlinked dev install would need no remembering at all. It does not work
 # here, and the reason is worth recording so nobody re-tries it: dune's
-# _build/install/default/bin/pol is ITSELF a symlink into
-# _build/default/tooling/cli/pol.exe, OCaml's Sys.executable_name resolves
+# _build/install/default/bin/writ is ITSELF a symlink into
+# _build/default/tooling/cli/writ.exe, OCaml's Sys.executable_name resolves
 # through it, and the `(load …)` search order looks for the stdlib relative to
-# the binary (design D3, candidate 3) — so `../share/pol/lib` lands inside
+# the binary (design D3, candidate 3) — so `../share/writ/lib` lands inside
 # _build, in a directory dune owns and will clobber. Checked, not assumed.
 #
 # Separate $(MAKE) lines rather than prerequisites: prerequisite order is not
@@ -48,7 +48,7 @@ build:
 dev:
 	$(MAKE) build
 	$(MAKE) test
-	$(MAKE) install-pol
+	$(MAKE) install-writ
 
 test:
 	$(DUNE) runtest --force
@@ -63,60 +63,60 @@ fmt:
 	$(DUNE) build @fmt --auto-promote
 
 run:
-	$(DUNE) exec tooling/cli/pol.exe -- $(FILE)
+	$(DUNE) exec tooling/cli/writ.exe -- $(FILE)
 
-# Install the standalone binary and the .pol libraries under ~/.local, matching
-# the resolver's installed layout (bin/../share/pol/lib). No sudo, no npm, no
+# Install the standalone binary and the .writ libraries under ~/.local, matching
+# the resolver's installed layout (bin/../share/writ/lib). No sudo, no npm, no
 # opam — a plain POSIX cp/mkdir. PREFIX overrides the default ~/.local.
 PREFIX ?= $(HOME)/.local
-install-pol: build
+install-writ: build
 # The library directory is REPLACED, not merged into: a file dropped from the
 # standard library must disappear on upgrade, or an old copy lingers on the
 # search path and keeps resolving after it has been removed from the project.
-	rm -rf "$(PREFIX)/share/pol/lib"
-	mkdir -p "$(PREFIX)/bin" "$(PREFIX)/share/pol/lib"
-# All THREE binaries, not just the CLI. The editor client looks for `pol-lsp`
+	rm -rf "$(PREFIX)/share/writ/lib"
+	mkdir -p "$(PREFIX)/bin" "$(PREFIX)/share/writ/lib"
+# All THREE binaries, not just the CLI. The editor client looks for `writ-lsp`
 # on PATH when it is not inside a checkout, and an MCP client is pointed at
-# `pol-mcp` by name — so installing only `pol` leaves both of them with nothing
+# `writ-mcp` by name — so installing only `writ` leaves both of them with nothing
 # to talk to, which is a confusing way to fail.
-	for exe in pol pol-lsp pol-mcp; do \
+	for exe in writ writ-lsp writ-mcp; do \
 	  rm -f "$(PREFIX)/bin/$$exe"; \
 	  cp -fL "_build/install/default/bin/$$exe" "$(PREFIX)/bin/$$exe"; \
 	  chmod u+w "$(PREFIX)/bin/$$exe"; \
 	done
-	cp -f core/stdlib/* "$(PREFIX)/share/pol/lib/"
+	cp -f core/stdlib/* "$(PREFIX)/share/writ/lib/"
 	@case ":$$PATH:" in *":$(PREFIX)/bin:"*) ;; \
-	  *) printf 'note: add %s to your PATH to run `pol`\n' "$(PREFIX)/bin" ;; esac
+	  *) printf 'note: add %s to your PATH to run `writ`\n' "$(PREFIX)/bin" ;; esac
 
-uninstall-pol:
-	rm -f "$(PREFIX)/bin/pol" "$(PREFIX)/bin/pol-lsp" "$(PREFIX)/bin/pol-mcp"
-	rm -rf "$(PREFIX)/share/pol"
+uninstall-writ:
+	rm -f "$(PREFIX)/bin/writ" "$(PREFIX)/bin/writ-lsp" "$(PREFIX)/bin/writ-mcp"
+	rm -rf "$(PREFIX)/share/writ"
 
 # ── Packaging ────────────────────────────────────────────────────────────────
-# `pol` is an opam package (see the (package) stanza in dune-project, from which
-# pol.opam is generated). This installs it into the CURRENT opam switch, which
-# puts `pol` and `pol-lsp` on the switch's PATH and the .pol stdlib in the
-# switch's share/pol/lib — the same layout the resolver expects.
+# `writ` is an opam package (see the (package) stanza in dune-project, from which
+# writ.opam is generated). This installs it into the CURRENT opam switch, which
+# puts `writ` and `writ-lsp` on the switch's PATH and the .writ stdlib in the
+# switch's share/writ/lib — the same layout the resolver expects.
 #
 # Note opam builds from the sources it copies out of the checkout's git HEAD, so
 # COMMIT your changes first (or pass --working-dir) or you will install a stale
-# tree. `opam pin add pol .` then tracks this directory.
+# tree. `opam pin add writ .` then tracks this directory.
 opam-install:
 	scripts/with-ocaml.sh opam install . --yes
 
 opam-uninstall:
-	scripts/with-ocaml.sh opam remove pol --yes
+	scripts/with-ocaml.sh opam remove writ --yes
 
 # A portable release: one tarball holding the binary, the language server, the
-# .pol stdlib and an install.sh — enough to install `pol` on a machine with no
+# .writ stdlib and an install.sh — enough to install `writ` on a machine with no
 # OCaml, no opam and no network.
 #
-#   make release                 # -> dist/pol-<version>-<os>-<arch>.tar.gz
+#   make release                 # -> dist/writ-<version>-<os>-<arch>.tar.gz
 #   make release VERSION=1.2.3   # override the label for a one-off build
 #   make release STATIC=0        # dynamically linked (see below)
 #
 # VERSION comes from dune-project — the same number opam publishes and
-# `pol --version` prints, so a tarball can always be traced to a release. It is
+# `writ --version` prints, so a tarball can always be traced to a release. It is
 # read with sed rather than duplicated here, for the usual reason: two copies of
 # a version number are one copy and one lie.
 #
@@ -131,18 +131,18 @@ STATIC   ?= 1
 RELPROF   = $(if $(filter 0,$(STATIC)),release,static)
 RELOS     = $(shell uname -s | tr 'A-Z' 'a-z')
 RELARCH   = $(shell uname -m)
-RELNAME   = pol-$(VERSION)-$(RELOS)-$(RELARCH)
+RELNAME   = writ-$(VERSION)-$(RELOS)-$(RELARCH)
 DIST      = dist
 
 release:
 	$(DUNE) build --profile $(RELPROF) @install
 	rm -rf "$(DIST)/$(RELNAME)"
-	mkdir -p "$(DIST)/$(RELNAME)/bin" "$(DIST)/$(RELNAME)/share/pol/lib"
-	cp -L _build/install/default/bin/pol "$(DIST)/$(RELNAME)/bin/pol"
-	cp -L _build/install/default/bin/pol-lsp "$(DIST)/$(RELNAME)/bin/pol-lsp"
-	cp -L _build/install/default/bin/pol-mcp "$(DIST)/$(RELNAME)/bin/pol-mcp"
+	mkdir -p "$(DIST)/$(RELNAME)/bin" "$(DIST)/$(RELNAME)/share/writ/lib"
+	cp -L _build/install/default/bin/writ "$(DIST)/$(RELNAME)/bin/writ"
+	cp -L _build/install/default/bin/writ-lsp "$(DIST)/$(RELNAME)/bin/writ-lsp"
+	cp -L _build/install/default/bin/writ-mcp "$(DIST)/$(RELNAME)/bin/writ-mcp"
 	chmod 755 "$(DIST)/$(RELNAME)/bin/"*
-	cp core/stdlib/* "$(DIST)/$(RELNAME)/share/pol/lib/"
+	cp core/stdlib/* "$(DIST)/$(RELNAME)/share/writ/lib/"
 	cp scripts/release-install.sh "$(DIST)/$(RELNAME)/install.sh"
 	chmod 755 "$(DIST)/$(RELNAME)/install.sh"
 	cp README.md LICENSE CHANGELOG.md "$(DIST)/$(RELNAME)/"
@@ -158,31 +158,31 @@ release:
 	@echo "  verify with:  sha256sum -c $(RELNAME).tar.gz.sha256"
 	@echo "  install it anywhere with:  tar xzf $(RELNAME).tar.gz && $(RELNAME)/install.sh"
 	@echo "  the binary needs:"
-	@if ldd _build/install/default/bin/pol 2>&1 | grep -q 'not a dynamic'; \
+	@if ldd _build/install/default/bin/writ 2>&1 | grep -q 'not a dynamic'; \
 	 then echo "    nothing — statically linked; any $(RELARCH) $(RELOS) will run it"; \
-	 else ldd _build/install/default/bin/pol | sed 's/^/    /'; \
+	 else ldd _build/install/default/bin/writ | sed 's/^/    /'; \
 	      echo "    (dynamic: the target needs a glibc at least as new as this host's)"; \
 	 fi
 
 # The worked scenarios and the VS Code client used to live here, behind
 # `make examples` and `make extension`. Both are repositories of their own now:
 #
-#   github.com/sajonaro/pol-problems   the models, their questions, the runner
-#   github.com/sajonaro/pol-vscode     the editor client
+#   github.com/writ-lang/writ-problems   the models, their questions, the runner
+#   github.com/writ-lang/writ-vscode     the editor client
 #
-# Each needs an installed pol rather than this checkout — `make install-pol`, or
-# `opam install .`, puts pol, pol-lsp and pol-mcp on PATH — so neither can be a
+# Each needs an installed writ rather than this checkout — `make install-writ`, or
+# `opam install .`, puts writ, writ-lsp and writ-mcp on PATH — so neither can be a
 # target here without this repository reaching into another one.
 
-# The runtime image: `pol` and the stdlib on a slim Debian. pol-problems builds
+# The runtime image: `writ` and the stdlib on a slim Debian. writ-problems builds
 # FROM it, which is how those scenarios run with nothing installed on the host
 # but Docker. Tagged twice — the version for reproducibility, `latest` because
 # that is what a downstream Dockerfile defaults to.
 image:
-	docker build -t pol:$(VERSION) -t pol:latest .
+	docker build -t writ:$(VERSION) -t writ:latest .
 	@echo
-	@echo "built pol:$(VERSION) (also tagged pol:latest)"
-	@echo "  try it:  docker run --rm pol:latest --version"
+	@echo "built writ:$(VERSION) (also tagged writ:latest)"
+	@echo "  try it:  docker run --rm writ:latest --version"
 
 clean:
 	$(DUNE) clean

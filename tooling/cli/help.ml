@@ -4,8 +4,8 @@
 (* The help text.
 
    It is DATA — one record per verb — rather than one string constant, because
-   there are now two renderings of the same knowledge: `pol --help`, the whole
-   reference, and `pol VERB --help`, one verb of it. Two hand-kept copies would
+   there are now two renderings of the same knowledge: `writ --help`, the whole
+   reference, and `writ VERB --help`, one verb of it. Two hand-kept copies would
    be two copies, and the one that drifts is always the one nobody reads to the
    end. So a verb is described once, and both renderings are assembled from the
    same list.
@@ -14,14 +14,14 @@
    answering --help while six do not is a CLI that has to be learnt twice; the
    cost of doing it uniformly, once the text is structured, is a fold.
 
-   This module is IO-free (no print here; pol.ml prints it), so it crosses no
-   layer or io-only gate. [Pol.usage] is DERIVED from the list below, so the
+   This module is IO-free (no print here; writ.ml prints it), so it crosses no
+   layer or io-only gate. [Writ.usage] is DERIVED from the list below, so the
    one thing left to keep in step is the argument dispatch itself — a verb
    added here and not there answers --help and nothing else. *)
 
 type verb = {
   name : string;
-  summary : string;  (** one line, the header of `pol VERB --help` *)
+  summary : string;  (** one line, the header of `writ VERB --help` *)
   usage : string list;
   body : string;  (** unindented; both renderings indent it themselves *)
   options : string list;
@@ -33,7 +33,7 @@ let verbs =
     {
       name = "check";
       summary = "build the model and report its size, gaps, dead ends and laws";
-      usage = [ "pol check    MODEL.pol [--claims FILE.claims]" ];
+      usage = [ "writ check    MODEL.writ [--claims FILE.claims]" ];
       body =
         {|Build the model and print the report — the reachable state count and
 edges; the gaps (points where the rules are declared silent); the
@@ -51,20 +51,20 @@ plus query answers and law acknowledgments (unadmitted / stale).|};
         ];
       examples =
         [
-          "pol check   tests/models/any_model.pol --claims \
+          "writ check   tests/models/any_model.writ --claims \
            tests/models/any_model.claims";
         ];
     };
     {
       name = "query";
       summary = "run one named query and print the satisfying bindings";
-      usage = [ "pol query    MODEL.pol NAME [--at STATE]" ];
+      usage = [ "writ query    MODEL.writ NAME [--at STATE]" ];
       body =
         {|Run one named query from the model's sibling .claims file and print
 the satisfying variable bindings. --at STATE addresses a situation by
 its state index (default: the initial situation, index 0).|};
       options = [ "--at STATE       address a situation by its state index" ];
-      examples = [ "pol query   tests/models/any_model.pol captured --at 7" ];
+      examples = [ "writ query   tests/models/any_model.writ captured --at 7" ];
     };
     {
       name = "compare";
@@ -73,8 +73,8 @@ its state index (default: the initial situation, index 0).|};
          two models";
       usage =
         [
-          "pol compare  OLD.pol NEW.pol [--map MAP.pol]";
-          "pol compare  --git REV1 REV2 MODEL.pol [--map MAP.pol]";
+          "writ compare  OLD.writ NEW.writ [--map MAP.writ]";
+          "writ compare  --git REV1 REV2 MODEL.writ [--map MAP.writ]";
         ];
       body =
         {|Build two models and report each equation and property as
@@ -84,46 +84,46 @@ the two schemas differ. The --git form compares two revisions of one
 file (`git show REV:MODEL`).|};
       options =
         [
-          "--map MAP.pol    `(map X => Y)` renames when two schemas differ";
+          "--map MAP.writ    `(map X => Y)` renames when two schemas differ";
           "--git R1 R2 M    compare git revisions R1 and R2 of model M";
         ];
       examples =
         [
-          "pol compare old.pol new.pol";
-          "pol compare --git HEAD~1 HEAD model.pol";
+          "writ compare old.writ new.writ";
+          "writ compare --git HEAD~1 HEAD model.writ";
         ];
     };
     {
       name = "control";
       summary =
         "emit the move list as an instance of the stdlib's `quiver` schema";
-      usage = [ "pol control  MODEL.pol" ];
+      usage = [ "writ control  MODEL.writ" ];
       body =
         {|Emit the model's move list as an instance of the standard library's
 `quiver` schema — the dynamics as re-usable, checkable data.|};
       options = [];
-      examples = [ "pol control model.pol" ];
+      examples = [ "writ control model.writ" ];
     };
     {
       name = "schema";
       summary =
         "emit the model's schema as an instance of the stdlib's `olog` schema";
-      usage = [ "pol schema   MODEL.pol" ];
+      usage = [ "writ schema   MODEL.writ" ];
       body =
         {|Emit the model's SCHEMA as an instance of the standard library's
 `olog` schema — the map as data, the sibling of `control` one level
 up. Types become `ob`, arrows `hom` with `dom`/`cod`, laws `eqn`
 entities by name; a law's body is not encoded (kernel §17).|};
       options = [];
-      examples = [ "pol schema  model.pol" ];
+      examples = [ "writ schema  model.writ" ];
     };
     {
       name = "sql";
       summary = "read a relational schema as an olog, or write one back";
       usage =
         [
-          "pol sql      SCHEMA.sql [--with-data] [--strict]   # DDL  -> a model";
-          "pol sql      MODEL.pol  [--strict]                 # model -> DDL";
+          "writ sql      SCHEMA.sql [--with-data] [--strict]   # DDL  -> a model";
+          "writ sql      MODEL.writ  [--strict]                 # model -> DDL";
         ];
       body =
         {|Read a relational schema as an olog, or write one back. ONE verb,
@@ -131,23 +131,23 @@ both directions: the direction is the EXTENSION, because there is one
 mapping and reading it backwards is not a second feature. Output goes
 to stdout, so the ordinary use is a redirect:
 
-  pol sql schema.sql > shop.pol     # read a database
-  pol check shop.pol                # ask it something
-  pol sql shop.pol   > back.sql     # and write it out again
+  writ sql schema.sql > shop.writ     # read a database
+  writ check shop.writ                # ask it something
+  writ sql shop.writ   > back.sql     # and write it out again
 
 WHAT CROSSES. A table is a type, a foreign key an arrow, NULL
 `vacatable`, an enum (or a CHECK … IN) an enumerated type keeping its
 members. A primary key emits nothing — an entity IS its identity. A
-single-row CHECK becomes an `equation`, which is the point: `pol
+single-row CHECK becomes an `equation`, which is the point: `writ
 check` then reports not merely that a constraint is violated but
 WHICH move can break it, with a route.
 
-The line is that pol carries a column's value iff the column has
+The line is that writ carries a column's value iff the column has
 finitely many values worth naming. `boolean` and enums do. `varchar`,
 `int` and `timestamptz` cross as arrows into a ONE-member domain:
 present, exportable, and free, since a total arrow into a one-member
 type has exactly one filling. Nullability costs a factor of two —
-the one distinction pol can decide about a varchar, whether it is
+the one distinction writ can decide about a varchar, whether it is
 there.
 
 The SQL vocabulary arrives as forms over the 26 words, generated for
@@ -172,7 +172,7 @@ would have carried silently.
 Round-tripping is defined on the MODEL, not the text — the export
 normalises spellings on purpose — and the two facts SQL cannot state,
 whether a key is ever UPDATEd and whether a plain column is wiring,
-travel as `-- pol:` pragmas the import reads back.|};
+travel as `-- writ:` pragmas the import reads back.|};
       options =
         [
           "--with-data      read INSERT rows as the initial instance (import)";
@@ -180,11 +180,11 @@ travel as `-- pol:` pragmas the import reads back.|};
         ];
       examples =
         [
-          "pol sql schema.sql > model.pol      # read a database as a model";
-          "pol sql schema.sql --with-data      # …with its INSERTs as the \
+          "writ sql schema.sql > model.writ      # read a database as a model";
+          "writ sql schema.sql --with-data      # …with its INSERTs as the \
            instance";
-          "pol sql model.pol  > schema.sql     # write the model out as DDL";
-          "pol sql schema.sql --strict         # exit 1 if anything was \
+          "writ sql model.writ  > schema.sql     # write the model out as DDL";
+          "writ sql schema.sql --strict         # exit 1 if anything was \
            declined";
         ];
     };
@@ -193,8 +193,8 @@ travel as `-- pol:` pragmas the import reads back.|};
       summary = "answer a .rules relation over the model's enumerated universe";
       usage =
         [
-          "pol derive   MODEL.pol RULES.rules RELATION | \"(RELATION ARG…)\"";
-          "pol derive   MODEL.pol RULES.rules --why \"(RELATION ARG…)\"";
+          "writ derive   MODEL.writ RULES.rules RELATION | \"(RELATION ARG…)\"";
+          "writ derive   MODEL.writ RULES.rules --why \"(RELATION ARG…)\"";
         ];
       body =
         {|Answer a .rules file's relations over the model's enumerated
@@ -221,15 +221,15 @@ rooted in an arrow name that two types share.|};
         ];
       examples =
         [
-          "pol derive  model.pol org.rules subordinate";
-          "pol derive  model.pol org.rules \"(subordinate nabu X)\"";
-          "pol derive  model.pol org.rules --why \"(subordinate nabu cabinet)\"";
+          "writ derive  model.writ org.rules subordinate";
+          "writ derive  model.writ org.rules \"(subordinate nabu X)\"";
+          "writ derive  model.writ org.rules --why \"(subordinate nabu cabinet)\"";
         ];
     };
     {
       name = "show";
       summary = "print what one situation is, addressed by its state index";
-      usage = [ "pol show     MODEL.pol [--at STATE]…" ];
+      usage = [ "writ show     MODEL.writ [--at STATE]…" ];
       body =
         {|Print a situation: every mutable cell as SRC.ARROW=VALUE (with the
 empty set sign for a vacant one), the fewest moves that reach it from
@@ -238,10 +238,10 @@ leads to — gap edges marked as such, since a situation whose only
 exit is a gap is not a dead end. With no --at it shows the initial
 situation, index 0.
 
-This is the verb that reads back what the others answer WITH. `pol
+This is the verb that reads back what the others answer WITH. `writ
 derive` prints a relation's rows as state indices, and one numbering
 is shared by the whole tool — the same index --at addresses here, that
-`pol query --at` evaluates a query at, and that a witness route walks
+`writ query --at` evaluates a query at, and that a witness route walks
 to. So a derivation that answers "these situations are blocked" is
 followed by asking what one of them holds, and the moves-out line says
 whether it is stuck in fact or only in name.
@@ -252,8 +252,8 @@ already has.|};
         [ "--at STATE       a situation's index; repeatable (default: 0)" ];
       examples =
         [
-          "pol show    model.pol --at 17";
-          "pol show    model.pol --at 17 --at 19";
+          "writ show    model.writ --at 17";
+          "writ show    model.writ --at 17 --at 19";
         ];
     };
   ]
@@ -277,7 +277,7 @@ let exit_status =
       guarantee lost in a comparison; or, with --strict, a declined construct
   2   unreadable input — a missing file, a parse error, or a bad command line|}
 
-(* One verb, for `pol VERB --help`: everything about it and nothing about the
+(* One verb, for `writ VERB --help`: everything about it and nothing about the
    others. The body sits at indent 2 here and at 11 in the full reference —
    which is the whole reason it is stored unindented. *)
 let for_verb (name : string) : string option =
@@ -290,12 +290,12 @@ let for_verb (name : string) : string option =
       in
       Some
         (String.concat "\n\n"
-           ([ "pol " ^ v.name ^ " — " ^ v.summary ]
+           ([ "writ " ^ v.name ^ " — " ^ v.summary ]
            @ [ "USAGE\n" ^ bullets 2 v.usage ]
            @ [ indent 2 v.body ]
            @ section "OPTIONS" v.options
            @ section "EXAMPLES" v.examples
-           @ [ exit_status; "`pol --help` is the full reference." ])
+           @ [ exit_status; "`writ --help` is the full reference." ])
         ^ "\n")
 
 let command_entry (v : verb) =
@@ -309,21 +309,21 @@ let command_entry (v : verb) =
              rest)
 
 let text =
-  {|pol — Partial Olog: an abstract language for modelling real-world domains.
+  {|writ — Partial Olog: an abstract language for modelling real-world domains.
 
-A Pol model is a state machine written down: a SCHEMA (the kinds of things that
+A Writ model is a state machine written down: a SCHEMA (the kinds of things that
 exist and the typed arrows between them, plus the laws certain arrow-chains must
 obey), an INSTANCE (one starting configuration), and TRANSITIONS (guarded moves).
-`pol` enumerates every reachable situation — a finite space — and answers
+`writ` enumerates every reachable situation — a finite space — and answers
 questions about it by exhaustion, with a concrete route as evidence.
 
 USAGE
 |}
   ^ bullets 2 (List.concat_map (fun v -> v.usage) verbs)
   ^ {|
-  pol help VERB | pol VERB --help
-  pol --help | -h
-  pol --version | -V | -v
+  writ help VERB | writ VERB --help
+  writ --help | -h
+  writ --version | -V | -v
 
 COMMANDS
 |}
@@ -342,28 +342,28 @@ COMMANDS
   ^ {|
 
 FILES
-  A .pol file is a MODEL (exactly one `use` and one `initial`, plus transitions)
+  A .writ file is a MODEL (exactly one `use` and one `initial`, plus transitions)
   or a LIBRARY (declarations only). `(load "FILE")` pulls a library in; there is
   no implicit prelude. A model's questions live beside it in MODEL.claims. A
   .rules file is the third file type: relation declarations and rules, read by
   the same reader and form expander, named on the `derive` command line. A .sql
-  file is not a pol file at all — `pol sql` reads it and prints one.
+  file is not a writ file at all — `writ sql` reads it and prints one.
 
-  `(load "FILE")` resolves in order: the including file's directory; $POL_LIB;
-  the stdlib bundled beside the binary (../share/pol/lib); then ./core/stdlib. So
-  the shipped `stdlib.pol` resolves from any directory. A DOMAIN library — a
+  `(load "FILE")` resolves in order: the including file's directory; $WRIT_LIB;
+  the stdlib bundled beside the binary (../share/writ/lib); then ./core/stdlib. So
+  the shipped `stdlib.writ` resolves from any directory. A DOMAIN library — a
   vocabulary for one subject — is not standard and is not shipped: keep it beside
   the models that load it, where the first rule of the search order finds it.
 
-  That first rule cuts both ways: a `stdlib.pol` lying beside a model REPLACES
-  the installed one, silently and by design. Set POL_TRACE_LOADS=1 to print
+  That first rule cuts both ways: a `stdlib.writ` lying beside a model REPLACES
+  the installed one, silently and by design. Set WRIT_TRACE_LOADS=1 to print
   which file each load resolved to, and which candidates were skipped — the
   question to ask whenever an edit to a library appears to have no effect.
 
-INSTALLING  (all three land bin/pol + share/pol/lib, which is what the resolver
+INSTALLING  (all three land bin/writ + share/writ/lib, which is what the resolver
              above expects — see the README)
-  make install-pol    from a checkout, into ~/.local — plain cp, no opam
-  opam install .      the opam package: pol + pol-lsp + the stdlib into a switch
+  make install-writ    from a checkout, into ~/.local — plain cp, no opam
+  opam install .      the opam package: writ + writ-lsp + the stdlib into a switch
   make release        a tarball with a static binary + stdlib + install.sh, for
                       a machine with no OCaml, no opam and no network
 
@@ -374,12 +374,12 @@ EXAMPLES
 
 The language is specified in docs/kernel-spec.md. Worked examples that solve real
 problems (the river crossing, knights & knaves, institutional scenarios) are
-in github.com/sajonaro/pol-problems — clone it and run ./run-tests.sh.
+in github.com/writ-lang/writ-problems — clone it and run ./run-tests.sh.
 
 Copyright (C) 2026 Alex Kunich.  License AGPL-3.0-or-later: GNU Affero GPL
 version 3 or later <https://gnu.org/licenses/agpl.html>.  This is free software:
 you are free to change and redistribute it, and a version you offer to users over
 a network must offer them its source.  There is NO WARRANTY, to the extent
 permitted by law.  The full text ships with the program, at
-<prefix>/doc/pol/LICENSE.
+<prefix>/doc/writ/LICENSE.
 |}

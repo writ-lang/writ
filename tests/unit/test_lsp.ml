@@ -10,7 +10,7 @@
    Three behaviours are pinned, one per finished fix:
      1. a VALID .claims buffer publishes NO diagnostic, and its outline shows the
         property / query / accept symbols with range ⊇ selectionRange;
-     2. a LIBRARY .pol buffer (no [use]) publishes NO "needs (use)" diagnostic;
+     2. a LIBRARY .writ buffer (no [use]) publishes NO "needs (use)" diagnostic;
      3. a .claims buffer with a genuine (query path) error publishes exactly ONE
         diagnostic carrying a line:col range.
    Plus two about WHERE a squiggle may be drawn: on the [(load …)] that failed to
@@ -18,8 +18,8 @@
    particular, because a coordinate into another file cannot honestly be drawn on
    this one. *)
 
-open Pol_data
-open Pol_lsp
+open Writ_data
+open Writ_lsp
 
 let passed = ref 0
 
@@ -77,10 +77,10 @@ let flawed_library_src =
 
 let files =
   [
-    ("mini.pol", model_src);
-    ("bad.pol", model_src);
-    ("kit.pol", library_src);
-    ("flaw.pol", flawed_library_src);
+    ("mini.writ", model_src);
+    ("bad.writ", model_src);
+    ("kit.writ", library_src);
+    ("flaw.writ", flawed_library_src);
   ]
 
 let resolve _uri name : (string, Errors.t) result =
@@ -186,8 +186,8 @@ let () =
 (* 2. a library buffer (no use): no "needs (use)" diagnostic *)
 let () =
   let st = Server.create ~resolve in
-  let out = Server.handle st (did_open "file:///w/kit.pol" library_src) in
-  check "library .pol: no diagnostic demanding (use)" (diagnostics_of out = [])
+  let out = Server.handle st (did_open "file:///w/kit.writ" library_src) in
+  check "library .writ: no diagnostic demanding (use)" (diagnostics_of out = [])
 
 (* 3. a claims buffer with a genuine error: exactly one diagnostic, positioned *)
 let () =
@@ -214,9 +214,9 @@ let () =
      - a list datum's position is its '(', and a token range on a delimiter is
        zero-width, so a correctly-placed diagnostic was invisible. *)
 let () =
-  let src = "; a comment header, not code\n;\n(load \"nope.pol\")\n" in
+  let src = "; a comment header, not code\n;\n(load \"nope.writ\")\n" in
   let st = Server.create ~resolve in
-  let out = Server.handle st (did_open "file:///w/loads.pol" src) in
+  let out = Server.handle st (did_open "file:///w/loads.writ" src) in
   match diagnostics_of out with
   | [ d ] -> (
       match Json.member "range" d with
@@ -243,24 +243,24 @@ let () =
    message carries the location that is actually true. *)
 let () =
   let src =
-    "(load \"flaw.pol\")\n\
+    "(load \"flaw.writ\")\n\
      (schema mine (type w (c d)))\n\
      (instance i mine)\n\
      (use mine)\n\
      (initial i)\n"
   in
   let st = Server.create ~resolve in
-  let out = Server.handle st (did_open "file:///w/loader.pol" src) in
+  let out = Server.handle st (did_open "file:///w/loader.writ" src) in
   match diagnostics_of out with
   | [ d ] ->
       check "cross-file: the diagnostic is not pinned to a line of this buffer"
         (match Json.member "range" d with
         | Some r ->
-            range_of r = ((0, 0), (0, String.length "(load \"flaw.pol\")"))
+            range_of r = ((0, 0), (0, String.length "(load \"flaw.writ\")"))
         | None -> false);
       check "cross-file: the message names the library and its own line:col"
         (match Json.member "message" d with
-        | Some (Json.String m) -> contains_sub ~sub:"flaw.pol:1:55: " m
+        | Some (Json.String m) -> contains_sub ~sub:"flaw.writ:1:55: " m
         | _ -> false)
   | ds ->
       check
@@ -304,7 +304,7 @@ let () =
   check "every word the editor offers, it can also explain" (offered = described);
   (* And the parser's own list is covered by both, which is what makes the two
      above worth comparing: an empty pair of lists would satisfy the equality. *)
-  let mods = List.map fst Pol_syntax.Claims_parser.modalities in
+  let mods = List.map fst Writ_syntax.Claims_parser.modalities in
   check "…including every modality the parser accepts"
     (mods <> []
     && List.for_all (fun m -> List.mem m offered && List.mem m described) mods);
@@ -313,7 +313,7 @@ let () =
      parser refuses it where a modality belongs. *)
   check "a clause head is offered without being a modality"
     (List.mem "fair" offered && List.mem "fair" described
-    && Pol_syntax.Claims_parser.modality_of "fair" = None)
+    && Writ_syntax.Claims_parser.modality_of "fair" = None)
 
 let () =
   print_string ("lsp tests: " ^ string_of_int !passed ^ " checks passed\n")

@@ -1,6 +1,6 @@
-# Pol — Language Specification
+# Writ — Language Specification
 
-*New to Pol? Start with **[the tour](tour.md)** — ten runnable steps, each a
+*New to Writ? Start with **[the tour](tour.md)** — ten runnable steps, each a
 complete model, ending in a one-page cheat sheet of all twenty-six words.
 This document is the reference: precise, normative, and not meant to be read
 front to back first.*
@@ -40,9 +40,9 @@ front to back first.*
   - [D — The island](#appendix-d--the-island)
   - [E — Why seven ideas](#appendix-e--why-seven-ideas-no-more-no-fewer)
   - [F — The wish list, answered](#appendix-f--the-wish-list-answered)
-  - [G — Problems tractable with Pol](#appendix-g--problems-tractable-with-pol)
+  - [G — Problems tractable with Writ](#appendix-g--problems-tractable-with-writ)
   - [H — Design notes: neighbouring languages](#appendix-h--design-notes-neighbouring-languages)
-  - [I — Pol as a category-theory workbench](#appendix-i--pol-as-a-category-theory-workbench)
+  - [I — Writ as a category-theory workbench](#appendix-i--writ-as-a-category-theory-workbench)
   - [J — Categorical cheat-sheet](#appendix-j--categorical-cheat-sheet)
 
 ## Prologue
@@ -103,8 +103,8 @@ list:
 
 ---
 
-Pol is a language for modelling rule-governed worlds and proving facts
-about their consequences. A Pol model consists of:
+Writ is a language for modelling rule-governed worlds and proving facts
+about their consequences. A Writ model consists of:
 
 - a **schema** — the kinds of things that exist, the typed arrows
   between them, and the laws that certain arrow-chains must agree;
@@ -181,7 +181,7 @@ derivable from the rest — is Appendix E.
 
 ## 2. Language design
 
-The seven ideas say what Pol commits to; this section says why the
+The seven ideas say what Writ commits to; this section says why the
 language has the shape it does. Everything follows from one demand: **a
 model must denote a finite object the tool can hold entire** — one that
 can be built, walked, exported and diffed.
@@ -189,7 +189,7 @@ can be built, walked, exported and diffed.
 **No numbers, no loops, no recursion.** That sounds like a language able
 to model almost nothing.
 
-**Pol is not Turing-complete, and that is on purpose.**
+**Writ is not Turing-complete, and that is on purpose.**
 
 In a language that can express any computation, most questions about what
 a program does have no general answer. "Can it ever reach this state?" is
@@ -199,7 +199,7 @@ author to supply the proof. Or it can explore for a while and report what
 it found — and when it finds nothing, that is not the same as there being
 nothing.
 
-Pol gives up that expressive power. What it gets back is answers. A model
+Writ gives up that expressive power. What it gets back is answers. A model
 denotes one finite object, the tool builds all of it, and a question is
 settled by looking at every situation once.
 
@@ -289,7 +289,7 @@ each has a section of its own below:
   and arrows.** A payment points at whoever signed it, a person points at
   a department. Kinds of things, and named connections between them, is
   exactly what an *olog* is — a notation that already exists for this —
-  so Pol starts there rather than inventing one, and then lets the
+  so Writ starts there rather than inventing one, and then lets the
   arrangement change (§2.1, §2.2).
 - **Some of the pointing is missing, and that is part of the domain.**
   An unsigned payment has a signer slot with nothing in it. That is not a
@@ -321,7 +321,7 @@ begins like this:
     a goat  ──at──▶  a bank
 
 That is the whole notation. Four things follow from it, and they are why
-Pol starts here rather than anywhere else.
+Writ starts here rather than anywhere else.
 
 **You cannot avoid saying what exists.** There is no way to write that
 arrow without first admitting there is such a thing as a bank. Most
@@ -340,7 +340,7 @@ it is following arrows one at a time. Nothing is worked out.
 **A rule is two paths that have to end in the same place.** "The
 investigating agency and the prosecuting agency must be the same" is not
 a remark in the margin: it is two routes out of one box, required to
-agree. That is what an olog offers in place of prose, and Pol keeps it
+agree. That is what an olog offers in place of prose, and Writ keeps it
 (§8.6).
 
 **The shape and one filling of it are separate documents.** The kinds of
@@ -350,13 +350,13 @@ this shape" is a question with an answer, and one shape can be
 translated into another — including into an older version of itself —
 with the translation itself checkable (§16.4).
 
-Pol keeps all four whole. What it does not get from an olog is
+Writ keeps all four whole. What it does not get from an olog is
 everything the Prologue's puzzles ask for beyond the map, because an olog
 is a **photograph**:
 
 - **No time.** The farmer can row, but a photograph does not change:
   there is no way to say the goat is on the left bank now and the right
-  bank next. *(Pol adds transitions, §10.)*
+  bank next. *(Writ adds transitions, §10.)*
 - **No possibility.** "Can everything reach the far bank?" cannot be put
   to a photograph at all. It is a question about what might follow, and
   nothing follows a photograph. *(The generated space, §12; the
@@ -371,25 +371,27 @@ is a **photograph**:
 - **No evidence.** A rule that fails leaves nothing behind: no crossing
   to print, no route to the blunder. *(Witnesses, §15–16.)*
 
-Pol is the olog kept whole, plus exactly these five changes and nothing
+Writ is the olog kept whole, plus exactly these five changes and nothing
 else. Appendix F maps them back to the Prologue's twelve wishes one by
 one.
 
 **Four of the five are additions.** Time, possibility, violation and
-evidence are all structure an olog does not carry, and Pol brings them.
+evidence are all structure an olog does not carry, and Writ brings them.
 
-**The third is not an addition. It is a subtraction, and it is what the
-language is called after.** An olog's arrows must answer, for every
-thing: ask any wolf where it is and there has to be a bank at the end of
-the arrow. Pol drops that requirement, and an arrow is allowed to answer
-nothing at all.
+**The third is not an addition. It is a subtraction.** An olog's arrows
+must answer, for every thing: ask any wolf where it is and there has to
+be a bank at the end of the arrow. Writ drops that requirement, and an
+arrow is allowed to answer nothing at all.
 
 That sounds like a small liberty. It is the one that mattered most: in
 the domains this language is for, having no answer is ordinary rather
 than exceptional — the goat is eaten, the office is unfilled, the statute
 says nothing about the case in front of you. An olog with that
-requirement removed is a **partial** olog, which is where the language
-gets its name (§2.3).
+requirement removed is a **partial** olog, and that is what a writ schema
+is (§2.3).
+
+*The name is from §1's third idea rather than from any of this: a model
+is a small text, and its meaning is that text — writ large.*
 
 ### 2.2 The meaning is generated, not written
 
@@ -416,9 +418,10 @@ vary, no coverage figure.
 
 ### 2.3 The arrows are partial
 
-An olog's arrows are total: every arrow answers, for every thing. A Pol
+An olog's arrows are total: every arrow answers, for every thing. A writ
 arrow may be declared `vacatable`, and then answer nothing (§8.3). That
-relaxation is what the language is named for.
+relaxation is the first of the seven ideas (§1), and the one the rest of
+this section prices.
 
 The alternative is to **totalise** — add a member meaning *none*: a
 `nobody` person, a third bank for the eaten goat. The river prices it.
@@ -469,14 +472,14 @@ apply, a statute says nothing. A total map misreports all three.
 
 ### 2.4 The language stops short of computation
 
-Pol is not Turing-complete, and not by oversight. There are no numbers
+Writ is not Turing-complete, and not by oversight. There are no numbers
 and no arithmetic; no recursion and no iteration; no unbounded chains —
 a chain is a literal finite word (§8.5); `some` ranges over a roster;
 and forms expand once, against earlier forms only (§11.1). Every list in
 the language is finite, so the situation space is bounded by a product
 of finite domains (§12.4). **Termination is not a property a model can
 lose. It is a property of the grammar** — there is no such thing as a
-Pol model that fails to have a meaning.
+Writ model that fails to have a meaning.
 
 **What that buys is the negative answer.** By Rice's theorem every
 non-trivial semantic question about a Turing-complete language is
@@ -497,8 +500,8 @@ Three further returns, none available over an unbounded space:
   guard that rejects candidates makes the search *smaller*. A model is
   too big precisely when its answer set was too big to have wanted.
 - **The meaning is an artifact.** A finite object can be emitted as data
-  (`pol control`, `pol schema`), diffed against another version
-  (`pol compare`, §17), and re-derived by a second engine — one
+  (`writ control`, `writ schema`), diffed against another version
+  (`writ compare`, §17), and re-derived by a second engine — one
   question, two implementations, so a disagreement is a bug in one of
   them rather than a number to adjust.
 - **Every verdict has evidence of one kind.** A route is the universal
@@ -510,7 +513,7 @@ Three further returns, none available over an unbounded space:
 quantification over infinitely many cases, no "for every *n*". A domain
 with genuine numeric content must be abstracted to the finitely many
 distinctions its questions turn on; where no such abstraction is honest,
-Pol is the wrong tool (Appendix G). The bet is that rule-governed
+Writ is the wrong tool (Appendix G). The bet is that rule-governed
 worlds — statutes, architectures, protocols, procedures — are made of
 distinctions rather than of computation.
 
@@ -520,7 +523,7 @@ dropping it: unbounded domains with bounded checking or sampling, and
 
 ### 2.5 The notation is s-expressions
 
-Everything in Pol is one shape: a parenthesised list whose head is a
+Everything in Writ is one shape: a parenthesised list whose head is a
 word. There is no expression sub-language, no operator table, no
 precedence, no order of evaluation; the collected grammar is Appendix A,
 and it is a page. There is no exception and no infix token: a form's
@@ -549,18 +552,18 @@ Which is why:
   therefore safe.** `form` renames and pastes; it cannot compute
   (§11.1). A rewrite that weak is only *definable* over a uniform tree
   surface, and its weakness is what keeps every error pointing at a line
-  the author wrote, with the expansion shown. Pol takes Lisp's surface
+  the author wrote, with the expansion shown. Writ takes Lisp's surface
   and refuses Lisp's power — Appendix E names computing macros as the
   neighbour this declines.
-- **A model can be data for another model.** `pol control` emits the
+- **A model can be data for another model.** `writ control` emits the
   move list as an instance of the standard library's `quiver` schema;
-  `pol schema` emits a model's map as an instance of the `olog` schema
+  `writ schema` emits a model's map as an instance of the `olog` schema
   (§17). These are not serialisers to be kept in step with the language:
   they are the language describing itself, because presentation and data
   already share one syntax.
 - **Authorship time stays outside the language.** A line-oriented,
   parenthesis-delimited file diffs meaningfully, which is what lets
-  `pol compare --git` be a thin tool over an ordinary revision pair
+  `writ compare --git` be a thin tool over an ordinary revision pair
   (idea 5, §17) instead of a history feature built into the notation.
 
 **How do we know the fit is good?** Checkably, rather than by taste:
@@ -600,7 +603,7 @@ their mechanisms:*
 | Question                                                                  | Mechanism                                                                                        |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Can one lawful move permanently destroy accountability?                   | `live` (§16) — the answer carries the exact move sequence                                    |
-| This amendment looks procedural — what does it actually change?          | `pol compare` (§17): preserved / lost / gained                                                |
+| This amendment looks procedural — what does it actually change?          | `writ compare` (§17): preserved / lost / gained                                                |
 | Which of our own powers can violate our own declared laws?                | equation observation (§15); `accept` records ownership                                         |
 | Does this architecture have any reading in an external framework's terms? | schema dictionary checks (§16); an untranslatable arrow is named                                |
 | Where do the written rules run out?                                       | `gap` (§10.4), listed with the shortest route in                                              |
@@ -615,7 +618,7 @@ escalation boundary where the automated process ends.*
 | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
 | Can a case get stuck — reachable, but never settleable?                     | `live` (§16.1)                                        |
 | Which reassignment moves can break the unit-of-record law?                   | equation observation (§15); `accept` records ownership |
-| Did last quarter's process change quietly lose the settle-ability guarantee? | `pol compare` (§17): preserved / lost / gained        |
+| Did last quarter's process change quietly lose the settle-ability guarantee? | `writ compare` (§17): preserved / lost / gained        |
 | May the assignee slot be empty here — and must it be filled?                | `vacatable` + `defined` (§8.3, §10.2)              |
 | Where does the automated process end and a human take over?                  | `gap` (§10.4), listed with the shortest route in      |
 
@@ -635,7 +638,7 @@ Used by every *Example* in Parts II–III: an oversight system with two
 agencies, one case, one (possibly vacant) judge.
 
 ```lisp
-(load "stdlib.pol")          ; `=` is a library form (§8.6); no implicit prelude
+(load "stdlib.writ")          ; `=` is a library form (§8.6); no implicit prelude
 
 (schema oversight
   (type indep-status (independent captured))
@@ -708,7 +711,7 @@ commute.)*
 
 ### 5.1 Datums
 
-- Pol text is s-expressions: **atoms** and parenthesised **lists**,
+- Writ text is s-expressions: **atoms** and parenthesised **lists**,
   collectively **datums**.
 - `;` begins a comment running to end of line.
 - Quoted atoms (`"…"`) carry spaces and punctuation; escapes are
@@ -732,7 +735,7 @@ chain `docket → investigator → independence`.*
 
 ### 6.1 Roles
 
-A `.pol` file is a flat sequence of top-level datums. Its role is
+A `.writ` file is a flat sequence of top-level datums. Its role is
 determined by content:
 
 - **library** — contains only declarations: `schema`, `instance`,
@@ -760,11 +763,11 @@ determined by content:
     *different* declarations claiming one name — never the same file
     arriving twice.
 
-*Example — the diamond. A model loads `stdlib.pol` and a domain library
-`domain.lib.pol`; the domain library itself loads `stdlib.pol`. The
+*Example — the diamond. A model loads `stdlib.writ` and a domain library
+`domain.lib.writ`; the domain library itself loads `stdlib.writ`. The
 stdlib's datums enter once.*
 
-> ![The load diamond: two paths reach stdlib.pol, its datums enter once](diagrams/load-diamond.svg)
+> ![The load diamond: two paths reach stdlib.writ, its datums enter once](diagrams/load-diamond.svg)
 
 *Design note.* Inclusion is irreducibly about files — nothing in-file
 can reach the filesystem. The once-per-file rule is gluing along the
@@ -787,7 +790,7 @@ shared base library a wall of spurious repeated-name errors.
 ```bash
 git commit -m "amendment: judicial assignment reform" \
            -m "Cite: Amendment No. 12 of 2031"
-pol compare --git HEAD~1 HEAD oversight.pol
+writ compare --git HEAD~1 HEAD oversight.writ
 ```
 
 ## 7. Names
@@ -1576,7 +1579,7 @@ the arrow.*
 
 ## 17. Comparison, search, and export
 
-- **`pol compare OLD NEW [--map M]`** — builds both models and reports
+- **`writ compare OLD NEW [--map M]`** — builds both models and reports
   each equation and property **preserved / lost / gained** across the
   pair. Where schemas differ, M contains bare `(map X Y)` datums;
   identity is assumed where names coincide; the pair is given by the
@@ -1588,13 +1591,13 @@ properties:  conviction-possible  preserved
              accountability       LOST      witness: 1. capture-prosecutions
 ```
 
-- **`pol control MODEL`** — emits the move list as data (an instance of
+- **`writ control MODEL`** — emits the move list as data (an instance of
   the standard library's `quiver` schema), so dynamics can be queried
   and mapped with the same machinery; a dictionary between two models'
   move lists is a simulation map.
-- **`pol schema MODEL`** — emits the model's **schema** as data (an
+- **`writ schema MODEL`** — emits the model's **schema** as data (an
   instance of the standard library's `olog` schema), the sibling of
-  `pol control` one level up: where that makes a model's dynamics
+  `writ control` one level up: where that makes a model's dynamics
   ordinary data, this makes its map ordinary data. Types become `ob`,
   arrows become `hom` with `dom`/`cod`, laws appear as `eqn` entities
   **by name**.
@@ -1616,17 +1619,17 @@ live accountability:
   fiber regime=emergency   FAILS   witness: …
 ```
 
-- **`pol solve --morphism SMALL LARGE`** — searches for structure-
+- **`writ solve --morphism SMALL LARGE`** — searches for structure-
   preserving maps of SMALL's initial instance into LARGE's: one component
   per type, commuting with every arrow. Over finite rosters the search is
   complete — it reports every such map, or that provably none exists.
   This is the *morphism search* answering "does this configuration occur,
   structure preserved, inside that one?"
-- **`pol check MODEL --symmetries`** — the same search from a model's
+- **`writ check MODEL --symmetries`** — the same search from a model's
   initial instance to itself, reporting the structure-preserving
   automorphisms. Interchangeable entities are found this way, and the
   situation space may then be enumerated modulo them.
-- **`pol check MODEL --universal TYPE`** — TYPE must be a junction type
+- **`writ check MODEL --universal TYPE`** — TYPE must be a junction type
   (§8.3) carrying an equation. Reports whether its roster is
   **exhaustive**: whether every tuple of the legs' rosters satisfying the
   equation is actually present as a member. The equation alone gives
@@ -1634,11 +1637,11 @@ live accountability:
   completeness. A missing tuple is named.
 
 ```
-pol check oversight.pol --universal joint-delegation
+writ check oversight.writ --universal joint-delegation
 NOT UNIVERSAL: satisfying pair (mp-7, senator-3) has no element
 ```
 
-- **`pol migrate --along F MODEL`** — re-expresses the instance of F's
+- **`writ migrate --along F MODEL`** — re-expresses the instance of F's
   *target* schema in the terms of F's *source* schema, so a reference
   framework's configuration can be interrogated in a model's own
   vocabulary. F is a dictionary (§16.4). The direction reverses: a
@@ -1648,7 +1651,7 @@ NOT UNIVERSAL: satisfying pair (mp-7, senator-3) has no element
 transformation, universality as a limit, migration as the pullback
 functor Δ — is Appendix I.)*
 
-`pol solve` has further modes — `--functor`, searching for maps between
+`writ solve` has further modes — `--functor`, searching for maps between
 *schemas*, and `--simulation`, searching between two models' control
 quivers — specified by the relational extension, not here. They exit by
 the same per-flag rule (§18).
@@ -1656,17 +1659,17 @@ the same per-flag rule (§18).
 ## 18. Command line
 
 ```bash
-pol check    MODEL.pol [--claims F.claims]
-pol check    MODEL.pol --universal TYPE
-pol check    MODEL.pol --symmetries
-pol query    MODEL.pol NAME [--at STATE]
-pol show     MODEL.pol [--at STATE]…
-pol compare  OLD.pol NEW.pol [--map M.pol]
-pol compare  --git REV1 REV2 MODEL.pol [--map M.pol]
-pol control  MODEL.pol
-pol schema   MODEL.pol
-pol solve    --morphism SMALL.pol LARGE.pol
-pol migrate  --along F.pol MODEL.pol
+writ check    MODEL.writ [--claims F.claims]
+writ check    MODEL.writ --universal TYPE
+writ check    MODEL.writ --symmetries
+writ query    MODEL.writ NAME [--at STATE]
+writ show     MODEL.writ [--at STATE]…
+writ compare  OLD.writ NEW.writ [--map M.writ]
+writ compare  --git REV1 REV2 MODEL.writ [--map M.writ]
+writ control  MODEL.writ
+writ schema   MODEL.writ
+writ solve    --morphism SMALL.writ LARGE.writ
+writ migrate  --along F.writ MODEL.writ
 ```
 
 Exit status: `0` — clean · `1` — a finding (failed property; violated,
@@ -1679,10 +1682,10 @@ differently, and each mode states which it is:
 
 | Search                    | Asks                                                  | Nothing found |
 | ------------------------- | ----------------------------------------------------- | ------------- |
-| `pol solve --morphism`    | does this configuration occur inside that one?        | `0` — an answer |
-| `pol solve --functor`     | has this structure any compliant reading in the target's terms? | `1` — with the obstruction |
-| `pol solve --simulation`  | does every move of A have a counterpart in B?         | `1` — with the obstruction |
-| `pol check --symmetries`  | which entities are interchangeable?                   | `0` — an answer |
+| `writ solve --morphism`    | does this configuration occur inside that one?        | `0` — an answer |
+| `writ solve --functor`     | has this structure any compliant reading in the target's terms? | `1` — with the obstruction |
+| `writ solve --simulation`  | does every move of A have a counterpart in B?         | `1` — with the obstruction |
+| `writ check --symmetries`  | which entities are interchangeable?                   | `0` — an answer |
 
 A model that embeds nowhere, and one with no interchangeable entities,
 are both ordinary negative answers. A structure with no reading in a
@@ -1866,7 +1869,7 @@ prey is stranded. Modelling nature as an ordinary move that the search may
 decline is the trap the guard closes.
 
 *Variants are commits (Wish 10): add a two-passenger `ferry2` form;
-`pol compare --git HEAD~1 HEAD river.pol` reports whether `no-blunders`
+`writ compare --git HEAD~1 HEAD river.writ` reports whether `no-blunders`
 was gained.*
 
 # Appendix D — The island
@@ -1990,11 +1993,11 @@ or grant something no puzzle asked for.*
 | 7 — laws declared; violations flagged and traced         | `equation`; violation reports; `accept` | §8.6, §15, §16.3 |
 | 8 — points of no return detected                         | `live`                                    | §16.1              |
 | 9 — silent rules marked as holes                         | `gap`                                     | §10.4              |
-| 10 — variants compared: gained and lost                  | git; `pol compare`                         | §6.3, §17         |
+| 10 — variants compared: gained and lost                  | git; `writ compare`                         | §6.3, §17         |
 | 11 — compound moves named, tool unchanged                | `form`                                    | §11                |
 | 12 — questions kept apart from the puzzles               | claims files                                | §16                |
 
-# Appendix G — Problems tractable with Pol
+# Appendix G — Problems tractable with Writ
 
 *A problem fits when its world has finitely many kinds of pieces, its
 rules read as "only if … then this changes", its laws read as "these two
@@ -2125,13 +2128,13 @@ formal-methods practitioner. Weighing those two costs against a new
 small language is the build-versus-adopt decision; this specification is
 the build branch.
 
-# Appendix I — Pol as a category-theory workbench
+# Appendix I — Writ as a category-theory workbench
 
 *How each classical categorical concept — category, functor, natural
 transformation, limit, pullback, colimit, adjunction — is expressed in
-Pol. The thesis in one sentence:*
+Writ. The thesis in one sentence:*
 
-> **Pol never spells these concepts as keywords. Each one is either the
+> **Writ never spells these concepts as keywords. Each one is either the
 > *semantics* of an existing construct, a *pattern* written with existing
 > words, or a *verb* of the interrogator — and knowing which is which is
 > knowing the design.**
@@ -2144,14 +2147,14 @@ All examples use the running example of §4.
 | ---------------------- | ------------------------------------------ | ----------------------------------------------------- |
 | Category               | language (semantics)                       | `schema`; the derived state category                  |
 | Functor                | language (semantics) ×2, interrogator ×3   | `instance`, `transition`; `functor` / `compare` / `solve` |
-| Natural transformation | interrogator                               | `pol solve --morphism`                                |
-| Limit / Pullback       | language (pattern) + interrogator          | span + `equation`; `pol check --universal`            |
+| Natural transformation | interrogator                               | `writ solve --morphism`                                |
+| Limit / Pullback       | language (pattern) + interrogator          | span + `equation`; `writ check --universal`            |
 | Colimit / Pushout      | language (semantics of `load`)             | idempotent `load`                                     |
-| Adjunction             | theory + interrogator                      | `pol migrate --along` (Δ of Δ ⊣ Σ ⊣ Π)                |
+| Adjunction             | theory + interrogator                      | `writ migrate --along` (Δ of Δ ⊣ Σ ⊣ Π)                |
 
 ## I.1 Categories
 
-Pol contains **three** categories per model — two presented, one derived.
+Writ contains **three** categories per model — two presented, one derived.
 
 **The world category** is what `schema` declares (§8): objects are types,
 morphisms are arrows and their composites (paths), and equations impose
@@ -2174,7 +2177,7 @@ every witness is one of its morphisms.
 
 ## I.2 Functors
 
-Pol contains **five** functors, in three homes. None is a kernel keyword.
+Writ contains **five** functors, in three homes. None is a kernel keyword.
 
 **Functor 1 — the instance.** `instance` *is* a functor from the world
 category to Par(FinSet) (§9.1): open types go to rosters, enumerated
@@ -2234,8 +2237,8 @@ rosters it is a finite check — so the interrogator searches for such maps
 completely (§17):
 
 ```bash
-pol solve  --morphism small.pol large.pol   # embeddings, all of them or provably none
-pol check  model.pol --symmetries           # natural automorphisms → enumerate modulo symmetry
+writ solve  --morphism small.writ large.writ   # embeddings, all of them or provably none
+writ check  model.writ --symmetries           # natural automorphisms → enumerate modulo symmetry
 ```
 
 Three uses, one mechanism: **embedding** (does this configuration occur,
@@ -2271,7 +2274,7 @@ of the pullback `mp ×_region senator`, and over finite rosters it is one
 scan (§17):
 
 ```bash
-pol check oversight.pol --universal joint-delegation
+writ check oversight.writ --universal joint-delegation
 # NOT UNIVERSAL: satisfying pair (mp-7, senator-3) has no element
 ```
 
@@ -2279,7 +2282,7 @@ Products (span, no equation) and equalizers (one arrow pair, one
 equation) follow the identical pattern: shape in the language,
 universality in the tool. The split is principled, not accidental — the
 shape is *ontology* (what a joint delegation is), universality is a
-*claim about an instance* (this roster is exhaustive), and Pol keeps
+*claim about an instance* (this roster is exhaustive), and Writ keeps
 ontology and claims in different places by design (Pivotal idea 4).
 
 ## I.5 Colimits and pushouts
@@ -2291,7 +2294,7 @@ many load paths reach it — which is exactly gluing along the shared part
 rather than a coproduct that would explode every diamond into
 redeclaration errors:
 
-![The load diamond: two load paths reach stdlib.pol, its datums enter once](diagrams/load-diamond.svg)
+![The load diamond: two load paths reach stdlib.writ, its datums enter once](diagrams/load-diamond.svg)
 
 Two libraries with *no* shared base glue along the empty library — the
 pushout degenerates to the coproduct, which is why loading two unrelated
@@ -2307,12 +2310,12 @@ plain bookkeeping.
 
 ## I.6 Adjunctions
 
-Adjunctions in Pol are **theory that guarantees the verbs compose** —
+Adjunctions in Writ are **theory that guarantees the verbs compose** —
 never syntax. Two of them are present.
 
 **Data migration: Δ ⊣ Σ ⊣ Π.** A schema functor F : S → T induces, on
 instances, the *pullback migration* Δ_F going the other way —
-re-expressing a T-instance in S's terms. That is `pol migrate --along F`
+re-expressing a T-instance in S's terms. That is `writ migrate --along F`
 (§17), used to import a reference framework's configuration into a
 model's own vocabulary for side-by-side interrogation:
 
@@ -2334,17 +2337,17 @@ this adjunction, stated as semantics.
 
 # Appendix J — Categorical cheat-sheet
 
-| Concept                      | Pol expression                                   | Checked / computed by                               |
+| Concept                      | Writ expression                                   | Checked / computed by                               |
 | ---------------------------- | ------------------------------------------------ | --------------------------------------------------- |
 | Category (presented)         | `schema` — types, arrows, equations              | build: dom/cod chains, path typing                  |
 | Category (derived)           | state category — free on the reachable graph     | interrogator: enumeration                           |
 | Functor (instance)           | `instance` : Schema → Par(FinSet)                | build: cells vs dom/cod, totality of fixed          |
 | Functor (dynamics)           | `transition` datums : quiver → partial endo-maps | build: guard/effect validation                      |
 | Functor (schemas)            | `functor` in claims; map files; solved           | interrogator: totality, dom/cod, semantic equations |
-| Natural transformation       | instance homomorphism                            | `pol solve --morphism`, `--symmetries`              |
-| Pullback / limit             | span + `equation` (the shape)                    | `pol check --universal` (the universality)          |
+| Natural transformation       | instance homomorphism                            | `writ solve --morphism`, `--symmetries`              |
+| Pullback / limit             | span + `equation` (the shape)                    | `writ check --universal` (the universality)          |
 | Pushout / colimit            | idempotent `load` along shared base              | build: the gluing itself                            |
-| Adjunction Δ ⊣ Σ ⊣ Π         | `pol migrate --along` (Δ today)                  | interrogator; adjunction = correctness argument     |
+| Adjunction Δ ⊣ Σ ⊣ Π         | `writ migrate --along` (Δ today)                  | interrogator; adjunction = correctness argument     |
 | Adjunction free ⊣ forgetful  | the state category's very existence              | interrogator: enumeration                           |
 
 Reading the table columnwise is reading the design: the *language* column

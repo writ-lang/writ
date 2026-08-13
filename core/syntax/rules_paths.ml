@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Extension §2/§3 — does every term inhabit what the schema gives its position?
    Two questions with one answer: a PATH must actually walk the schema, and a

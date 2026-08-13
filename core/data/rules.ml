@@ -73,7 +73,7 @@ let lower_path (env : env) (p : gpath) : Value.path =
 
    A [Some_] binder is a KERNEL variable, not a rule variable, and is left
    alone: its name cannot collide with [env] because an ALL-CAPS binder name is
-   rejected at read time, and Pol has no shadowing (kernel §7). *)
+   rejected at read time, and Writ has no shadowing (kernel §7). *)
 let rec lower (g : gexp) (env : env) : Model.guard =
   match g with
   | Is (p, v) -> Model.Is (lower_path env p, Model.Lit (subst env v))
@@ -102,7 +102,7 @@ type sort = Situation | Edge | Entity of string
    propagates a sort, it never supplies one. [(relation NAME (T1 … Tn))]
    declares a sort per column and seeds the inference directly. The typed form
    is not a convenience: no built-in supplies an [Entity] sort, and an arrow
-   name owned by two types seeds nothing (river.pol gives [at] to both
+   name owned by two types seeds nothing (river.writ gives [at] to both
    [traveler] and [cargo]), so without it some models admit no rules at all. It
    is also where §3's "unsorted column" diagnostic already points. Arity is the
    list's length. *)

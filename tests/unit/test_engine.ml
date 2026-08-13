@@ -6,8 +6,8 @@
    enumeration, shortest paths, the three modalities with witnesses,
    gap-vs-deadlock, equation observation, and query rows. *)
 
-open Pol_data
-open Pol_runtime
+open Writ_data
+open Writ_runtime
 
 let passed = ref 0
 
@@ -317,9 +317,9 @@ let () =
 let () =
   let sch = sw_schema [ "down"; "up" ] and inst = sw_instance "down" in
   let parse src =
-    match Pol_syntax.Reader.read_string src with
+    match Writ_syntax.Reader.read_string src with
     | Error e -> Error e
-    | Ok ds -> Pol_syntax.Claims_parser.parse sch inst ds
+    | Ok ds -> Writ_syntax.Claims_parser.parse sch inst ds
   in
   (match
      parse "(property p \"d\" (inevitable (is s.pos up) (fair raise lower)))"
@@ -337,7 +337,7 @@ let () =
   | _ -> check "claims: a bare inevitable must carry no assumption" false);
   let rejected name src =
     match parse src with
-    | Error e -> check (name ^ " is positioned") (e.Pol_data.Errors.pos <> None)
+    | Error e -> check (name ^ " is positioned") (e.Writ_data.Errors.pos <> None)
     | Ok _ ->
         check (name ^ ": expected a rejection") false;
         exit 1
@@ -351,7 +351,7 @@ let () =
 
 (* --- one situation, addressed by index -------------------------------------- *)
 
-(* What `pol show` prints. Counted by hand off the fixtures above: the toggle is
+(* What `writ show` prints. Counted by hand off the fixtures above: the toggle is
    0 = down (initial) and 1 = up, one move each way. *)
 let () =
   let sp = build_ok toggle in

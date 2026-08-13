@@ -1,12 +1,12 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* What `pol sql` understands of a relational schema — which is deliberately
+(* What `writ sql` understands of a relational schema — which is deliberately
    less than SQL, and exactly as much as an olog can mean.
 
    Everything a DDL says that is not here is DECLINED: recorded with its line
    and its reason, never dropped in silence. A skipped construct that nobody is
-   told about turns "pol proved this schema safe" into a claim about a schema
+   told about turns "writ proved this schema safe" into a claim about a schema
    nobody has. *)
 
 type check =
@@ -19,17 +19,17 @@ type check =
   | C_in of string * string list  (** col IN ('a','b') *)
 
 type column = {
-  cname : string;  (** pol spelling *)
+  cname : string;  (** writ spelling *)
   sql_name : string;
   domain : Sql_names.domain;
   nullable : bool;
   fixed : bool;
       (** wiring rather than state. A foreign key defaults to [true] — a
           reference is the shape of the world, and a `fixed` arrow costs the
-          state space nothing — and anything else to [false]. A `-- pol:` pragma
+          state space nothing — and anything else to [false]. A `-- writ:` pragma
           overrides, which is how the export records an arrow whose mutability
           the DDL alone could not have said. *)
-  refs : string option;  (** the referenced table, pol spelling *)
+  refs : string option;  (** the referenced table, writ spelling *)
   comment : string option;
   cline : int;
 }
@@ -47,7 +47,7 @@ type table = {
 type enum_def = { ename : string; emembers : string list }
 
 (* One INSERTed row. Read only under --with-data, and for a reason worth
-   stating: a pol instance is ONE starting configuration and the state space is
+   stating: a writ instance is ONE starting configuration and the state space is
    a product over it, so importing a table's ten thousand rows builds a model
    that cannot be enumerated and was never a question anyone asked. Seed data
    for a scenario is a different thing, and small. *)

@@ -1,9 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
-(* [pol schema] — render a model's SCHEMA as a re-parseable instance of the
+(* [writ schema] — render a model's SCHEMA as a re-parseable instance of the
    standard library's [olog] schema (kernel §17), the sibling of [Control] one
    level up: where that makes a model's dynamics ordinary data, this makes its
    map ordinary data. Re-parsing the emitted string against [olog] validates it.
@@ -53,9 +53,9 @@ let olog (name : string) (s : Schema.t) : string =
   let homs = hom_names s in
   let buf = Buffer.create 512 in
   let add = Buffer.add_string buf in
-  (* The leading [(load "stdlib.pol")] makes the output a self-contained
+  (* The leading [(load "stdlib.writ")] makes the output a self-contained
      library, so [(of olog)] resolves when the string is re-parsed. *)
-  add "(load \"stdlib.pol\")\n\n";
+  add "(load \"stdlib.writ\")\n\n";
   add ("(instance " ^ name ^ "-schema olog\n");
   let joined f xs = String.concat "" (List.map f xs) in
   add

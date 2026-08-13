@@ -1,0 +1,60 @@
+; captured_trap.writ — any_model MINUS the two restored-by moves
+; (docs/model.md's "Amendment No. 7": repeal restoration). With capture now
+; irreversible, capturing the watchdog while the case is still investigating
+; makes `concluded` unreachable — so `accountability` (live) FAILS, and the
+; witness names the capture. The capture moves are given NAMES (via `power`) so
+; that witness reads as `capture-watchdog` / `capture-prosecutions`.
+
+; politics.lib.writ is a DOMAIN library, not part of the standard library, so it
+; is not on any search path — it is loaded by its path relative to this file.
+(load "stdlib.writ")
+(load "../../models/politics.lib.writ")
+
+(instance day-one politics
+  (chamber assembly)
+  (people electorate)
+  (bureau watchdog (independence independent))
+  (bureau prosecutions (independence independent))
+  (case docket (investigator watchdog)
+               (prosecutor prosecutions)
+               (stage investigating))
+  (government gov (executive-bloc incumbent-party)
+                  (bill none)
+                  (mood favours-incumbent)
+                  (support majority)
+                  (regime normal)))
+
+(use politics)
+(initial day-one)
+
+(bill-cycle gov)
+(case-pipeline docket)
+(swing gov)
+
+; The contested moves: the assembly may capture either bureau — but, post
+; Amendment No. 7, may NOT restore either. Named so the witness is legible.
+(power capture-watchdog
+  (when (is watchdog.independence independent))
+  (does (set watchdog.independence captured)))
+(power capture-prosecutions
+  (when (is prosecutions.independence independent))
+  (does (set prosecutions.independence captured)))
+
+(power declare-emergency
+  (when (is gov.regime normal))
+  (does (set gov.regime emergency)))
+
+(power lift-emergency
+  (when (phase-gated gov.regime emergency (at-least-majority gov)))
+  (does (set gov.regime normal)))
+
+(power emergency-without-majority
+  (when (phase-gated gov.regime emergency (is gov.support minority)))
+  (does (gap "emergency rule with minority support: the text is silent")))
+
+(transition support-erodes-1
+  (when (is gov.support supermajority)) (do (set gov.support majority)))
+(transition support-erodes-2
+  (when (is gov.support majority))      (do (set gov.support minority)))
+(transition support-recovers
+  (when (is gov.support minority))      (do (set gov.support majority)))

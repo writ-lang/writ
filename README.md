@@ -1,12 +1,14 @@
-# pol
+# writ
 
-**Partial Olog — an abstract language for modelling real-world domains, and a
-tool that proves facts about them.**
+**Model a rule-governed world; get every consequence back, with the route.**
 
-A Pol model is a state machine written down: a **schema** (the kinds of things
+A model is one page. What it *means* is every situation those rules can
+produce — that page writ large, which is where the language gets its name.
+
+A writ model is a state machine written down: a **schema** (the kinds of things
 that exist and the typed arrows between them, plus the laws certain arrow-chains
 must obey), an **instance** (one starting configuration), and **transitions**
-(guarded moves). `pol` enumerates every reachable situation — a finite space —
+(guarded moves). `writ` enumerates every reachable situation — a finite space —
 and answers the questions you put to it *by exhaustion*, with a concrete route as
 evidence.
 
@@ -34,7 +36,7 @@ cabbage. The questions live beside the model:
 ```
 
 ```console
-$ pol check river/river.pol --claims river/river.claims
+$ writ check river/river.writ --claims river/river.claims
 states: 36   edges: 76
 gaps: none
 dead ends: none
@@ -51,7 +53,7 @@ fails  no-blunders
   witness:  1. cross-empty-LR
 ```
 
-`pol` proves the crossing is possible **and prints one** (a holding `possible`
+`writ` proves the crossing is possible **and prints one** (a holding `possible`
 shows its solution) — the real safe crossing, right down to bringing the goat
 *back* on move 4. It also finds the blunder: one careless crossing strands a
 predator with its prey, and from there the crossing can never succeed.
@@ -79,9 +81,8 @@ them. The river: 54 arrangements on paper, twelve transitions, 76 edges over
 the 36 reachable — and the file names none of those numbers. "Written down"
 means *presented*, not enumerated.
 
-**The arrows are partial** — which is what *Partial Olog* records. An olog's
-arrows must answer, for every thing; Pol's may be `vacatable` and answer
-nothing. The alternative is to totalise — add a member meaning *none* — and the
+**The arrows are partial.** An olog's arrows must answer, for every thing; a
+writ arrow may be `vacatable` and answer nothing. The alternative is to totalise — add a member meaning *none* — and the
 river prices it: give `bank` a third member `eaten` and `bank` has stopped
 meaning a bank, since the *farmer*'s arrow points at the same type and
 `farmer.at = eaten` becomes representable; the space grows 54 → 81, the 27 new
@@ -148,7 +149,7 @@ sign-off:
   ```
 
   Any calculation with finitely many answers can be written down instead of
-  performed. In Pol, what you write it down as is arrows.
+  performed. In Writ, what you write it down as is arrows.
 
 **The notation is s-expressions** because the object written down is a finitely
 presented category: labelled nodes, each with a head naming its kind, a body
@@ -159,7 +160,7 @@ twenty-six words, a new vocabulary being new heads rather than new grammar;
 hence the extension mechanism can be *weaker* than a macro system and therefore
 safe — `form` renames and pastes, it cannot compute, so every error still points
 at a line you wrote; and hence a model can be **data** for another model, with
-`pol control` and `pol schema` emitting its moves and its map as ordinary
+`writ control` and `writ schema` emitting its moves and its map as ordinary
 instances. That the fit is good is checkable rather than tasteful: `=` moved
 from kernel word to library form without the grammar changing by a line; no
 construct ever needed an operator or a precedence rule, guards included; the
@@ -232,20 +233,20 @@ what it costs.
 
 | Command | Does |
 |---|---|
-| `pol check MODEL [--claims F]` | build the model; report size, gaps, dead ends and laws; check the `.claims` properties and queries |
-| `pol query MODEL NAME [--at STATE]` | run one named query and print the satisfying bindings |
-| `pol compare OLD NEW [--map M]` | report each equation and property **preserved / LOST / gained** across two models |
-| `pol compare --git R1 R2 MODEL` | …across two git revisions of one file |
-| `pol control MODEL` | emit the move list as an instance of the standard library's `quiver` schema |
-| `pol schema MODEL` | emit the model's schema as an instance of the standard library's `olog` schema |
-| `pol sql SCHEMA.sql` | read a relational schema as an olog — tables become types, foreign keys arrows, NULL `vacatable`, enums enumerated types, single-row `CHECK`s laws |
-| `pol sql MODEL.pol` | …and back: emit the model's schema as `CREATE TABLE` |
-| `pol derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
-| `pol derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
-| `pol derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
-| `pol show MODEL [--at STATE]…` | print what a situation is — its cells, the fewest moves to it, and every move out |
-| `pol help VERB` · `pol VERB --help` | one verb's reference — usage, options, examples, exit status |
-| `pol --help` · `pol --version` | the full reference · the version this binary was built from |
+| `writ check MODEL [--claims F]` | build the model; report size, gaps, dead ends and laws; check the `.claims` properties and queries |
+| `writ query MODEL NAME [--at STATE]` | run one named query and print the satisfying bindings |
+| `writ compare OLD NEW [--map M]` | report each equation and property **preserved / LOST / gained** across two models |
+| `writ compare --git R1 R2 MODEL` | …across two git revisions of one file |
+| `writ control MODEL` | emit the move list as an instance of the standard library's `quiver` schema |
+| `writ schema MODEL` | emit the model's schema as an instance of the standard library's `olog` schema |
+| `writ sql SCHEMA.sql` | read a relational schema as an olog — tables become types, foreign keys arrows, NULL `vacatable`, enums enumerated types, single-row `CHECK`s laws |
+| `writ sql MODEL.writ` | …and back: emit the model's schema as `CREATE TABLE` |
+| `writ derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
+| `writ derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
+| `writ derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
+| `writ show MODEL [--at STATE]…` | print what a situation is — its cells, the fewest moves to it, and every move out |
+| `writ help VERB` · `writ VERB --help` | one verb's reference — usage, options, examples, exit status |
+| `writ --help` · `writ --version` | the full reference · the version this binary was built from |
 
 Exit status is the interface: **0** clean · **1** a finding (a failed property; a
 violated, unadmitted, or stale law; a lost-in-compare guarantee) · **2**
@@ -254,44 +255,44 @@ unreadable input.
 ### Relational schemas
 
 **One verb, both directions — the direction is the extension.** Output goes to
-stdout, like `pol schema` and `pol control`, so the ordinary use is a redirect:
+stdout, like `writ schema` and `writ control`, so the ordinary use is a redirect:
 
 ```console
-$ pol sql shop.sql > shop.pol        # a database, read as a model
-$ pol check shop.pol                 # ask it something
-$ pol sql shop.pol > back.sql        # and write it out again as CREATE TABLE
+$ writ sql shop.sql > shop.writ        # a database, read as a model
+$ writ check shop.writ                 # ask it something
+$ writ sql shop.writ > back.sql        # and write it out again as CREATE TABLE
 ```
 
 | | |
 |---|---|
-| `pol sql SCHEMA.sql` | read the DDL; print a model on stdout, the declines on stderr |
-| `pol sql MODEL.pol` | print `CREATE TABLE` for the model's schema |
+| `writ sql SCHEMA.sql` | read the DDL; print a model on stdout, the declines on stderr |
+| `writ sql MODEL.writ` | print `CREATE TABLE` for the model's schema |
 | `--with-data` | also read `INSERT`s, as the initial instance — **seed rows**, not a table dump |
 | `--strict` | exit 1 if anything was declined (the shape a CI check wants) |
-| `pol sql --help` | this, in the terminal |
+| `writ sql --help` | this, in the terminal |
 
 Nothing is installed or loaded: the emitted model is **kernel-only** — no
 `(load …)`, no prelude, nothing from the standard library.
 
 **The payoff is what a database cannot do.** A `CHECK` becomes an `equation`,
 and a law is a claim the world is measured against rather than a filter on it —
-so once you write the migration's `UPDATE` as a move, `pol check` answers a
+so once you write the migration's `UPDATE` as a move, `writ check` answers a
 question the database never could:
 
 ```console
-$ pol check shop.pol
+$ writ check shop.writ
 equation orders-shipped
   can be broken by: ship   (acknowledge in claims)
 ```
 
-A database tells you a constraint was violated *at runtime*. `pol` tells you
+A database tells you a constraint was violated *at runtime*. `writ` tells you
 **which operation can violate it**, by exhaustion, before it ships.
 
 **Why it is a reading rather than a translation.** A relational schema *is* a
 finitely presented category, so the olog was already in the DDL, spelled in a
 notation that cannot be interrogated:
 
-| SQL | Pol |
+| SQL | Writ |
 |---|---|
 | table | `(type T …)` |
 | foreign key, `NOT NULL` / `NULL` | `(fk c T)` / `(fk? c T)` |
@@ -314,17 +315,17 @@ A domain type and its column form **share one name**, which is what makes two
 tokens possible: a form with slots only expands in list-head position, so the
 same word inside `(to …)` stays data.
 
-What crosses is decided by one line: **pol carries a column's value iff the
+What crosses is decided by one line: **writ carries a column's value iff the
 column has finitely many values worth naming.** A `varchar` becomes an arrow
 into a one-member type, which is *free* — a total arrow into a one-member type
 has exactly one filling, so a `NOT NULL` scalar column costs the state space
-nothing. Nullability costs a factor of two, which is the one distinction pol
+nothing. Nullability costs a factor of two, which is the one distinction writ
 can decide about a `varchar`: whether it is there.
 
 **What is declined is said out loud**, by line and reason, on stderr — never
-dropped in silence, because a schema imported quietly would let "pol proved
+dropped in silence, because a schema imported quietly would let "writ proved
 this safe" be a claim about a schema nobody has. `UNIQUE` is the interesting
-one: it is **unsayable**, not unimplemented, because a pol law ranges over one
+one: it is **unsayable**, not unimplemented, because a writ law ranges over one
 entity of its subject type and a bare `some` binder is not comparable, so "two
 distinct rows agree" has no spelling. Arithmetic in a `CHECK` is refused for
 the reason the whole language is: there are no numbers, and inventing them
@@ -335,40 +336,40 @@ ADD CONSTRAINT` and dollar-quoted function bodies all read correctly.
 
 Round-tripping is defined on the **model**, not the text — the export
 normalises spellings on purpose — and the two facts SQL cannot state (whether a
-key is ever `UPDATE`d, whether a plain column is wiring) travel as `-- pol:`
+key is ever `UPDATE`d, whether a plain column is wiring) travel as `-- writ:`
 pragmas the import reads back.
 
 ## Install
 
-`pol` is a real opam package (`pol.opam`, generated from `dune-project`), and it
+`writ` is a real opam package (`writ.opam`, generated from `dune-project`), and it
 also installs without opam at all. Every route lands the same layout — `bin/`
-holding `pol`, `pol-lsp` and `pol-mcp`, plus the `.pol` standard library at
-`share/pol/lib`, which is where the resolver looks.
+holding `writ`, `writ-lsp` and `writ-mcp`, plus the `.writ` standard library at
+`share/writ/lib`, which is where the resolver looks.
 
 ### With opam
 
-**It is not in opam-repository**, so there is nothing to `opam install pol`.
+**It is not in opam-repository**, so there is nothing to `opam install writ`.
 Pin it — this needs no checkout, opam does the cloning:
 
 ```sh
-opam pin add pol git+https://github.com/sajonaro/pol.git
+opam pin add writ git+https://github.com/writ-lang/writ.git
 eval $(opam env)          # if this is the first thing in the switch
-pol --version
+writ --version
 ```
 
 From a checkout, any of these:
 
 ```sh
 opam install .            # build and install into the current switch
-opam pin add pol .        # …and keep it pinned to this directory
+opam pin add writ .        # …and keep it pinned to this directory
 make opam-install         # the same thing, through the Makefile
 ```
 
 Two things to know. opam builds from your **git HEAD**, so uncommitted work is
 invisible to it — commit first, or pass `--working-dir`. And a pin follows the
-branch it was taken from; `opam upgrade pol` re-reads it. Remove with `opam
-remove pol` (or `make opam-uninstall`), and drop the pin with `opam pin remove
-pol`.
+branch it was taken from; `opam upgrade writ` re-reads it. Remove with `opam
+remove writ` (or `make opam-uninstall`), and drop the pin with `opam pin remove
+writ`.
 
 The package depends on `ocaml >= 4.14` and `dune >= 3.0` and **nothing else** —
 the engine is OCaml stdlib only, JSON, JSON-RPC and the MCP protocol included.
@@ -376,16 +377,16 @@ the engine is OCaml stdlib only, JSON, JSON-RPC and the MCP protocol included.
 ### Without opam
 
 ```sh
-make install-pol      # from this checkout -> ~/.local  (plain cp; no opam)
-make install-pol PREFIX=/usr/local          # …or a prefix you name
-make release          # a portable tarball -> dist/pol-<version>-linux-x86_64.tar.gz
+make install-writ      # from this checkout -> ~/.local  (plain cp; no opam)
+make install-writ PREFIX=/usr/local          # …or a prefix you name
+make release          # a portable tarball -> dist/writ-<version>-linux-x86_64.tar.gz
 ```
 
-`make install-pol` needs OCaml and dune to build, but no opam package
+`make install-writ` needs OCaml and dune to build, but no opam package
 machinery, and installs all three binaries — the editor client looks for
-`pol-lsp` on `PATH`, and an MCP client is pointed at `pol-mcp` by name, so
-installing only `pol` leaves both with nothing to talk to. Undo it with `make
-uninstall-pol`.
+`writ-lsp` on `PATH`, and an MCP client is pointed at `writ-mcp` by name, so
+installing only `writ` leaves both with nothing to talk to. Undo it with `make
+uninstall-writ`.
 
 ### Portable tarball
 
@@ -395,9 +396,9 @@ one tarball holding **statically linked** binaries, the stdlib and an
 to run on Debian 12 (glibc) and Alpine (musl):
 
 ```sh
-sha256sum -c pol-<version>-linux-x86_64.tar.gz.sha256   # built beside the tarball
-tar xzf pol-<version>-linux-x86_64.tar.gz
-cd pol-<version>-linux-x86_64 && ./install.sh          # -> ~/.local
+sha256sum -c writ-<version>-linux-x86_64.tar.gz.sha256   # built beside the tarball
+tar xzf writ-<version>-linux-x86_64.tar.gz
+cd writ-<version>-linux-x86_64 && ./install.sh          # -> ~/.local
                                  ./install.sh /usr/local   # -> a prefix you name
 ```
 
@@ -406,35 +407,35 @@ there is none — macOS — use `make release STATIC=0` and accept a binary that
 only travels between similar machines. `make release` prints what the binary
 actually requires, so the portability claim is checked, not assumed.
 
-Nothing external is needed to *use* `pol`. The bundled stdlib lets `(load
-"stdlib.pol")` resolve from any directory (the resolver searches the including
-file's dir, `$POL_LIB`, the copy beside the binary, then `./core/stdlib`); set
-`POL_TRACE_LOADS=1` to print which file each load actually resolved to.
+Nothing external is needed to *use* `writ`. The bundled stdlib lets `(load
+"stdlib.writ")` resolve from any directory (the resolver searches the including
+file's dir, `$WRIT_LIB`, the copy beside the binary, then `./core/stdlib`); set
+`WRIT_TRACE_LOADS=1` to print which file each load actually resolved to.
 
 ## Three repositories
 
 | | |
 |---|---|
-| **pol** (this one) | the language, the engine, the CLI, `pol-lsp`, `pol-mcp`, the standard library |
-| **[pol-problems](https://github.com/sajonaro/pol-problems)** | worked models — puzzles, scheduling, institutional scenarios — and a runner that checks the answers |
-| **[pol-vscode](https://github.com/sajonaro/pol-vscode)** | the VS Code client |
+| **writ** (this one) | the language, the engine, the CLI, `writ-lsp`, `writ-mcp`, the standard library |
+| **[writ-problems](https://github.com/writ-lang/writ-problems)** | worked models — puzzles, scheduling, institutional scenarios — and a runner that checks the answers |
+| **[writ-vscode](https://github.com/writ-lang/writ-vscode)** | the VS Code client |
 
-The other two need an installed `pol`, not a checkout of this one.
+The other two need an installed `writ`, not a checkout of this one.
 
 ### The examples
 
 ```sh
-make install-pol
-git clone https://github.com/sajonaro/pol-problems && cd pol-problems
+make install-writ
+git clone https://github.com/writ-lang/writ-problems && cd writ-problems
 ./run-tests.sh                         # 222 checks over every scenario
 ```
 
 Or with nothing installed on the host but Docker — `make image` here tags
-`pol:latest`, which is what pol-problems builds from:
+`writ:latest`, which is what writ-problems builds from:
 
 ```sh
 make image                             # in this checkout, once
-cd ../pol-problems && docker compose up
+cd ../writ-problems && docker compose up
 ```
 
 The spec's Prologue puzzles (river, knights & knaves) and its §3 institutional
@@ -443,66 +444,66 @@ finish, and which schedule is shortest — and `arch`, which turns the tool
 around and *designs* rather than checks: a bank of components, a brief, and
 every architecture the constraints permit, enumerated. Every scenario also
 carries a `.rules` file re-asking its `.claims` properties as derivations, and a
-**cross-check** scenario runs both instruments over all thirty-one: `pol
-check`'s CTL reading against `pol derive`'s rules encoding. Two independent implementations of one
+**cross-check** scenario runs both instruments over all thirty-one: `writ
+check`'s CTL reading against `writ derive`'s rules encoding. Two independent implementations of one
 question, so a disagreement is a bug in one of them rather than a number to
 adjust — the only test whose oracle its author did not choose.
 
 ### Editor support
 
 Syntax highlighting, live diagnostics from the real engine, completion, hover
-and an outline — all served by `pol-lsp`, the same code the CLI runs.
+and an outline — all served by `writ-lsp`, the same code the CLI runs.
 
 ```sh
-make install-pol      # puts pol-lsp on PATH
-git clone https://github.com/sajonaro/pol-vscode && cd pol-vscode && ./install.sh
+make install-writ      # puts writ-lsp on PATH
+git clone https://github.com/writ-lang/writ-vscode && cd writ-vscode && ./install.sh
 ```
 
 The client finds the server on `PATH` with nothing to configure.
 
 ### From an AI assistant
 
-`pol-mcp` is an MCP server over the same engine, exposing `pol_check`,
-`pol_query` and `pol_derive` — so an assistant can model a problem and get an
+`writ-mcp` is an MCP server over the same engine, exposing `writ_check`,
+`writ_query` and `writ_derive` — so an assistant can model a problem and get an
 answer with a **witness route** rather than a plausible guess.
 
 ```jsonc
 // .mcp.json — this repository ships one already
-{ "mcpServers": { "pol": { "command": "pol-mcp" } } }
+{ "mcpServers": { "writ": { "command": "writ-mcp" } } }
 ```
 
 **Or install it as a plugin**, which brings the skill and the server together:
 
 ```
-/plugin marketplace add sajonaro/pol
-/plugin install pol@pol
+/plugin marketplace add writ-lang/writ
+/plugin install writ@writ
 ```
 
 A *skill* is prose — it cannot install anything. A **plugin** can: it carries
 skills and an `.mcp.json` in one manifest, so installing it registers the tools
 and teaches the model when to reach for them in a single step. The plugin lives
-in [`plugins/pol/`](plugins/pol/).
+in [`plugins/writ/`](plugins/writ/).
 
 **It runs in Docker by default**, so installing the plugin installs nothing
 native. The image is pinned to the plugin's version, pulled once on first use,
 and the tools answer from it exactly as they would from a local build.
 
-It does not bundle a binary: `pol-mcp` is native code, so shipping one would
+It does not bundle a binary: `writ-mcp` is native code, so shipping one would
 mean a build per platform kept in step with a version the plugin cannot see,
 and a stale one would answer with an old engine. A container has neither
 problem.
 
 The container mounts your working directory **at its own path**, read-only, so
 absolute and relative paths both resolve. The limit is that mount: a model
-*outside* the directory Claude started in is invisible to it. If you have pol
-installed and would rather use it, `POL_MCP_NATIVE=1`; `$POL_MCP` names one
-particular build; `$POL_IMAGE` names a different image.
+*outside* the directory Claude started in is invisible to it. If you have writ
+installed and would rather use it, `WRIT_MCP_NATIVE=1`; `$WRIT_MCP` names one
+particular build; `$WRIT_IMAGE` names a different image.
 
 A failing call answers with the parser's own `file:line:col` message rather than
 dying, which is usually enough for the caller to fix the file and retry. A Claude
-skill that knows when Pol is the right tool — and when it is the wrong one —
+skill that knows when Writ is the right tool — and when it is the wrong one —
 ships in
-[`plugins/pol/skills/pol/`](plugins/pol/skills/pol/), carried by the plugin.
+[`plugins/writ/skills/writ/`](plugins/writ/skills/writ/), carried by the plugin.
 
 ## Documentation
 
@@ -514,14 +515,14 @@ ships in
 - **The language** (normative): [`docs/kernel-spec.md`](docs/kernel-spec.md) —
   the twenty-six words, the meaning of a model, the standard tool interface,
   and worked examples in its appendices.
-- **The standard library:** [`core/stdlib/stdlib.pol`](core/stdlib/stdlib.pol) —
-  25 lines of code, and the only `.pol` the tool ships. A **domain** library (a
+- **The standard library:** [`core/stdlib/stdlib.writ`](core/stdlib/stdlib.writ) —
+  25 lines of code, and the only `.writ` the tool ships. A **domain** library (a
   vocabulary for one subject, e.g.
-  [`tests/models/politics.lib.pol`](tests/models/politics.lib.pol)) is ordinary
+  [`tests/models/politics.lib.writ`](tests/models/politics.lib.writ)) is ordinary
   user code and lives beside the models that load it.
 - **The relational extension:** [`docs/interrogator.md`](docs/interrogator.md) —
   partly built. The `.rules` file, the built-in relations that expose the
-  derived state category, and `pol derive` (§0–§2, §4, §5) ship; `pol solve`,
+  derived state category, and `writ derive` (§0–§2, §4, §5) ship; `writ solve`,
   the search for structure-preserving maps (§3), does not.
 
 ## Building from source
@@ -534,16 +535,16 @@ make dev     # build + test, then refresh the installed binaries
 ```
 
 `make build` does not install, which is right — a build should not touch your
-`$PREFIX` — and is also how the `pol` on your PATH becomes a different program
+`$PREFIX` — and is also how the `writ` on your PATH becomes a different program
 from the one you just tested. `make dev` is the edit loop: build, test,
 install. It leaves `lint` out on purpose, since `dune build` already compiles
 with warnings-as-errors and a formatting check that fails on every
 half-finished edit is a check you start skipping.
 
 (A symlinked dev install would need no remembering, and does not work here:
-dune's `_build/install/default/bin/pol` is itself a symlink into
-`_build/default/tooling/cli/pol.exe`, `Sys.executable_name` resolves through
-it, and the stdlib search is relative to the binary — so `../share/pol/lib`
+dune's `_build/install/default/bin/writ` is itself a symlink into
+`_build/default/tooling/cli/writ.exe`, `Sys.executable_name` resolves through
+it, and the stdlib search is relative to the binary — so `../share/writ/lib`
 lands inside `_build`.)
 
 OCaml + dune, **stdlib only** — no external libraries (JSON, JSON-RPC and the
@@ -552,32 +553,32 @@ dependency graph. Three **engine** libraries, each a strict layer:
 
 | | |
 |---|---|
-| `pol_data` (`core/data/`) | the data model — a leaf, no dependencies |
-| `pol_syntax` (`core/syntax/`) | the front end — depends on `pol_data` |
-| `pol_runtime` (`runtime/`) | the interrogator — depends on `pol_data` **only**, so it is structurally incapable of reaching the front end |
+| `writ_data` (`core/data/`) | the data model — a leaf, no dependencies |
+| `writ_syntax` (`core/syntax/`) | the front end — depends on `writ_data` |
+| `writ_runtime` (`runtime/`) | the interrogator — depends on `writ_data` **only**, so it is structurally incapable of reaching the front end |
 
-Around them: `pol_loadpath` (the `(load …)` search order, shared so the CLI and
-both servers can never disagree about where a library lives), `pol_json`, and a
-pure library per server — `pol_lsp` and `pol_mcp`, each a function from messages
+Around them: `writ_loadpath` (the `(load …)` search order, shared so the CLI and
+both servers can never disagree about where a library lives), `writ_json`, and a
+pure library per server — `writ_lsp` and `writ_mcp`, each a function from messages
 to messages.
 
 All of those are IO-free. IO lives in exactly three executables — `tooling/cli/`,
 `tooling/lsp/bin/` and `tooling/mcp/bin/` — a rule the dependency graph cannot
 express, so two fitness gates check it instead — one over the engine
 libraries, one over the servers and the shared JSON. The toolchain is resolved by
-`scripts/with-ocaml.sh` (dune on `PATH`, else a central `pol` opam switch).
+`scripts/with-ocaml.sh` (dune on `PATH`, else a central `writ` opam switch).
 
 ## Status
 
 Built: the full language (schema / instance / transitions / equations / forms),
 the interrogator (state-space enumeration, the four modalities with witnesses,
-queries, equation observation), the tool interface `pol check` / `query` /
+queries, equation observation), the tool interface `writ check` / `query` /
 `compare` (+ `--git`) / `control` / `schema` / `derive` — the last being the
 relational extension's rules engine over the enumerated universe — and two
-servers, `pol-lsp` and `pol-mcp`.
+servers, `writ-lsp` and `writ-mcp`.
 
 Deferred: the §16.4 schema dictionaries (`functor` / `check … via`), §17 fiber
-reporting, and the extension's own `pol solve` (its §3), which searches for
+reporting, and the extension's own `writ solve` (its §3), which searches for
 functors and simulations rather than deriving facts.
 
 ## License
@@ -589,8 +590,8 @@ modified version you distribute **or offer to users over a network** must carry
 the same license and make its source available to those users (AGPL §13, which
 is what distinguishes the AGPL from the plain GPL). No warranty.
 
-A model you write in Pol is your own work, not a derivative of `pol` — the
-license covers the tool, not the `.pol` files it reads. That is not just an
+A model you write in Writ is your own work, not a derivative of `writ` — the
+license covers the tool, not the `.writ` files it reads. That is not just an
 opinion in a README: [`LICENSE.exception`](LICENSE.exception) grants it as an
 additional permission under AGPL §7, covering your models, everything the tool
 emits, and the bundled standard library. The kernel's syscall note is the same

@@ -11,8 +11,8 @@
    test_syntax.ml, and because these cases are one change rather than a
    scattering. *)
 
-open Pol_data
-open Pol_syntax
+open Writ_data
+open Writ_syntax
 
 let passed = ref 0
 
@@ -106,11 +106,11 @@ let () =
   match decodes src with
   | Error e -> check ("vacant-side model rejected: " ^ Errors.to_string e) false
   | Ok m -> (
-      match Pol_runtime.Space.build m with
+      match Writ_runtime.Space.build m with
       | Error e -> check ("vacant-side build failed: " ^ e) false
       | Ok sp ->
           check "an undefined side makes the comparison false, not vacuous"
-            (Array.length sp.Pol_runtime.Space.states = 1))
+            (Array.length sp.Writ_runtime.Space.states = 1))
 
 (* --- §8.6: an equation holds a guard ------------------------------------- *)
 

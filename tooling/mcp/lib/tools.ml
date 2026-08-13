@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The pol verbs, as tool calls.
+(* The writ verbs, as tool calls.
 
    Every function here answers with a [result] and never exits. The CLI dies
    with status 2 on an unreadable model because a shell wants that; a tool call
@@ -12,7 +12,7 @@
    cannot be shared.
 
    Everything else IS shared: the same [Loader], the same [Space], the same
-   [Report]. An answer from this server is an answer `pol check` would give,
+   [Report]. An answer from this server is an answer `writ check` would give,
    for the same reason the language server is written in OCaml — a second
    implementation would be a second set of bugs.
 
@@ -20,9 +20,9 @@
    design D3 searches the including file's own directory first and a rules file
    need not sit beside its model. The binary supplies it; no I/O happens here. *)
 
-open Pol_data
-open Pol_syntax
-open Pol_runtime
+open Writ_data
+open Writ_syntax
+open Writ_runtime
 
 let ( let* ) = Result.bind
 
@@ -44,7 +44,7 @@ let adder b s =
 
 (* ── check ─────────────────────────────────────────────────────────────────
    The flagship verb: build the space, report it, and — with a claims file —
-   answer every property and query. Same output as `pol check`, and the same
+   answer every property and query. Same output as `writ check`, and the same
    meaning: `fails` carries the shortest route to the counterexample. *)
 let check ~resolve ~model ~claims =
   let* m = load resolve model in

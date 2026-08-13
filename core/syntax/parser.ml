@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-open Pol_data
+open Writ_data
 
 (* Model / library datums -> Schema / Instance / Model. A library is a bag of
    declarations (schemas, instances; forms are expanded away before parsing); a
@@ -123,7 +123,7 @@ let decode_transition (schema : Schema.t) (env : Grammar.env) (d : Reader.t) :
 
    Two moves of one name are not a cosmetic clash. §10.1 makes NAME how a report
    identifies a move and how §15 acknowledgments name one, so a duplicate makes
-   every such reference ambiguous; and [pol control] emits one [edge] entity per
+   every such reference ambiguous; and [writ control] emits one [edge] entity per
    transition, so a duplicated name produces a quiver instance with a duplicated
    entity — output the front end now refuses to re-read (§7). Blame the second,
    which is the one the author added. *)

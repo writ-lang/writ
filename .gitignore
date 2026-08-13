@@ -32,7 +32,7 @@ bisect*.coverage
 # ── opam ─────────────────────────────────────────────────────
 # A switch created inside the checkout (opam switch create .).
 /_opam/
-# pol.opam is NOT ignored: it is generated from dune-project by
+# writ.opam is NOT ignored: it is generated from dune-project by
 # (generate_opam_files true), and `opam pin` / `opam install .` must find it in
 # the sources before anything is built. Regenerate it with `make build`.
 

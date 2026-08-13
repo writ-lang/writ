@@ -2,27 +2,27 @@
 ;
 ; It lives in tooling/ rather than core/, and the line is worth stating because
 ; the first cut got it wrong. `core/` is the LANGUAGE — the data model, the
-; front end, and the standard library. Everything that bridges pol to something
+; front end, and the standard library. Everything that bridges writ to something
 ; foreign lives here: `json` and `loadpath`, `lsp` and `mcp`. A PostgreSQL
-; dialect parser is a bridge to a foreign NOTATION exactly as pol_lsp is a
-; bridge to a foreign PROTOCOL, and putting one beside pol_data would assert
-; that SQL is part of what pol IS. It is not; the engine cannot tell this
+; dialect parser is a bridge to a foreign NOTATION exactly as writ_lsp is a
+; bridge to a foreign PROTOCOL, and putting one beside writ_data would assert
+; that SQL is part of what writ IS. It is not; the engine cannot tell this
 ; library exists.
 ;
 ; Flat rather than lib/ + bin/, which is `json`'s and `loadpath`'s shape and not
-; `lsp`'s: those two split because they produce their own executable. `pol sql`
+; `lsp`'s: those two split because they produce their own executable. `writ sql`
 ; is a verb of the one CLI, so there is no second binary to separate from.
 ;
-; It depends on [pol_data] and NOTHING ELSE — not the front end, not the
+; It depends on [writ_data] and NOTHING ELSE — not the front end, not the
 ; interrogator. That is not an accident of what it happens to need: the import
-; direction produces .pol TEXT (so it never builds a model, and a malformed DDL
+; direction produces .writ TEXT (so it never builds a model, and a malformed DDL
 ; can never reach the engine), and the export direction reads a [Schema.t],
 ; which is a data-layer value. Keeping the dependency at one leaf is what makes
 ; "the mapping" a thing you can test without a filesystem or a parser.
 ;
-; IO-free, like every library here; the `pol sql` verb in tooling/cli/ does the
+; IO-free, like every library here; the `writ sql` verb in tooling/cli/ does the
 ; reading and writing.
 
 (library
- (name pol_sql)
- (libraries pol_data))
+ (name writ_sql)
+ (libraries writ_data))
