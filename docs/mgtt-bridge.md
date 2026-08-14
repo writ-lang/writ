@@ -123,14 +123,28 @@ values with no arithmetic between them:
 The pair is named from the alphabetically-first fact, so one pair spells one
 way however the author wrote it.
 
-**A fact compared both with a sibling and against a constant is not carried.**
-`ready_replicas == desired_replicas` wants an ordering; `desired_replicas == 0`
-wants regions; both constrain the same two cells, and the joint domain over
-both is not implemented. The behaviour is sound but lossy — guards needing the
-constant are refused, so the moves that would use them are **not emitted**
-rather than emitted wrongly — and it is declined by name. It is the one gap
-that costs coverage rather than merely reporting less, and it is the first
-thing to fix.
+**A fact compared both with a sibling and against a constant** needs more than
+either shape alone. `ready_replicas == desired_replicas` alongside
+`desired_replicas == 0` constrains the same two cells: an ordering cannot say
+the second, and two independent region domains cannot say the first, because
+independent regions cannot decide `ready == desired` when both values land
+inside one region.
+
+So the shared cell carries **a region for each fact**, cut by the constants
+applied to either of them, and the ordering falls out of comparing the two
+representatives rather than being stored beside them — a stored ordering is a
+third fact that can contradict the first two. Combinations that cannot occur
+are not members: where the two regions differ, which one is lower already
+settles the ordering, so there is one member and not three.
+
+This is why a region carries **bounds** and not only a representative. One
+representative answers "does this region satisfy `< 500`", which is all a
+single-fact domain ever asks. It cannot produce a *second distinct value inside
+the same region*, which is exactly what "both facts here, the left one larger"
+requires — and the first cut of this, representing that as `(rep, rep+1)`, let
+the left value escape into the region above, so a member named `below-0-more`
+satisfied `desired == 0`. It passed every coherence check and was still a lie
+about what it named.
 
 A non-integer constant is refused outright. Writ has no floats to name a member
 after and no ordering worth inventing for one, and refusing loudly is what
@@ -208,7 +222,7 @@ model that says nothing while appearing to pass.
 mgtt supplies the origin from outside: an injected fact in a scenario, a probe
 result at 3am. Its own scenario enumerator supplies it the same way, by taking
 each component in turn as the root cause. Measured on the four-component
-worked model: **1 situation and 0 edges without these moves, 36 and 138 with.**
+worked model: **1 situation and 0 edges without these moves, 64 and 268 with.**
 
 ### Propagation, from mgtt's own label protocol
 
@@ -251,7 +265,7 @@ reachable set is not the product of the state domains but the set of *consistent
 failure configurations* — which is the set mgtt's own enumerator walks when it
 writes `scenarios.yaml`.
 
-Measured, on the same four-component model: writ reports 36 situations and 138
+Measured, on the same four-component model: writ reports 64 situations and 268
 edges; mgtt's enumerator writes 76 chains. The two count different objects — a
 chain is a route from a root cause, a situation is a whole-system configuration
 — so neither number bounds the other, and the point is not that one is smaller.
@@ -277,7 +291,6 @@ placeholder would otherwise bury the one decline that mattered.
 
 | Declined | Why |
 |---|---|
-| a fact compared with both a sibling and a constant | §3 — the joint domain is not implemented; moves are lost, not faked |
 | a non-integer constant | no member name, and no ordering worth inventing |
 | a fact no predicate mentions | no regions to name, so no arrow to make |
 | a state no assignment satisfies | it is unreachable, which is a finding in itself |
@@ -303,13 +316,13 @@ staleness stay with mgtt: writ has no clock.
 $ mgtt model export --json > system.json
 $ writ mgtt system.json > system.writ
 $ writ check system.writ
-states: 36   edges: 138
+states: 64   edges: 268
 gaps: none
-dead ends: 4
+dead ends: 9
   reached by: api-fails-degraded, edge-fails-draining, frontend-fails-degraded, store-fails-stopped
 equation datastore-store-health-matches-state
   can be broken by: store-fails-stopped   (acknowledge in claims)
-  violated in 18 reachable situations   witness: 1. store-fails-stopped
+  violated in 32 reachable situations   witness: 1. store-fails-stopped
 $ echo $?
 1
 ```

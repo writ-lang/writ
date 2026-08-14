@@ -373,7 +373,7 @@ the other from its type's state rules, with nothing keeping the two consistent:
 ```console
 equation datastore-store-health-matches-state
   can be broken by: store-fails-stopped   (acknowledge in claims)
-  violated in 18 reachable situations   witness: 1. store-fails-stopped
+  violated in 32 reachable situations   witness: 1. store-fails-stopped
 ```
 
 Half that system's reachable configurations disagree with themselves about
