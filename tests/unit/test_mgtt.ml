@@ -593,6 +593,72 @@ let test_emit_forwards_mgtt_declines () =
        (fun (dc : Mgtt_ast.decline) -> contains ~sub:"generic" dc.Mgtt_ast.why)
        declines)
 
+(* A REAL export, produced by `mgtt model export --json` and committed here.
+
+   The hand-written documents above pin the reading; this one pins the
+   CONTRACT. mgtt and writ release separately, so the risk this guards is not a
+   version bump — writ refuses a version it does not know — but mgtt quietly
+   changing what a field MEANS while its shape and version stay put. Reading a
+   real document end to end, and asserting on what it should produce, turns
+   that drift into a failure in this suite rather than in a user's terminal.
+
+   Refresh it deliberately, from a real run, when the schema version changes.
+   See mgtt's docs/decisions/0001-where-the-writ-bridge-lives.md. *)
+let test_pinned_export_contract () =
+  let path = "fixtures/mgtt-export-v1.json" in
+  let src =
+    let ic = open_in_bin path in
+    let n = in_channel_length ic in
+    let s = really_input_string ic n in
+    close_in ic;
+    s
+  in
+  let d =
+    match Json_parse.parse src with
+    | Error e -> failwith (path ^ ": " ^ e)
+    | Ok j -> (
+        match Mgtt_read.of_json j with
+        | Error e -> failwith (path ^ ": " ^ e)
+        | Ok d -> d)
+  in
+  check "contract: the pinned export still reads"
+    (List.length d.Mgtt_ast.components = 4 && List.length d.Mgtt_ast.types = 3);
+  (* the fields the reading actually depends on are all populated *)
+  check "contract: components carry an effective healthy list"
+    (List.for_all
+       (fun (c : Mgtt_ast.comp) -> c.Mgtt_ast.chealthy <> [])
+       d.Mgtt_ast.components);
+  check "contract: types carry facts, states and a default state"
+    (List.for_all
+       (fun (t : Mgtt_ast.ty) ->
+         t.Mgtt_ast.facts <> [] && t.Mgtt_ast.states <> []
+         && t.Mgtt_ast.default_state <> "")
+       d.Mgtt_ast.types);
+  check "contract: the propagation protocol is present on both halves"
+    (List.exists
+       (fun (t : Mgtt_ast.ty) -> t.Mgtt_ast.tmodes <> [])
+       d.Mgtt_ast.types
+    && List.exists
+         (fun (t : Mgtt_ast.ty) ->
+           List.exists
+             (fun (s : Mgtt_ast.state) -> s.Mgtt_ast.striggered <> [])
+             t.Mgtt_ast.states)
+         d.Mgtt_ast.types);
+  (* and it still emits a model the front end accepts, with nothing declined *)
+  let text, declines = Emit_mgtt.file ~name:"pinned" d in
+  check "contract: the pinned export declines nothing" (declines = []);
+  match Writ_syntax.Reader.read_string text with
+  | Error e -> check ("contract: reads: " ^ Writ_data.Errors.to_string e) false
+  | Ok ds -> (
+      match Writ_syntax.Expander.expand ds with
+      | Error e ->
+          check ("contract: expands: " ^ Writ_data.Errors.to_string e) false
+      | Ok ds -> (
+          match Writ_syntax.Parser.parse_model ds with
+          | Error e ->
+              check ("contract: parses: " ^ Writ_data.Errors.to_string e) false
+          | Ok _ -> check "contract: a real export still yields a model" true))
+
 let () =
   test_read ();
   test_read_type_lookup ();
@@ -628,4 +694,5 @@ let () =
   test_emit_catches_health_state_divergence ();
   test_emit_declines_unsatisfiable_state ();
   test_emit_forwards_mgtt_declines ();
+  test_pinned_export_contract ();
   print_string ("test_mgtt: " ^ string_of_int !passed ^ " passed\n")
