@@ -50,18 +50,40 @@ let domain_type_name (owner : string) (d : Mgtt_domains.domain) : string =
 
 (* ---- predicate to guard --------------------------------------------------- *)
 
+(* The pair domain a fact shares, if it shares one. A fact compared with a
+   sibling has no cell of its own — the pair owns it — so a comparison against
+   a CONSTANT has to be answered from the pair's cell too. *)
+let pair_domain_of (doms : Mgtt_domains.domain list) (fact : string) :
+    Mgtt_domains.domain option =
+  List.find_opt
+    (fun (d : Mgtt_domains.domain) ->
+      match String.index_opt d.Mgtt_domains.dfact ':' with
+      | None -> false
+      | Some i ->
+          let key = d.Mgtt_domains.dfact in
+          let a = String.sub key 0 i in
+          let b = String.sub key (i + 1) (String.length key - i - 1) in
+          a = fact || b = fact)
+    doms
+
 let domain_for (doms : Mgtt_domains.domain list) (c : Mgtt_expr.comparison) :
     Mgtt_domains.domain option =
-  let key =
-    match c.Mgtt_expr.rhs with
-    | Mgtt_expr.Fact_ref other ->
-        let a, b = (c.Mgtt_expr.fact, other) in
-        if a <= b then a ^ ":" ^ b else b ^ ":" ^ a
-    | _ -> c.Mgtt_expr.fact
-  in
-  List.find_opt
-    (fun (d : Mgtt_domains.domain) -> d.Mgtt_domains.dfact = key)
-    doms
+  match c.Mgtt_expr.rhs with
+  | Mgtt_expr.Fact_ref other ->
+      let a, b = (c.Mgtt_expr.fact, other) in
+      let key = if a <= b then a ^ ":" ^ b else b ^ ":" ^ a in
+      List.find_opt
+        (fun (d : Mgtt_domains.domain) -> d.Mgtt_domains.dfact = key)
+        doms
+  | _ -> (
+      match
+        List.find_opt
+          (fun (d : Mgtt_domains.domain) ->
+            d.Mgtt_domains.dfact = c.Mgtt_expr.fact)
+          doms
+      with
+      | Some d -> Some d
+      | None -> pair_domain_of doms c.Mgtt_expr.fact)
 
 (* Which of a domain's members satisfy this one comparison. Decided by asking
    [Mgtt_domains.satisfies] member by member, so there is exactly one place

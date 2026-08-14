@@ -29,7 +29,29 @@
    check would ignore. *)
 
 type member = string
-type domain = { dfact : string; dtype : string; members : member list }
+
+(* What a member MEANS, kept beside the names rather than encoded in them.
+
+   An earlier version read the meaning back out of the name — `below-500` gave
+   499 — which worked while every domain was one fact deep and stopped working
+   the moment a member had to say two things at once (this fact's region, the
+   sibling's region, and how the two compare). Names are for the emitted model
+   to read; this table is for the reduction to read. *)
+type value =
+  | Vbool of bool
+  | Vstr of string
+  | Vint of int  (** a representative of the region *)
+  | Vpair of { left : int; right : int }
+      (** representatives of BOTH facts of a pair, in the domain's own
+          (alphabetical) order — so the ordering between them is a comparison
+          rather than a third field that could disagree with the first two *)
+
+type domain = {
+  dfact : string;
+  dtype : string;
+  members : member list;
+  interp : (member * value) list;
+}
 
 (* ---- gathering ----------------------------------------------------------- *)
 
@@ -86,7 +108,23 @@ let sanitize (s : string) : string =
 (* A region of the value line, as a representative and a name. [rep] is what
    [satisfies] evaluates predicates at: any value in the region answers every
    predicate the same way, so one representative decides them all. *)
-type region = { rname : string; rep : int }
+(* A region carries its BOUNDS, not just a representative.
+
+   One representative is enough to answer "does this region satisfy `< 500`",
+   which is all a single-fact domain ever asks. It is not enough for a pair:
+   saying "both facts lie in this region, and the left one is the larger" needs
+   two DISTINCT values that are both still inside it, and a lone representative
+   cannot produce a second without escaping the region it names. [lo]/[hi] are
+   inclusive; [None] is unbounded on that side. *)
+type region = { rname : string; rep : int; lo : int option; hi : int option }
+
+(* Two distinct values inside the region, or [None] where it holds only one. *)
+let two_inside (r : region) : (int * int) option =
+  match (r.lo, r.hi) with
+  | Some l, Some h -> if h - l >= 1 then Some (l, l + 1) else None
+  | Some l, None -> Some (l, l + 1)
+  | None, Some h -> Some (h - 1, h)
+  | None, None -> Some (r.rep, r.rep + 1)
 
 let int_constants (cs : (Mgtt_expr.cmp * Mgtt_expr.rhs) list) : int list =
   List.sort_uniq compare
@@ -115,17 +153,44 @@ let cut_regions (ks : int list) : region list =
       let rec weave = function
         | [] -> []
         | k :: rest ->
-            let here = { rname = "exactly-" ^ string_of_int k; rep = k } in
+            let here =
+              {
+                rname = "exactly-" ^ string_of_int k;
+                rep = k;
+                lo = Some k;
+                hi = Some k;
+              }
+            in
             let gap =
               match rest with
               | next :: _ ->
-                  [ { rname = "under-" ^ string_of_int next; rep = next - 1 } ]
+                  [
+                    {
+                      rname = "under-" ^ string_of_int next;
+                      rep = next - 1;
+                      lo = Some (k + 1);
+                      hi = Some (next - 1);
+                    };
+                  ]
               | [] -> []
             in
             (here :: gap) @ weave rest
       in
-      ({ rname = "below-" ^ string_of_int first; rep = first - 1 } :: weave ks)
-      @ [ { rname = "above-" ^ string_of_int last; rep = last + 1 } ]
+      {
+        rname = "below-" ^ string_of_int first;
+        rep = first - 1;
+        lo = None;
+        hi = Some (first - 1);
+      }
+      :: weave ks
+      @ [
+          {
+            rname = "above-" ^ string_of_int last;
+            rep = last + 1;
+            lo = Some (last + 1);
+            hi = None;
+          };
+        ]
 
 (* Two neighbouring regions merge when no gathered predicate tells them apart.
    The merged name is read off the pair: a region that runs from below a
@@ -161,7 +226,10 @@ let merge_regions (cs : (Mgtt_expr.cmp * Mgtt_expr.rhs) list) (rs : region list)
         in
         let group, remaining = take_while_same r [ r ] rest in
         let last = List.nth group (List.length group - 1) in
-        go ({ rname = rename r last; rep = r.rep } :: acc) remaining
+        go
+          ({ rname = rename r last; rep = r.rep; lo = r.lo; hi = last.hi }
+          :: acc)
+          remaining
   in
   go [] rs
 
@@ -184,11 +252,57 @@ let is_bool cs =
 let is_string cs =
   List.exists (function _, Mgtt_expr.Lit_str _ -> true | _ -> false) cs
 
-(* The joint domain a pair of compared facts shares. Three members is exactly
-   what the six operators can distinguish about two values with no arithmetic
-   between them. *)
-let pair_members = [ "fewer"; "equal"; "more" ]
+(* ---- pair domains -------------------------------------------------------- *)
+
+(* Two facts compared with each other share ONE cell, because the predicate
+   reads the pair. What that cell must carry depends on what else is asked of
+   them.
+
+   When nothing else is asked, an ordering is enough — three members, which is
+   exactly what six operators can distinguish about two values with no
+   arithmetic between them.
+
+   When a constant is also compared against either fact — `ready == desired`
+   alongside `desired == 0` — an ordering is not enough, and neither are two
+   independent region domains: independent regions cannot say `ready ==
+   desired` when both land inside one region, and an ordering cannot say
+   `desired == 0` at all. So the cell carries a REGION FOR EACH fact, cut by
+   the constants applied to either of them, and the ordering falls out of
+   comparing the two representatives. Combinations that cannot occur are not
+   members: where the two regions differ, the ordering is already decided by
+   which region is lower. *)
+
 let pair_name (a, b) = a ^ ":" ^ b
+let bare_pair_members = [ "fewer"; "equal"; "more" ]
+
+(* Two values inside ONE region may still be ordered three ways — unless the
+   region is a single point, where they can only be equal. *)
+let within_region (r : region) =
+  match two_inside r with
+  | None -> [ ("equal", r.rep, r.rep) ]
+  | Some (v1, v2) -> [ ("fewer", v1, v2); ("equal", v1, v1); ("more", v2, v1) ]
+
+let joint_members (rs : region list) : (member * value) list =
+  List.concat_map
+    (fun (i, ri) ->
+      List.concat_map
+        (fun (j, rj) ->
+          if i <> j then
+            (* different regions: the ordering is already settled by which
+               region is the lower, so there is one member and not three *)
+            [
+              ( ri.rname ^ "-vs-" ^ rj.rname,
+                Vpair { left = ri.rep; right = rj.rep } );
+            ]
+          else
+            List.map
+              (fun (tag, l, r) ->
+                (ri.rname ^ "-" ^ tag, Vpair { left = l; right = r }))
+              (within_region ri))
+        (List.mapi (fun j r -> (j, r)) rs))
+    (List.mapi (fun i r -> (i, r)) rs)
+
+(* ---- building the domains ------------------------------------------------ *)
 
 let of_type (ty : Mgtt_ast.ty) (comps : Mgtt_ast.comp list) :
     domain list * Mgtt_ast.decline list =
@@ -200,43 +314,41 @@ let of_type (ty : Mgtt_ast.ty) (comps : Mgtt_ast.comp list) :
   let mentioned =
     List.sort_uniq compare (List.concat_map Mgtt_expr.facts_of exprs)
   in
+  let constraints fact = List.concat_map (constraints_on fact) exprs in
 
-  let pair_domains =
-    List.map
-      (fun p ->
-        { dfact = pair_name p; dtype = "mgtt.pair"; members = pair_members })
-      pairs
+  (* A pair's regions are cut by the constants applied to EITHER fact, and
+     merged against both facts' constraints — one region set serves both, so it
+     must be fine enough for the finer of the two. *)
+  let pair_domain (a, b) =
+    let cs = constraints a @ constraints b in
+    match int_constants cs with
+    | [] ->
+        {
+          dfact = pair_name (a, b);
+          dtype = "mgtt.pair";
+          members = bare_pair_members;
+          interp =
+            [
+              ("fewer", Vpair { left = 0; right = 1 });
+              ("equal", Vpair { left = 0; right = 0 });
+              ("more", Vpair { left = 1; right = 0 });
+            ];
+        }
+    | ks ->
+        let interp = joint_members (merge_regions cs (cut_regions ks)) in
+        {
+          dfact = pair_name (a, b);
+          dtype = "mgtt.pair";
+          members = List.map fst interp;
+          interp;
+        }
   in
+  let pair_domains = List.map pair_domain pairs in
 
   let single_domains, more_declines =
     List.fold_left
       (fun (doms, ds) (fact, ftype) ->
-        if paired fact then
-          (* A fact compared BOTH with a sibling and against a constant needs a
-             joint domain over the two facts' regions, not an ordering alone:
-             `ready_replicas == desired_replicas` and `desired_replicas == 0`
-             constrain the same pair of cells and an ordering cannot express
-             the second. Emitting the ordering alone and letting the constant
-             comparison fail is sound — the guards that need it are refused,
-             so moves are LOST rather than invented — but it is a real gap and
-             it says so here rather than leaving the caller to infer it from a
-             missing transition. *)
-          let consts =
-            List.filter
-              (function _, Mgtt_expr.Lit_int _ -> true | _ -> false)
-              (List.concat_map (constraints_on fact) exprs)
-          in
-          if consts = [] then (doms, ds)
-          else
-            ( doms,
-              {
-                Mgtt_ast.what = ty.Mgtt_ast.tname ^ "." ^ fact;
-                why =
-                  "compared both with a sibling fact and against a constant; \
-                   only the ordering is carried, so guards using the constant \
-                   are refused and the moves needing them are not emitted";
-              }
-              :: ds )
+        if paired fact then (doms, ds)
         else if not (List.mem fact mentioned) then
           ( doms,
             {
@@ -247,54 +359,78 @@ let of_type (ty : Mgtt_ast.ty) (comps : Mgtt_ast.comp list) :
             }
             :: ds )
         else
-          let cs = List.concat_map (constraints_on fact) exprs in
-          let members =
-            if is_bool cs then bool_members
-            else if is_string cs then string_members cs
+          let cs = constraints fact in
+          let interp =
+            if is_bool cs then [ ("yes", Vbool true); ("no", Vbool false) ]
+            else if is_string cs then
+              List.map (fun m -> (m, Vstr m)) (string_members cs)
             else
               match int_constants cs with
               | [] -> []
               | ks ->
                   List.map
-                    (fun r -> r.rname)
+                    (fun r -> (r.rname, Vint r.rep))
                     (merge_regions cs (cut_regions ks))
           in
-          if members = [] then
+          if interp = [] then
             ( doms,
               {
                 Mgtt_ast.what = ty.Mgtt_ast.tname ^ "." ^ fact;
                 why = "compared against nothing writ can name";
               }
               :: ds )
-          else ({ dfact = fact; dtype = ftype; members } :: doms, ds))
+          else
+            ( {
+                dfact = fact;
+                dtype = ftype;
+                members = List.map fst interp;
+                interp;
+              }
+              :: doms,
+              ds ))
       ([], []) ty.Mgtt_ast.facts
   in
   (List.rev single_domains @ pair_domains, List.rev (more_declines @ declines))
 
 (* ---- evaluating against an assignment ------------------------------------ *)
 
-(* The representative value of a member, for the numeric case. Recovering it
-   from the name keeps [domain] a plain list of strings, which is what the
-   emitter wants to print. *)
-let rep_of_member (m : member) : int option =
-  let starts p =
-    String.length m > String.length p && String.sub m 0 (String.length p) = p
-  in
-  let after p =
-    String.sub m (String.length p) (String.length m - String.length p)
-  in
-  if starts "below-" then
-    Option.map (fun k -> k - 1) (int_of_string_opt (after "below-"))
-  else if starts "under-" then
-    Option.map (fun k -> k - 1) (int_of_string_opt (after "under-"))
-  else if starts "exactly-" then int_of_string_opt (after "exactly-")
-  else if starts "at-or-above-" then int_of_string_opt (after "at-or-above-")
-  else if starts "from-" then int_of_string_opt (after "from-")
-  else if starts "above-" then
-    Option.map (fun k -> k + 1) (int_of_string_opt (after "above-"))
-  else None
+let value_of (doms : domain list) (key : string) (m : member) : value option =
+  match List.find_opt (fun d -> d.dfact = key) doms with
+  | None -> None
+  | Some d -> List.assoc_opt m d.interp
 
-let pair_key a b = if a <= b then a ^ ":" ^ b else b ^ ":" ^ a
+(* The representative this fact takes, whether it owns a domain or shares a
+   pair's. [left]/[right] follow the pair's own alphabetical order, so which
+   half to read is decided by comparing the names rather than by remembering
+   which way round the caller wrote them. *)
+let rep_of (doms : domain list) (assign : (string * member) list)
+    (fact : string) : int option =
+  let own =
+    match List.assoc_opt fact assign with
+    | Some m -> (
+        match value_of doms fact m with Some (Vint v) -> Some v | _ -> None)
+    | None -> None
+  in
+  match own with
+  | Some v -> Some v
+  | None ->
+      List.find_map
+        (fun (d : domain) ->
+          match String.index_opt d.dfact ':' with
+          | None -> None
+          | Some i ->
+              let a = String.sub d.dfact 0 i in
+              let b =
+                String.sub d.dfact (i + 1) (String.length d.dfact - i - 1)
+              in
+              if a <> fact && b <> fact then None
+              else
+                Option.bind (List.assoc_opt d.dfact assign) (fun m ->
+                    match List.assoc_opt m d.interp with
+                    | Some (Vpair p) ->
+                        Some (if a = fact then p.left else p.right)
+                    | _ -> None))
+        doms
 
 (* Does [assign] — a member per domain — satisfy [e]?
 
@@ -308,42 +444,32 @@ let rec satisfies (doms : domain list) (e : Mgtt_expr.t)
   | Mgtt_expr.And (a, b) -> satisfies doms a assign && satisfies doms b assign
   | Mgtt_expr.Or (a, b) -> satisfies doms a assign || satisfies doms b assign
   | Mgtt_expr.Cmp { fact; op; rhs = Mgtt_expr.Fact_ref other } -> (
-      match List.assoc_opt (pair_key fact other) assign with
-      | None -> false
-      | Some m ->
-          (* the pair's member is written from the alphabetically-first fact's
-             point of view, so flip the reading when this fact is the second *)
-          let flip = fact > other in
-          let ord =
-            match m with "fewer" -> -1 | "equal" -> 0 | "more" -> 1 | _ -> 0
-          in
-          let ord = if flip then -ord else ord in
-          let cmp0 =
-            match op with
-            | Mgtt_expr.Eq -> ord = 0
-            | Mgtt_expr.Neq -> ord <> 0
-            | Mgtt_expr.Lt -> ord < 0
-            | Mgtt_expr.Gt -> ord > 0
-            | Mgtt_expr.Lte -> ord <= 0
-            | Mgtt_expr.Gte -> ord >= 0
-          in
-          cmp0)
+      (* both sides are representatives of the same cell, so the ordering is a
+         comparison rather than a stored field that could contradict them *)
+      match (rep_of doms assign fact, rep_of doms assign other) with
+      | Some l, Some r -> eval_int op l r
+      | _ -> false)
   | Mgtt_expr.Cmp { fact; op; rhs } -> (
-      match List.assoc_opt fact assign with
-      | None -> false
-      | Some m -> (
-          match rhs with
-          | Mgtt_expr.Lit_bool b ->
-              let v = m = "yes" in
-              if op = Mgtt_expr.Neq then v <> b else v = b
-          | Mgtt_expr.Lit_str s ->
-              let v = m = sanitize s in
-              if op = Mgtt_expr.Neq then not v else v
-          | Mgtt_expr.Lit_int k -> (
-              match rep_of_member m with
-              | Some v -> eval_int op v k
-              | None -> false)
-          | Mgtt_expr.Fact_ref _ -> false))
+      match rhs with
+      | Mgtt_expr.Lit_int k -> (
+          match rep_of doms assign fact with
+          | Some v -> eval_int op v k
+          | None -> false)
+      | Mgtt_expr.Lit_bool b -> (
+          match
+            Option.bind (List.assoc_opt fact assign) (value_of doms fact)
+          with
+          | Some (Vbool v) -> if op = Mgtt_expr.Neq then v <> b else v = b
+          | _ -> false)
+      | Mgtt_expr.Lit_str str -> (
+          match
+            Option.bind (List.assoc_opt fact assign) (value_of doms fact)
+          with
+          | Some (Vstr v) ->
+              let same = v = sanitize str in
+              if op = Mgtt_expr.Neq then not same else same
+          | _ -> false)
+      | Mgtt_expr.Fact_ref _ -> false)
 
 (* The members of one domain, or [] when the fact was not carried. *)
 let members_of (doms : domain list) (fact : string) : member list =
