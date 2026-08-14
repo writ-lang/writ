@@ -35,7 +35,7 @@
   test_sql
   test_mgtt)
  (deps
-  (glob_files fixtures/*.{writ,claims,rules})
+  (glob_files fixtures/*.{writ,claims,rules,json})
   (glob_files %{workspace_root}/tests/models/*.{writ,claims})
   (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
  (libraries

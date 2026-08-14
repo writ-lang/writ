@@ -24,6 +24,15 @@ let check name cond =
     print_string ("FAIL: " ^ name ^ "\n");
     exit 1)
 
+let contains ~sub s =
+  let ls = String.length s and lsub = String.length sub in
+  let rec go i =
+    if i + lsub > ls then false
+    else if String.sub s i lsub = sub then true
+    else go (i + 1)
+  in
+  go 0
+
 let doc_of_string (s : string) : Mgtt_ast.doc =
   match Json_parse.parse s with
   | Error e -> failwith ("json: " ^ e)
@@ -294,6 +303,114 @@ let test_domains_satisfies () =
        (Mgtt_domains.satisfies doms e
           [ ("available", "no"); ("connection_count", "below-500") ]))
 
+(* A pair of facts compared with each other AND against constants needs a JOINT
+   domain: the ordering alone cannot say `desired_replicas == 0`, and two
+   independent region domains cannot say `ready == desired` when both land in
+   the same region. The members are the consistent combinations of the two
+   facts' regions, carrying the ordering where the regions coincide. *)
+let paired_with_constant_ty =
+  {
+    Mgtt_ast.tname = "workload";
+    facts = [ ("desired", "mgtt.int"); ("ready", "mgtt.int") ];
+    thealthy = [ "ready == desired" ];
+    states =
+      [
+        { Mgtt_ast.sname = "live"; swhen = "ready == desired"; striggered = [] };
+        { Mgtt_ast.sname = "draining"; swhen = "desired == 0"; striggered = [] };
+      ];
+    default_state = "live";
+    tmodes = [];
+  }
+
+let test_domains_pair_with_constant_is_joint () =
+  let doms, declines = Mgtt_domains.of_type paired_with_constant_ty [] in
+  check "domains: a pair carrying a constant is no longer declined"
+    (not
+       (List.exists
+          (fun (d : Mgtt_ast.decline) -> contains ~sub:"sibling" d.Mgtt_ast.why)
+          declines));
+  let ms = members_of doms "desired:ready" in
+  check "domains: the joint domain exists" (ms <> []);
+  check "domains: it is richer than a bare ordering" (List.length ms > 3);
+  check "domains: the paired facts get no independent domains"
+    (members_of doms "desired" = [] && members_of doms "ready" = [])
+
+(* The point of the joint domain: both kinds of question are decidable on it. *)
+let test_domains_pair_with_constant_satisfies () =
+  let doms, _ = Mgtt_domains.of_type paired_with_constant_ty [] in
+  let ms = members_of doms "desired:ready" in
+  let sat src m =
+    Mgtt_domains.satisfies doms (parse_ok "joint" src) [ ("desired:ready", m) ]
+  in
+  (* every member answers both questions, and the answers are consistent *)
+  check "domains: some member is draining (desired == 0)"
+    (List.exists (fun m -> sat "desired == 0" m) ms);
+  check "domains: some member is live (ready == desired)"
+    (List.exists (fun m -> sat "ready == desired" m) ms);
+  check "domains: some member is both at once"
+    (List.exists (fun m -> sat "desired == 0" m && sat "ready == desired" m) ms);
+  check "domains: some member is neither"
+    (List.exists
+       (fun m -> (not (sat "desired == 0" m)) && not (sat "ready == desired" m))
+       ms);
+  (* the ordering stays coherent: nothing is both fewer and more *)
+  check "domains: the ordering is coherent"
+    (List.for_all
+       (fun m -> not (sat "ready < desired" m && sat "ready > desired" m))
+       ms);
+  (* and a value below zero cannot also equal zero *)
+  check "domains: regions are coherent"
+    (List.for_all
+       (fun m -> not (sat "desired < 0" m && sat "desired == 0" m))
+       ms)
+
+(* A member says which region EACH fact is in, and the ordering between them.
+   Those two claims have to agree: a member naming a region must not hold values
+   outside it. The first cut of this got it wrong — representing "both in this
+   region, left larger" as (rep, rep+1) let the left value escape into the next
+   region up, so a member named `below-0-more` satisfied `desired == 0`. It
+   passed every coherence check and was still a lie about what it named. *)
+let test_domains_pair_members_stay_inside_their_regions () =
+  let doms, _ = Mgtt_domains.of_type paired_with_constant_ty [] in
+  let ms = members_of doms "desired:ready" in
+  let sat src m =
+    Mgtt_domains.satisfies doms (parse_ok "region" src) [ ("desired:ready", m) ]
+  in
+  (* `desired == 0` may hold ONLY where the member names desired's region as
+     exactly-0 — that is, a same-region `exactly-0-*` or a `exactly-0-vs-*` *)
+  List.iter
+    (fun m ->
+      let names_exactly_0 =
+        String.length m >= 9 && String.sub m 0 9 = "exactly-0"
+      in
+      if sat "desired == 0" m && not names_exactly_0 then
+        check
+          ("domains: member `" ^ m
+         ^ "` satisfies desired == 0 but does not name that region")
+          false)
+    ms;
+  check "domains: at least one member does name it"
+    (List.exists (fun m -> sat "desired == 0" m) ms);
+  (* and the mirror: a member naming exactly-0 on the left must agree *)
+  List.iter
+    (fun m ->
+      let names_exactly_0 =
+        String.length m >= 9 && String.sub m 0 9 = "exactly-0"
+      in
+      if names_exactly_0 && not (sat "desired == 0" m) then
+        check
+          ("domains: member `" ^ m ^ "` names exactly-0 but does not satisfy it")
+          false)
+    ms;
+  check "domains: regions and members agree in both directions" true
+
+let test_domains_pair_without_constant_stays_small () =
+  (* the common case must not get more expensive *)
+  let doms = domains_for "workload" in
+  check "domains: a bare pair is still three members"
+    (members_of doms "desired_replicas:ready_replicas"
+    = [ "fewer"; "equal"; "more" ])
+
 let test_domains_declines_unbounded_fact () =
   (* a fact no predicate ever mentions has no regions to name, so it cannot
      become an arrow — say so rather than invent a domain for it *)
@@ -320,15 +437,6 @@ let test_domains_declines_unbounded_fact () =
   check "domains: and is declined rather than dropped" (declines <> [])
 
 (* ---- the emitter -------------------------------------------------------- *)
-
-let contains ~sub s =
-  let ls = String.length s and lsub = String.length sub in
-  let rec go i =
-    if i + lsub > ls then false
-    else if String.sub s i lsub = sub then true
-    else go (i + 1)
-  in
-  go 0
 
 let emit_minimal () = Emit_mgtt.file ~name:"storefront" (doc_of_string minimal)
 
@@ -485,6 +593,72 @@ let test_emit_forwards_mgtt_declines () =
        (fun (dc : Mgtt_ast.decline) -> contains ~sub:"generic" dc.Mgtt_ast.why)
        declines)
 
+(* A REAL export, produced by `mgtt model export --json` and committed here.
+
+   The hand-written documents above pin the reading; this one pins the
+   CONTRACT. mgtt and writ release separately, so the risk this guards is not a
+   version bump — writ refuses a version it does not know — but mgtt quietly
+   changing what a field MEANS while its shape and version stay put. Reading a
+   real document end to end, and asserting on what it should produce, turns
+   that drift into a failure in this suite rather than in a user's terminal.
+
+   Refresh it deliberately, from a real run, when the schema version changes.
+   See mgtt's docs/decisions/0001-where-the-writ-bridge-lives.md. *)
+let test_pinned_export_contract () =
+  let path = "fixtures/mgtt-export-v1.json" in
+  let src =
+    let ic = open_in_bin path in
+    let n = in_channel_length ic in
+    let s = really_input_string ic n in
+    close_in ic;
+    s
+  in
+  let d =
+    match Json_parse.parse src with
+    | Error e -> failwith (path ^ ": " ^ e)
+    | Ok j -> (
+        match Mgtt_read.of_json j with
+        | Error e -> failwith (path ^ ": " ^ e)
+        | Ok d -> d)
+  in
+  check "contract: the pinned export still reads"
+    (List.length d.Mgtt_ast.components = 4 && List.length d.Mgtt_ast.types = 3);
+  (* the fields the reading actually depends on are all populated *)
+  check "contract: components carry an effective healthy list"
+    (List.for_all
+       (fun (c : Mgtt_ast.comp) -> c.Mgtt_ast.chealthy <> [])
+       d.Mgtt_ast.components);
+  check "contract: types carry facts, states and a default state"
+    (List.for_all
+       (fun (t : Mgtt_ast.ty) ->
+         t.Mgtt_ast.facts <> [] && t.Mgtt_ast.states <> []
+         && t.Mgtt_ast.default_state <> "")
+       d.Mgtt_ast.types);
+  check "contract: the propagation protocol is present on both halves"
+    (List.exists
+       (fun (t : Mgtt_ast.ty) -> t.Mgtt_ast.tmodes <> [])
+       d.Mgtt_ast.types
+    && List.exists
+         (fun (t : Mgtt_ast.ty) ->
+           List.exists
+             (fun (s : Mgtt_ast.state) -> s.Mgtt_ast.striggered <> [])
+             t.Mgtt_ast.states)
+         d.Mgtt_ast.types);
+  (* and it still emits a model the front end accepts, with nothing declined *)
+  let text, declines = Emit_mgtt.file ~name:"pinned" d in
+  check "contract: the pinned export declines nothing" (declines = []);
+  match Writ_syntax.Reader.read_string text with
+  | Error e -> check ("contract: reads: " ^ Writ_data.Errors.to_string e) false
+  | Ok ds -> (
+      match Writ_syntax.Expander.expand ds with
+      | Error e ->
+          check ("contract: expands: " ^ Writ_data.Errors.to_string e) false
+      | Ok ds -> (
+          match Writ_syntax.Parser.parse_model ds with
+          | Error e ->
+              check ("contract: parses: " ^ Writ_data.Errors.to_string e) false
+          | Ok _ -> check "contract: a real export still yields a model" true))
+
 let () =
   test_read ();
   test_read_type_lookup ();
@@ -506,6 +680,10 @@ let () =
   test_domains_fact_pair ();
   test_domains_equality_threshold ();
   test_domains_satisfies ();
+  test_domains_pair_with_constant_is_joint ();
+  test_domains_pair_with_constant_satisfies ();
+  test_domains_pair_members_stay_inside_their_regions ();
+  test_domains_pair_without_constant_stays_small ();
   test_domains_declines_unbounded_fact ();
   test_emit_is_a_model ();
   test_emit_shape ();
@@ -516,4 +694,5 @@ let () =
   test_emit_catches_health_state_divergence ();
   test_emit_declines_unsatisfiable_state ();
   test_emit_forwards_mgtt_declines ();
+  test_pinned_export_contract ();
   print_string ("test_mgtt: " ^ string_of_int !passed ^ " passed\n")
