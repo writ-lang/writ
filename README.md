@@ -277,6 +277,16 @@ $ writ sql shop.writ > back.sql        # and write it out again as CREATE TABLE
 Nothing is installed or loaded: the emitted model is **kernel-only** — no
 `(load …)`, no prelude, nothing from the standard library.
 
+Any verb that takes a model will read one from stdin instead, with `--stdin`:
+
+```sh
+writ sql schema.sql | writ check --stdin
+```
+
+The model is read once, so `--stdin` names one model per invocation. Errors in
+a piped model report against `<stdin>`, and a `(load "lib.writ")` inside one
+resolves against the current directory first.
+
 **The payoff is what a database cannot do.** A `CHECK` becomes an `equation`,
 and a law is a claim the world is measured against rather than a filter on it —
 so once you write the migration's `UPDATE` as a move, `writ check` answers a

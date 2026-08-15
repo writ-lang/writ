@@ -33,7 +33,11 @@ let verbs =
     {
       name = "check";
       summary = "build the model and report its size, gaps, dead ends and laws";
-      usage = [ "writ check    MODEL.writ [--claims FILE.claims]" ];
+      usage =
+        [
+          "writ check    MODEL.writ [--claims FILE.claims]";
+          "writ check    --stdin [--claims FILE.claims]";
+        ];
       body =
         {|Build the model and print the report — the reachable state count and
 edges; the gaps (points where the rules are declared silent); the
@@ -48,6 +52,7 @@ plus query answers and law acknowledgments (unadmitted / stale).|};
       options =
         [
           "--claims FILE    the questions to ask (properties, queries, accepts)";
+          "--stdin          read the model from stdin instead of a path";
         ];
       examples =
         [
@@ -58,12 +63,20 @@ plus query answers and law acknowledgments (unadmitted / stale).|};
     {
       name = "query";
       summary = "run one named query and print the satisfying bindings";
-      usage = [ "writ query    MODEL.writ NAME [--at STATE]" ];
+      usage =
+        [
+          "writ query    MODEL.writ NAME [--at STATE]";
+          "writ query    --stdin NAME [--at STATE]";
+        ];
       body =
         {|Run one named query from the model's sibling .claims file and print
 the satisfying variable bindings. --at STATE addresses a situation by
 its state index (default: the initial situation, index 0).|};
-      options = [ "--at STATE       address a situation by its state index" ];
+      options =
+        [
+          "--at STATE       address a situation by its state index";
+          "--stdin          read the model from stdin instead of a path";
+        ];
       examples = [ "writ query   tests/models/any_model.writ captured --at 7" ];
     };
     {
@@ -74,6 +87,7 @@ its state index (default: the initial situation, index 0).|};
       usage =
         [
           "writ compare  OLD.writ NEW.writ [--map MAP.writ]";
+          "writ compare  OLD.writ --stdin [--map MAP.writ]";
           "writ compare  --git REV1 REV2 MODEL.writ [--map MAP.writ]";
         ];
       body =
@@ -86,6 +100,7 @@ file (`git show REV:MODEL`).|};
         [
           "--map MAP.writ    `(map X => Y)` renames when two schemas differ";
           "--git R1 R2 M    compare git revisions R1 and R2 of model M";
+          "--stdin          the NEW model comes from stdin; follows OLD.writ";
         ];
       examples =
         [
@@ -97,24 +112,26 @@ file (`git show REV:MODEL`).|};
       name = "control";
       summary =
         "emit the move list as an instance of the stdlib's `quiver` schema";
-      usage = [ "writ control  MODEL.writ" ];
+      usage = [ "writ control  MODEL.writ"; "writ control  --stdin" ];
       body =
         {|Emit the model's move list as an instance of the standard library's
 `quiver` schema — the dynamics as re-usable, checkable data.|};
-      options = [];
+      options =
+        [ "--stdin          read the model from stdin instead of a path" ];
       examples = [ "writ control model.writ" ];
     };
     {
       name = "schema";
       summary =
         "emit the model's schema as an instance of the stdlib's `olog` schema";
-      usage = [ "writ schema   MODEL.writ" ];
+      usage = [ "writ schema   MODEL.writ"; "writ schema   --stdin" ];
       body =
         {|Emit the model's SCHEMA as an instance of the standard library's
 `olog` schema — the map as data, the sibling of `control` one level
 up. Types become `ob`, arrows `hom` with `dom`/`cod`, laws `eqn`
 entities by name; a law's body is not encoded (kernel §17).|};
-      options = [];
+      options =
+        [ "--stdin          read the model from stdin instead of a path" ];
       examples = [ "writ schema  model.writ" ];
     };
     {
@@ -259,6 +276,7 @@ Nothing is loaded; the emitted model is kernel-only.|};
         [
           "writ derive   MODEL.writ RULES.rules RELATION | \"(RELATION ARG…)\"";
           "writ derive   MODEL.writ RULES.rules --why \"(RELATION ARG…)\"";
+          "writ derive   --stdin RULES.rules RELATION | \"(RELATION ARG…)\"";
         ];
       body =
         {|Answer a .rules file's relations over the model's enumerated
@@ -282,6 +300,7 @@ rooted in an arrow name that two types share.|};
       options =
         [
           "--why \"(R A…)\"   print one fact's derivation tree instead of rows";
+          "--stdin          read the model from stdin instead of a path";
         ];
       examples =
         [
@@ -294,7 +313,11 @@ rooted in an arrow name that two types share.|};
     {
       name = "show";
       summary = "print what one situation is, addressed by its state index";
-      usage = [ "writ show     MODEL.writ [--at STATE]…" ];
+      usage =
+        [
+          "writ show     MODEL.writ [--at STATE]…";
+          "writ show     --stdin [--at STATE]…";
+        ];
       body =
         {|Print a situation: every mutable cell as SRC.ARROW=VALUE (with the
 empty set sign for a vacant one), the fewest moves that reach it from
@@ -314,7 +337,10 @@ whether it is stuck in fact or only in name.
 Repeat --at to show several, which is the shape a derivation's answer
 already has.|};
       options =
-        [ "--at STATE       a situation's index; repeatable (default: 0)" ];
+        [
+          "--at STATE       a situation's index; repeatable (default: 0)";
+          "--stdin          read the model from stdin instead of a path";
+        ];
       examples =
         [
           "writ show    model.writ --at 17";
