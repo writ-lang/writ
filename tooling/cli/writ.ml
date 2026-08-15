@@ -132,11 +132,6 @@ let () =
         Cmd_sql.run file
           ~with_data:(List.mem "--with-data" rest)
           ~strict:(List.mem "--strict" rest)
-  | _ :: "mgtt" :: file :: rest ->
-      (* one direction, so --strict is the only option *)
-      let known = [ "--strict" ] in
-      if List.exists (fun f -> not (List.mem f known)) rest then die 2 usage
-      else Cmd_mgtt.run file ~strict:(List.mem "--strict" rest)
   | _ :: "derive" :: rest -> (
       let stdin_, rest = Writ_dispatch.take_stdin rest in
       match (stdin_, rest) with

@@ -32,19 +32,12 @@
   test_law_as_guard
   test_ct_rules
   test_facts
-  test_sql
-  test_mgtt)
+  test_sql)
  (deps
-  (glob_files fixtures/*.{writ,claims,rules,json})
+  (glob_files fixtures/*.{writ,claims,rules})
   (glob_files %{workspace_root}/tests/models/*.{writ,claims})
   (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
- (libraries
-  writ_data
-  writ_syntax
-  writ_runtime
-  writ_loadpath
-  writ_sql
-  writ_mgtt))
+ (libraries writ_data writ_syntax writ_runtime writ_loadpath writ_sql))
 
 ; The --stdin behaviour. It links [writ_cli], the command line's own modules,
 ; which is why they are a library rather than the executable's private modules:
