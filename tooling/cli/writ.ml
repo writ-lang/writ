@@ -79,19 +79,48 @@ let () =
   (* before the verbs, so `writ schema --help` is a question and not a file
      named `--help` *)
   | [ _; "help"; v ] | [ _; v; ("-h" | "--help") ] -> verb_help v
-  | _ :: "check" :: model :: rest -> (
-      match rest with
-      | [] -> Cmd_check.run model None
-      | [ "--claims"; c ] -> Cmd_check.run model (Some c)
+  (* [--stdin] comes out of the arguments BEFORE the positionals are counted,
+     in every verb below. That order is what makes the flag decidable where a
+     bare verb would not be: `query`, `derive` and `compare` all take further
+     positionals after the model, so dropping it silently would shift the rest
+     left. With the flag stripped the remaining arity is fixed, and the
+     sentinel [Cli_io.stdin_name] goes into the model slot the verb already
+     has — no verb, and nothing in the engine, learns that stdin exists. *)
+  | _ :: "check" :: rest -> (
+      let stdin_, rest = Writ_dispatch.take_stdin rest in
+      match (stdin_, rest) with
+      | true, [] -> Cmd_check.run Cli_io.stdin_name None
+      | true, [ "--claims"; c ] -> Cmd_check.run Cli_io.stdin_name (Some c)
+      | false, [ model ] -> Cmd_check.run model None
+      | false, [ model; "--claims"; c ] -> Cmd_check.run model (Some c)
       | _ -> die 2 usage)
-  | _ :: "query" :: model :: name :: rest -> (
-      match rest with
-      | [] -> Cmd_query.run model name None
-      | [ "--at"; s ] -> Cmd_query.run model name (Some s)
+  | _ :: "query" :: rest -> (
+      let stdin_, rest = Writ_dispatch.take_stdin rest in
+      match (stdin_, rest) with
+      | true, [ name ] -> Cmd_query.run Cli_io.stdin_name name None
+      | true, [ name; "--at"; s ] ->
+          Cmd_query.run Cli_io.stdin_name name (Some s)
+      | false, [ model; name ] -> Cmd_query.run model name None
+      | false, [ model; name; "--at"; s ] -> Cmd_query.run model name (Some s)
       | _ -> die 2 usage)
-  | _ :: "show" :: model :: rest -> Cmd_show.run model rest
-  | [ _; "control"; model ] -> Cmd_control.run model
-  | [ _; "schema"; model ] -> Cmd_schema.run model
+  | _ :: "show" :: rest -> (
+      let stdin_, rest = Writ_dispatch.take_stdin rest in
+      match (stdin_, rest) with
+      | true, flags -> Cmd_show.run Cli_io.stdin_name flags
+      | false, model :: flags -> Cmd_show.run model flags
+      | false, [] -> die 2 usage)
+  | _ :: "control" :: rest -> (
+      let stdin_, rest = Writ_dispatch.take_stdin rest in
+      match (stdin_, rest) with
+      | true, [] -> Cmd_control.run Cli_io.stdin_name
+      | false, [ model ] -> Cmd_control.run model
+      | _ -> die 2 usage)
+  | _ :: "schema" :: rest -> (
+      let stdin_, rest = Writ_dispatch.take_stdin rest in
+      match (stdin_, rest) with
+      | true, [] -> Cmd_schema.run Cli_io.stdin_name
+      | false, [ model ] -> Cmd_schema.run model
+      | _ -> die 2 usage)
   | _ :: "sql" :: file :: rest ->
       (* the direction is the extension, so the flags are the only options and
          either order will do *)
@@ -106,22 +135,45 @@ let () =
       let known = [ "--strict" ] in
       if List.exists (fun f -> not (List.mem f known)) rest then die 2 usage
       else Cmd_mgtt.run file ~strict:(List.mem "--strict" rest)
-  | _ :: "derive" :: model :: rules :: rest -> (
-      match rest with
-      | [ q ] -> Cmd_derive.run model rules ~why:false q
-      | [ "--why"; q ] -> Cmd_derive.run model rules ~why:true q
+  | _ :: "derive" :: rest -> (
+      let stdin_, rest = Writ_dispatch.take_stdin rest in
+      match (stdin_, rest) with
+      | true, [ rules; q ] ->
+          Cmd_derive.run Cli_io.stdin_name rules ~why:false q
+      | true, [ rules; "--why"; q ] ->
+          Cmd_derive.run Cli_io.stdin_name rules ~why:true q
+      | false, [ model; rules; q ] -> Cmd_derive.run model rules ~why:false q
+      | false, [ model; rules; "--why"; q ] ->
+          Cmd_derive.run model rules ~why:true q
       | _ -> die 2 usage)
   | _ :: "compare" :: rest -> (
       match rest with
+      (* revisions are read from git, so there is no stdin to take *)
       | "--git" :: r1 :: r2 :: model :: mrest -> (
-          match mrest with
-          | [] -> Cmd_compare.run_git r1 r2 model None
-          | [ "--map"; mp ] -> Cmd_compare.run_git r1 r2 model (Some mp)
-          | _ -> die 2 usage)
-      | old_p :: new_p :: mrest -> (
-          match mrest with
-          | [] -> Cmd_compare.run old_p new_p None
-          | [ "--map"; mp ] -> Cmd_compare.run old_p new_p (Some mp)
+          if List.mem "--stdin" mrest then
+            die 2 "compare --git takes no --stdin\n"
+          else
+            match mrest with
+            | [] -> Cmd_compare.run_git r1 r2 model None
+            | [ "--map"; mp ] -> Cmd_compare.run_git r1 r2 model (Some mp)
+            | _ -> die 2 usage)
+      (* the one rule: --stdin fills the NEW side, so it must FOLLOW the old
+         model. `writ compare --stdin baseline.writ` and `writ compare
+         baseline.writ --stdin` would otherwise strip to the same one
+         positional, and one of the two would silently compare backwards. *)
+      | "--stdin" :: _ ->
+          die 2
+            "compare: --stdin fills the NEW side, so it follows the old model:\n\
+            \  writ compare OLD.writ --stdin\n"
+      | old_p :: mrest -> (
+          let stdin_, mrest = Writ_dispatch.take_stdin mrest in
+          match (stdin_, mrest) with
+          | true, [] -> Cmd_compare.run old_p Cli_io.stdin_name None
+          | true, [ "--map"; mp ] ->
+              Cmd_compare.run old_p Cli_io.stdin_name (Some mp)
+          | false, [ new_p ] -> Cmd_compare.run old_p new_p None
+          | false, [ new_p; "--map"; mp ] ->
+              Cmd_compare.run old_p new_p (Some mp)
           | _ -> die 2 usage)
       | _ -> die 2 usage)
   | _ -> die 2 usage

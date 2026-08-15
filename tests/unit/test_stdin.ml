@@ -22,4 +22,14 @@ let () =
   check "sentinel dirname is ." (Filename.dirname Cli_io.stdin_name = ".");
   check "sentinel basename is itself"
     (Filename.basename Cli_io.stdin_name = Cli_io.stdin_name);
+  (* The dispatch strips flags before counting positionals, which is what
+     makes `writ query --stdin health` unambiguous where a bare `writ query
+     health` would not be: with the model removed from the positionals, the
+     remaining arity is fixed. *)
+  let strip = Writ_dispatch.take_stdin in
+  check "strip finds the flag" (fst (strip [ "--stdin"; "health" ]) = true);
+  check "strip removes it" (snd (strip [ "--stdin"; "health" ]) = [ "health" ]);
+  check "strip anywhere" (fst (strip [ "health"; "--stdin" ]) = true);
+  check "strip absent" (fst (strip [ "health" ]) = false);
+  check "strip leaves order" (snd (strip [ "a"; "--stdin"; "b" ]) = [ "a"; "b" ]);
   Printf.printf "test_stdin: %d checks passed\n" !checks

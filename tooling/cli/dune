@@ -30,7 +30,8 @@
   cmd_show
   cmd_sql
   cmd_mgtt
-  help)
+  help
+  writ_dispatch)
  (libraries
   writ_data
   writ_syntax
