@@ -33,7 +33,11 @@ let verbs =
     {
       name = "check";
       summary = "build the model and report its size, gaps, dead ends and laws";
-      usage = [ "writ check    MODEL.writ [--claims FILE.claims]" ];
+      usage =
+        [
+          "writ check    MODEL.writ [--claims FILE.claims]";
+          "writ check    --stdin [--claims FILE.claims]";
+        ];
       body =
         {|Build the model and print the report — the reachable state count and
 edges; the gaps (points where the rules are declared silent); the
@@ -48,6 +52,7 @@ plus query answers and law acknowledgments (unadmitted / stale).|};
       options =
         [
           "--claims FILE    the questions to ask (properties, queries, accepts)";
+          "--stdin          read the model from stdin instead of a path";
         ];
       examples =
         [
@@ -58,13 +63,33 @@ plus query answers and law acknowledgments (unadmitted / stale).|};
     {
       name = "query";
       summary = "run one named query and print the satisfying bindings";
-      usage = [ "writ query    MODEL.writ NAME [--at STATE]" ];
+      usage =
+        [
+          "writ query    MODEL.writ NAME [--at STATE] [--claims FILE]";
+          "writ query    --stdin NAME --claims FILE [--at STATE]";
+        ];
       body =
-        {|Run one named query from the model's sibling .claims file and print
-the satisfying variable bindings. --at STATE addresses a situation by
-its state index (default: the initial situation, index 0).|};
-      options = [ "--at STATE       address a situation by its state index" ];
-      examples = [ "writ query   tests/models/any_model.writ captured --at 7" ];
+        {|Run one named query and print the satisfying variable bindings.
+--at STATE addresses a situation by its state index (default: the
+initial situation, index 0).
+
+The questions come from the model's SIBLING .claims file
+(MODEL.writ -> MODEL.claims), which is the convention that lets one
+suite be asked of many models without naming it every time. --claims
+overrides that, and is REQUIRED with --stdin: a model read from a pipe
+has no sibling to find.|};
+      options =
+        [
+          "--at STATE       address a situation by its state index";
+          "--stdin          read the model from stdin instead of a path";
+          "--claims FILE    where the questions live (default: the model's \
+           sibling .claims; required with --stdin)";
+        ];
+      examples =
+        [
+          "writ query   tests/models/any_model.writ captured --at 7";
+          "cat model.writ | writ query --stdin captured --claims suite.claims";
+        ];
     };
     {
       name = "compare";
@@ -74,6 +99,7 @@ its state index (default: the initial situation, index 0).|};
       usage =
         [
           "writ compare  OLD.writ NEW.writ [--map MAP.writ]";
+          "writ compare  OLD.writ --stdin [--map MAP.writ]";
           "writ compare  --git REV1 REV2 MODEL.writ [--map MAP.writ]";
         ];
       body =
@@ -86,6 +112,7 @@ file (`git show REV:MODEL`).|};
         [
           "--map MAP.writ    `(map X => Y)` renames when two schemas differ";
           "--git R1 R2 M    compare git revisions R1 and R2 of model M";
+          "--stdin          the NEW model comes from stdin; follows OLD.writ";
         ];
       examples =
         [
@@ -97,24 +124,26 @@ file (`git show REV:MODEL`).|};
       name = "control";
       summary =
         "emit the move list as an instance of the stdlib's `quiver` schema";
-      usage = [ "writ control  MODEL.writ" ];
+      usage = [ "writ control  MODEL.writ"; "writ control  --stdin" ];
       body =
         {|Emit the model's move list as an instance of the standard library's
 `quiver` schema — the dynamics as re-usable, checkable data.|};
-      options = [];
+      options =
+        [ "--stdin          read the model from stdin instead of a path" ];
       examples = [ "writ control model.writ" ];
     };
     {
       name = "schema";
       summary =
         "emit the model's schema as an instance of the stdlib's `olog` schema";
-      usage = [ "writ schema   MODEL.writ" ];
+      usage = [ "writ schema   MODEL.writ"; "writ schema   --stdin" ];
       body =
         {|Emit the model's SCHEMA as an instance of the standard library's
 `olog` schema — the map as data, the sibling of `control` one level
 up. Types become `ob`, arrows `hom` with `dom`/`cod`, laws `eqn`
 entities by name; a law's body is not encoded (kernel §17).|};
-      options = [];
+      options =
+        [ "--stdin          read the model from stdin instead of a path" ];
       examples = [ "writ schema  model.writ" ];
     };
     {
@@ -190,75 +219,13 @@ travel as `-- writ:` pragmas the import reads back.|};
         ];
     };
     {
-      name = "mgtt";
-      summary = "read an mgtt architecture model as a writ model";
-      usage =
-        [
-          "writ mgtt     MODEL.json [--strict]     # an mgtt export -> a model";
-        ];
-      body =
-        {|Read an mgtt model (https://github.com/mgt-tool/mgtt) as a writ
-model. mgtt describes a system's components, their dependencies, and
-what "healthy" means for each; writ then enumerates every reachable
-failure configuration and answers by exhaustion. Output goes to
-stdout, so the ordinary use is a redirect:
-
-  mgtt model export --json > system.json    # in the mgtt repo
-  writ mgtt system.json    > system.writ
-  writ check system.writ
-
-The input is the RESOLVED export, not the YAML: mgtt merges each
-provider type into the components using it and applies every
-component-level override before writing it out. So this verb never
-needs mgtt's provider registry, its install layout, or a credential —
-the boundary mgtt defends stays defended.
-
-WHAT CROSSES. A component type is a type, a component an entity, a
-fact an arrow. A dependency is wiring, so it costs the state space
-nothing. `failure_modes.<state>.can_cause` matched against a
-dependent's `states.<state>.triggered_by` becomes one named
-transition per edge, so a witness route reads as a failure chain.
-
-The load-bearing part is that facts become FINITE domains. mgtt's
-expressions compare a fact against a constant and have no arithmetic
-at all, so the constants a model mentions cut each fact's values into
-finitely many regions on which every predicate is constant. A region
-is a member, and regions nothing separates are merged — so
-`connection_count < 500` costs two members, not three. Two values in
-one region were already indistinguishable to mgtt's own engine, so
-nothing is approximated.
-
-THE LAW. A component is healthy exactly when it is in its default
-active state. mgtt derives one from `healthy:` and the other from the
-type's state guards, and nothing keeps them consistent. Here it is an
-`equation`, so `writ check` reports which move can break it and which
-reachable situations do, with a route.
-
-WHAT DOES NOT. A non-integer constant is refused rather than rounded,
-a state no assignment satisfies is declined as unreachable, and a
-fact no predicate mentions is not carried — writ has no values to
-name for it. Probe cost, TTL and staleness stay with mgtt: writ has
-no numbers and no clock. Everything declined is named on stderr,
-never dropped in silence, and mgtt's own declines are forwarded.
-
-Nothing is loaded; the emitted model is kernel-only.|};
-      options =
-        [ "--strict         exit 1 if anything in the input was declined" ];
-      examples =
-        [
-          "writ mgtt system.json > system.writ   # read an architecture as a \
-           model";
-          "writ mgtt system.json --strict        # exit 1 if anything was \
-           declined";
-        ];
-    };
-    {
       name = "derive";
       summary = "answer a .rules relation over the model's enumerated universe";
       usage =
         [
           "writ derive   MODEL.writ RULES.rules RELATION | \"(RELATION ARG…)\"";
           "writ derive   MODEL.writ RULES.rules --why \"(RELATION ARG…)\"";
+          "writ derive   --stdin RULES.rules RELATION | \"(RELATION ARG…)\"";
         ];
       body =
         {|Answer a .rules file's relations over the model's enumerated
@@ -282,6 +249,7 @@ rooted in an arrow name that two types share.|};
       options =
         [
           "--why \"(R A…)\"   print one fact's derivation tree instead of rows";
+          "--stdin          read the model from stdin instead of a path";
         ];
       examples =
         [
@@ -294,7 +262,11 @@ rooted in an arrow name that two types share.|};
     {
       name = "show";
       summary = "print what one situation is, addressed by its state index";
-      usage = [ "writ show     MODEL.writ [--at STATE]…" ];
+      usage =
+        [
+          "writ show     MODEL.writ [--at STATE]…";
+          "writ show     --stdin [--at STATE]…";
+        ];
       body =
         {|Print a situation: every mutable cell as SRC.ARROW=VALUE (with the
 empty set sign for a vacant one), the fewest moves that reach it from
@@ -314,7 +286,10 @@ whether it is stuck in fact or only in name.
 Repeat --at to show several, which is the shape a derivation's answer
 already has.|};
       options =
-        [ "--at STATE       a situation's index; repeatable (default: 0)" ];
+        [
+          "--at STATE       a situation's index; repeatable (default: 0)";
+          "--stdin          read the model from stdin instead of a path";
+        ];
       examples =
         [
           "writ show    model.writ --at 17";

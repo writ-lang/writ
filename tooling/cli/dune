@@ -9,12 +9,17 @@
 ; (public_name writ) is what makes `opam install .` put this binary on the PATH
 ; as `writ`; without it the exe exists only inside _build.
 
-(executable
- (name writ)
- (public_name writ)
- (package writ)
+; The verbs are a LIBRARY and [Writ] is a thin executable over it. An
+; executable's modules cannot be linked into a test, so with everything in one
+; stanza the only way to check the command line was to run the binary and read
+; its output — which is a fine end-to-end test and a poor unit one. UNWRAPPED,
+; as [writ_json] is, so the module names stay [Cli_io], [Help] and [Cmd_*] and
+; no source file needed an edit to make the split.
+
+(library
+ (name writ_cli)
+ (wrapped false)
  (modules
-  writ
   cli_io
   cmd_check
   cmd_query
@@ -24,16 +29,16 @@
   cmd_derive
   cmd_show
   cmd_sql
-  cmd_mgtt
   help
-  version)
- (libraries
-  writ_data
-  writ_syntax
-  writ_runtime
-  writ_loadpath
-  writ_sql
-  writ_mgtt))
+  writ_dispatch)
+ (libraries writ_data writ_syntax writ_runtime writ_loadpath writ_sql))
+
+(executable
+ (name writ)
+ (public_name writ)
+ (package writ)
+ (modules writ version)
+ (libraries writ_cli))
 
 ; `writ --version` reads the version dune already knows — the one in dune-project
 ; that opam publishes and `make release` names the tarball with. Generated

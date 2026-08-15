@@ -236,14 +236,13 @@ what it costs.
 | Command | Does |
 |---|---|
 | `writ check MODEL [--claims F]` | build the model; report size, gaps, dead ends and laws; check the `.claims` properties and queries |
-| `writ query MODEL NAME [--at STATE]` | run one named query and print the satisfying bindings |
+| `writ query MODEL NAME [--at STATE] [--claims F]` | run one named query and print the satisfying bindings; questions come from the sibling `.claims` unless `--claims` names another |
 | `writ compare OLD NEW [--map M]` | report each equation and property **preserved / LOST / gained** across two models |
 | `writ compare --git R1 R2 MODEL` | …across two git revisions of one file |
 | `writ control MODEL` | emit the move list as an instance of the standard library's `quiver` schema |
 | `writ schema MODEL` | emit the model's schema as an instance of the standard library's `olog` schema |
 | `writ sql SCHEMA.sql` | read a relational schema as an olog — tables become types, foreign keys arrows, NULL `vacatable`, enums enumerated types, single-row `CHECK`s laws |
 | `writ sql MODEL.writ` | …and back: emit the model's schema as `CREATE TABLE` |
-| `writ mgtt MODEL.json` | read an [mgtt](https://github.com/mgt-tool/mgtt) architecture model — components, dependencies, health — as a model |
 | `writ derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
 | `writ derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
 | `writ derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
@@ -276,6 +275,16 @@ $ writ sql shop.writ > back.sql        # and write it out again as CREATE TABLE
 
 Nothing is installed or loaded: the emitted model is **kernel-only** — no
 `(load …)`, no prelude, nothing from the standard library.
+
+Any verb that takes a model will read one from stdin instead, with `--stdin`:
+
+```sh
+writ sql schema.sql | writ check --stdin
+```
+
+The model is read once, so `--stdin` names one model per invocation. Errors in
+a piped model report against `<stdin>`, and a `(load "lib.writ")` inside one
+resolves against the current directory first.
 
 **The payoff is what a database cannot do.** A `CHECK` becomes an `equation`,
 and a law is a claim the world is measured against rather than a filter on it —
@@ -341,49 +350,6 @@ Round-tripping is defined on the **model**, not the text — the export
 normalises spellings on purpose — and the two facts SQL cannot state (whether a
 key is ever `UPDATE`d, whether a plain column is wiring) travel as `-- writ:`
 pragmas the import reads back.
-
-### Architecture models
-
-An [mgtt](https://github.com/mgt-tool/mgtt) model describes a system's
-components, what each depends on, and what "healthy" means for each of them.
-`writ mgtt` reads one — so the architecture somebody already wrote becomes a
-model whose every reachable failure configuration can be enumerated.
-
-```console
-$ mgtt model export --json > system.json     # in the mgtt repo
-$ writ mgtt system.json  > system.writ
-$ writ check system.writ
-```
-
-The input is mgtt's *resolved* export rather than its YAML, so nothing here
-needs mgtt's provider registry or a credential, and mgtt's own precedence rules
-stay on mgtt's side of the seam.
-
-**Facts stop being numbers, losslessly.** mgtt's expression language has six
-comparison operators and no arithmetic, so the constants a model mentions cut
-each fact's values into finitely many regions on which every predicate is
-constant. A region becomes a member; two values in one region were already
-indistinguishable to mgtt's own engine. Regions nothing separates are merged,
-so `connection_count < 500` costs two members rather than three.
-
-**The payoff is a law mgtt cannot state.** A component is healthy exactly when
-it is in its default active state — one side derived from its `healthy:` block,
-the other from its type's state rules, with nothing keeping the two consistent:
-
-```console
-equation datastore-store-health-matches-state
-  can be broken by: store-fails-stopped   (acknowledge in claims)
-  violated in 32 reachable situations   witness: 1. store-fails-stopped
-```
-
-Half that system's reachable configurations disagree with themselves about
-whether the component is healthy, and one failure reaches the nearest. It is a
-property of the model rather than a wrong answer to any one scenario, which is
-why testing scenarios does not find it.
-
-Declined constructs are named on stderr, as with `writ sql`; the emitted model
-is kernel-only. The reading is worked through in
-[`docs/mgtt-bridge.md`](docs/mgtt-bridge.md).
 
 ## Install
 
@@ -566,9 +532,6 @@ ships in
   vocabulary for one subject, e.g.
   [`tests/models/politics.lib.writ`](tests/models/politics.lib.writ)) is ordinary
   user code and lives beside the models that load it.
-- **The mgtt bridge:** [`docs/mgtt-bridge.md`](docs/mgtt-bridge.md) — how an
-  architecture model is read: why the fact reduction is lossless, why facts are
-  the only varying cells, and what is declined.
 - **The relational extension:** [`docs/interrogator.md`](docs/interrogator.md) —
   partly built. The `.rules` file, the built-in relations that expose the
   derived state category, and `writ derive` (§0–§2, §4, §5) ship; `writ solve`,

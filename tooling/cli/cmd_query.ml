@@ -22,11 +22,25 @@ let state_at (sp : Space.t) (spec : string option) : int * State.t =
           (i, sp.Space.states.(i))
       | _ -> die 2 ("--at expects a state index in range: " ^ s))
 
-let run (model : string) (name : string) (at : string option) =
+let run ~(claims : string option) (model : string) (name : string)
+    (at : string option) =
   let resolve = make_resolve model in
   let m = load_model resolve model in
   let sp = build_space model m in
-  let cpath = claims_beside model in
+  (* The questions live beside the model by convention, which is what lets one
+     suite be asked of many models without a flag on every invocation. A model
+     read from a pipe has no "beside" — so the flag is the escape hatch for
+     exactly that case, and saying so beats resolving `<stdin>.claims` and
+     reporting a file nobody named. *)
+  let cpath =
+    match claims with
+    | Some p -> p
+    | None when model = stdin_name ->
+        die 2
+          "query: a model read from stdin has no sibling .claims — pass \
+           --claims FILE"
+    | None -> claims_beside model
+  in
   let claims = read_claims resolve m cpath in
   let q =
     match
