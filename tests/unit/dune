@@ -46,6 +46,20 @@
   writ_sql
   writ_mgtt))
 
+; The --stdin behaviour. It links [writ_cli], the command line's own modules,
+; which is why they are a library rather than the executable's private modules:
+; an executable's modules cannot be linked into a test, and the sentinel and
+; the flag-stripping pass are decisions worth checking without running the
+; binary.
+;
+; Its own stanza rather than a name in the list above: [writ_cli] is unwrapped,
+; so linking it into the whole engine suite would put [Help], [Cmd_check] and
+; their siblings in scope for twenty tests that have no business seeing them.
+
+(test
+ (name test_stdin)
+ (libraries writ_cli))
+
 ; The language-server tests drive [Server.handle] (pure: JSON in, JSON out), so
 ; they link the [writ_lsp] library alongside the engine. No I/O — the resolver
 ; serves fixture text from an in-memory map.
