@@ -683,6 +683,7 @@ words below are claims vocabulary; every `GUARD` in them is the language's own
 ```
  1  writ check   MODEL [--claims F]     size, gaps, dead ends, laws, properties
  2  writ query   MODEL NAME [--at N]    one query's bindings, at a state
+                 [--claims F]             …from F rather than the sibling
  3  writ compare OLD NEW [--map M]      preserved / LOST / gained
  4  writ derive  MODEL RULES.rules R    the same universe, asked relationally
  5  writ control MODEL                  the move list, as data
@@ -706,8 +707,9 @@ stale law, a lost guarantee · **2** unreadable input.
   pick by whether an empty slot should break the rule.
 - **Name your transitions**, especially inside forms, or witnesses and law
   reports have nothing to print.
-- **`writ query` reads the model's sibling `.claims`** — `MODEL.writ` →
-  `MODEL.claims`. There is no `--claims` flag on it.
+- **`writ query` reads the model's sibling `.claims` by default** —
+  `MODEL.writ` → `MODEL.claims`. `--claims FILE` overrides it, and is required
+  with `--stdin`, which has no sibling to find.
 - **A gap is not a dead end.** One is declared silence, the other is silence
   nobody declared. They are reported separately on purpose.
 - **Slots need exactly one entity.** `(person ana ben)` declares two members;

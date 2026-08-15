@@ -236,7 +236,7 @@ what it costs.
 | Command | Does |
 |---|---|
 | `writ check MODEL [--claims F]` | build the model; report size, gaps, dead ends and laws; check the `.claims` properties and queries |
-| `writ query MODEL NAME [--at STATE]` | run one named query and print the satisfying bindings |
+| `writ query MODEL NAME [--at STATE] [--claims F]` | run one named query and print the satisfying bindings; questions come from the sibling `.claims` unless `--claims` names another |
 | `writ compare OLD NEW [--map M]` | report each equation and property **preserved / LOST / gained** across two models |
 | `writ compare --git R1 R2 MODEL` | …across two git revisions of one file |
 | `writ control MODEL` | emit the move list as an instance of the standard library's `quiver` schema |

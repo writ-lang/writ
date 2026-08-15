@@ -65,19 +65,31 @@ plus query answers and law acknowledgments (unadmitted / stale).|};
       summary = "run one named query and print the satisfying bindings";
       usage =
         [
-          "writ query    MODEL.writ NAME [--at STATE]";
-          "writ query    --stdin NAME [--at STATE]";
+          "writ query    MODEL.writ NAME [--at STATE] [--claims FILE]";
+          "writ query    --stdin NAME --claims FILE [--at STATE]";
         ];
       body =
-        {|Run one named query from the model's sibling .claims file and print
-the satisfying variable bindings. --at STATE addresses a situation by
-its state index (default: the initial situation, index 0).|};
+        {|Run one named query and print the satisfying variable bindings.
+--at STATE addresses a situation by its state index (default: the
+initial situation, index 0).
+
+The questions come from the model's SIBLING .claims file
+(MODEL.writ -> MODEL.claims), which is the convention that lets one
+suite be asked of many models without naming it every time. --claims
+overrides that, and is REQUIRED with --stdin: a model read from a pipe
+has no sibling to find.|};
       options =
         [
           "--at STATE       address a situation by its state index";
           "--stdin          read the model from stdin instead of a path";
+          "--claims FILE    where the questions live (default: the model's \
+           sibling .claims; required with --stdin)";
         ];
-      examples = [ "writ query   tests/models/any_model.writ captured --at 7" ];
+      examples =
+        [
+          "writ query   tests/models/any_model.writ captured --at 7";
+          "cat model.writ | writ query --stdin captured --claims suite.claims";
+        ];
     };
     {
       name = "compare";

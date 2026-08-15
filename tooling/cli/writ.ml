@@ -96,12 +96,14 @@ let () =
       | _ -> die 2 usage)
   | _ :: "query" :: rest -> (
       let stdin_, rest = Writ_dispatch.take_stdin rest in
+      let claims, rest = Writ_dispatch.take_claims rest in
       match (stdin_, rest) with
-      | true, [ name ] -> Cmd_query.run Cli_io.stdin_name name None
+      | true, [ name ] -> Cmd_query.run ~claims Cli_io.stdin_name name None
       | true, [ name; "--at"; s ] ->
-          Cmd_query.run Cli_io.stdin_name name (Some s)
-      | false, [ model; name ] -> Cmd_query.run model name None
-      | false, [ model; name; "--at"; s ] -> Cmd_query.run model name (Some s)
+          Cmd_query.run ~claims Cli_io.stdin_name name (Some s)
+      | false, [ model; name ] -> Cmd_query.run ~claims model name None
+      | false, [ model; name; "--at"; s ] ->
+          Cmd_query.run ~claims model name (Some s)
       | _ -> die 2 usage)
   | _ :: "show" :: rest -> (
       let stdin_, rest = Writ_dispatch.take_stdin rest in
