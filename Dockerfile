@@ -2,7 +2,7 @@
 #
 # WHAT IT IS FOR, since a Dockerfile in a compiler repository is a fair thing to
 # ask about. It is this repository's distributable — `make image` tags it
-# locally and .github/workflows/image.yml publishes it as
+# locally and .github/workflows/image-publish.yml publishes it as
 # ghcr.io/writ-lang/writ on a version tag. github.com/writ-lang/writ-problems
 # builds FROM it, which is how the worked scenarios run with nothing installed
 # on the host but Docker. It is a product, not a test rig.
