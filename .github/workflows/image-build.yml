@@ -1,0 +1,104 @@
+# Build the runtime image for both architectures. Called, never triggered.
+#
+# WHY THIS FILE EXISTS. Two workflows build this image: image-check.yml on every
+# pull request, throwing the result away, and image-publish.yml on a release,
+# keeping it. They must build the SAME THING — a check that builds something
+# other than what ships is not a check — and for a while they did it by holding
+# two byte-identical copies of the matrix below. That is the same shape as the
+# COPY list in the Dockerfile that shipped a broken image: a hand-kept list, in
+# two places, that nothing forces to agree. Add an architecture to one and
+# forget the other, and the check silently stops shadowing the publish.
+#
+# So the build is here, once, and the two callers differ only in what they do
+# with the result. `workflow_call` is what makes that possible: this file has no
+# trigger of its own and cannot run by itself.
+#
+# THE ONE INPUT IS `push`, and it is the whole difference between the callers.
+# False builds to `type=cacheonly` — every RUN in the Dockerfile still executes,
+# including the stage-2 smoke checks, and nothing is exported. True pushes each
+# architecture to GHCR by digest under NO TAG, and records the digest as an
+# artifact for the caller's merge job to join into a manifest list.
+#
+# A called workflow cannot hold more permission than its caller granted, so
+# image-check.yml calling with `contents: read` cannot push no matter what this
+# file says. The permission boundary survives the sharing.
+
+name: image-build
+
+on:
+  workflow_call:
+    inputs:
+      push:
+        description: "Push each architecture to GHCR by digest, and record it"
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    # EACH ARCHITECTURE ON A MACHINE OF THAT ARCHITECTURE — never QEMU. The
+    # published image was amd64-only once, which did not fail on Apple Silicon;
+    # it emulated, and an interrogator that enumerates a state space is exactly
+    # the program that turns emulation into a wait. Building arm64 on an amd64
+    # runner would move that emulation into CI rather than remove it, and make
+    # the stage-2 smoke checks run emulated too. arm64 runners are free on
+    # public repositories.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v3
+
+      - if: inputs.push
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `push-by-digest` puts the bytes in the registry under no tag and hands
+      # back a digest; the caller attaches the tags once, afterwards. Tagging
+      # here would be two matrix jobs racing for one tag, and the loser's
+      # architecture would become the published image — the single-architecture
+      # bug again, but harder to see.
+      #
+      # The cache is SCOPED PER ARCHITECTURE. One shared scope would have the
+      # two jobs evict each other every run — an arm64 layer is not a usable hit
+      # for an amd64 build — giving a cache that is always cold and always
+      # written, which is slower than no cache at all.
+      - id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: ${{ inputs.push && format('type=image,name=ghcr.io/{0},push-by-digest=true,name-canonical=true,push=true', github.repository) || 'type=cacheonly' }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      # An artifact is how a value crosses between jobs on different machines.
+      # An empty file NAMED for the digest rather than one containing it: the
+      # merge job globs the directory, so it never has to know how many
+      # architectures there were.
+      - if: inputs.push
+        name: record the digest
+        run: |
+          mkdir -p /tmp/digests
+          digest='${{ steps.build.outputs.digest }}'
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - if: inputs.push
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1

@@ -5,27 +5,26 @@
 # deliberately the check that `writ` and `writ-mcp` are a small closed set. The
 # cost of that design is a failure mode: a library added to a dune file and not
 # added to the list builds everywhere except in the image. `writ_sql` did
-# exactly that, and because image.yml fires only on a v* tag or by hand, nobody
-# saw it until the publish. This job is the thing that sees it — on the pull
-# request that causes it, not on the release that trips over it.
+# exactly that, and because publishing fires only on a v* tag or by hand, nobody
+# saw it until the release. This workflow is the thing that sees it — on the
+# pull request that causes it, not on the release that trips over it.
 #
-# NOT A JOB IN image.yml, and the reason is the token. That workflow holds
-# `packages: write` so it can push to GHCR; anything triggered by a pull request
-# must not be able to publish. Two files, two permission sets.
+# It shares its build with image-publish.yml rather than copying it: both call
+# image-build.yml, which is where the matrix and the buildx invocation live. A
+# check that built something other than what ships would not be a check, and two
+# copies of the matrix is how that drift would have arrived.
+#
+# NOT A JOB IN image-publish.yml, and the reason is the token. That workflow
+# holds `packages: write` so it can push to GHCR; nothing triggered by a pull
+# request should be able to publish. Job-level permissions could express that in
+# one file, but only as long as every future job remembers to set them — a job
+# added without its own block inherits the file's. Two files, two permission
+# sets, and the mistake is unavailable rather than merely discouraged.
 #
 # It BUILDS AND STOPS. Every check worth running is already a RUN in the
 # Dockerfile's second stage — the model, the .rules file, the MCP handshake and
 # git — so producing the image is the whole test, and there is nothing to run
-# afterwards that the build has not already run. That is also why this job needs
-# no registry, no login and no `load`.
-#
-# BOTH ARCHITECTURES, for the same reason the job exists at all. image.yml
-# publishes a manifest list built on an amd64 and an arm64 runner; a check that
-# only built amd64 would pass on the pull request and leave arm64 to be
-# discovered by the release, which is the shape of failure this file was added
-# to end. Each runs on a machine of its own architecture — never QEMU — so a
-# green check here means the same compile and the same stage-2 smoke checks that
-# the publish will run.
+# afterwards that the build has not already run.
 
 name: image-check
 
@@ -34,7 +33,9 @@ on:
   push:
     branches: [main]
 
-# Read the tree, and nothing else. See the note above about image.yml's token.
+# Read the tree, and nothing else. Because a called workflow is capped by its
+# caller's grant, this line is what makes it impossible for image-build.yml to
+# push when it is called from here, whatever that file asks for.
 permissions:
   contents: read
 
@@ -44,40 +45,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # NO `paths:` FILTER ON THE TRIGGER, on purpose. A paths filter is the same
+  # kind of object as the COPY list it is guarding — a hand-kept enumeration of
+  # what matters — and the drift it would have to catch arrived in
+  # tooling/cli/dune, not in the Dockerfile. A filter listing only the obvious
+  # files would have skipped the very commit that broke the image. So every pull
+  # request builds, and the per-architecture cache is what keeps that affordable
+  # enough that nobody is tempted to add the filter back later.
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-            arch: amd64
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: docker/setup-buildx-action@v3
-
-      # NO `paths:` FILTER ON THE TRIGGER, on purpose. A paths filter is the
-      # same kind of object as the COPY list it is guarding — a hand-kept
-      # enumeration of what matters — and the drift it would have to catch
-      # arrived in tooling/cli/dune, not in the Dockerfile. A filter listing
-      # only the obvious files would have skipped the very commit that broke
-      # the image. So every pull request builds, and the cache below is what
-      # keeps that affordable enough that nobody is tempted to add the filter
-      # back later.
-      #
-      # The cache is SCOPED PER ARCHITECTURE. One shared scope would have the
-      # two jobs overwrite each other's entries every run — an arm64 layer is
-      # not a usable cache hit for an amd64 build — and the result is a cache
-      # that is always cold and always written, which is slower than none.
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: ${{ matrix.platform }}
-          push: false
-          cache-from: type=gha,scope=${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+    uses: ./.github/workflows/image-build.yml

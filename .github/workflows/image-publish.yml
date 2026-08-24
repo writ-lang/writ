@@ -1,0 +1,110 @@
+# Publish the runtime image to GHCR, for amd64 and arm64.
+#
+# WHY A WORKFLOW AND NOT A LOCAL `docker push`. GHCR is a container registry
+# speaking the Docker Registry HTTP API, so it authenticates with a bearer
+# token — an SSH key pushes git, and cannot push an image. A personal access
+# token with `write:packages` would work; the built-in GITHUB_TOKEN below does
+# too, and is scoped to this repository and this run rather than to a person.
+# Nothing has to be stored anywhere.
+#
+# NOT ON EVERY PUSH, deliberately. Publishing is outward-facing and the version
+# it carries comes from dune-project, so it fires on a tag — the moment a
+# version means something — or by hand from the Actions tab.
+#
+# The build itself is in image-build.yml, shared with image-check.yml, so the
+# thing verified on a pull request and the thing published on a release are the
+# same file's work rather than two copies that have to be kept in step.
+#
+# NAMED FOR WHAT IT DOES. It was `image.yml` while it was the only one, and then
+# `image` and `image-check` sat side by side reading as "the image one" and
+# "some extra check" — which hid that the real difference between them is
+# publish versus verify.
+
+name: image-publish
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Extra tag to publish alongside the version (e.g. latest)"
+        default: "latest"
+
+permissions:
+  contents: read
+
+jobs:
+  # Each architecture, pushed by digest under no tag. `packages: write` is
+  # granted HERE rather than at the top of the file, so it reaches this job and
+  # nothing else — including any job added later.
+  build:
+    permissions:
+      contents: read
+      packages: write        # what lets GITHUB_TOKEN push to ghcr.io
+    uses: ./.github/workflows/image-build.yml
+    with:
+      push: true
+
+  # Join the per-architecture images under the real tags, then prove the join
+  # worked. This is the only job that names a version, so the sed that reads it
+  # stays in one place.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # The version dune-project holds is the one `writ --version` prints and
+      # `make release` names its tarball with. Read it rather than repeating
+      # it: a hand-kept copy of a version number is one that goes wrong.
+      - id: v
+        run: echo "version=$(sed -n 's/^(version \(.*\))/\1/p' dune-project)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: create the manifest list
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            --tag ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} \
+            --tag ghcr.io/${{ github.repository }}:${{ inputs.tag || 'latest' }} \
+            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+
+      # Two checks, and they are checking different things.
+      #
+      # The first is that the tag is a manifest list naming BOTH architectures.
+      # Nothing else can catch a half-published tag — the amd64 image alone
+      # pulls and runs perfectly well on the amd64 runner below, which is
+      # exactly how the arm64 gap went unnoticed the first time.
+      #
+      # The second is the one only a publish can make: that the bytes which
+      # reached the registry come back down and run. The image's own smoke test
+      # is a RUN in the Dockerfile's second stage, so it has already passed on
+      # each architecture natively, on that architecture's machine, before
+      # anything was pushed.
+      - name: check the manifest carries both architectures
+        run: |
+          image=ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }}
+          docker buildx imagetools inspect "$image"
+          for want in linux/amd64 linux/arm64; do
+            docker buildx imagetools inspect "$image" | grep -q "$want" \
+              || { echo "manifest for $image is missing $want" >&2; exit 1; }
+          done
+
+      - run: docker run --rm ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} --version
