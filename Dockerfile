@@ -43,19 +43,25 @@ USER root
 RUN mkdir -p /src && chown opam:opam /src
 USER opam
 WORKDIR /src
-# Only what `tooling/cli/writ.exe` needs — the three engine libraries under core/
-# and runtime/, the shared load-path library, plus the CLI itself. Every library
-# the CLI links must be COPYed or the build stops here, by design: this list is
-# the check that `writ` really is a small closed set of libraries. No tooling/lsp,
-# tests/
-# (keeps the build lean and free of ocamlformat/test deps). writ has NO external
-# libraries. The stdlib .writ data ships beside the binary.
+# Only what the two executables need — the three engine libraries under core/
+# and runtime/, the shared bridges (load path, JSON, SQL), plus the CLI and the
+# MCP server themselves. Every library either binary links must be COPYed or the
+# build stops here, by design: this list is the check that they really are a
+# small closed set of libraries. No tooling/lsp, tests/ (keeps the build lean
+# and free of ocamlformat/test deps). writ has NO external libraries. The stdlib
+# .writ data ships beside the binary.
+#
+# The failure mode this list has, and the reason to read the dune files rather
+# than this comment when adding a verb: a library added to tooling/cli/dune and
+# not added here builds everywhere except in the image, and the image is what
+# ships. `writ_sql` did exactly that.
 COPY --chown=opam:opam dune-project ./
 COPY --chown=opam:opam core ./core
 COPY --chown=opam:opam runtime ./runtime
 COPY --chown=opam:opam tooling/cli ./tooling/cli
 COPY --chown=opam:opam tooling/loadpath ./tooling/loadpath
 COPY --chown=opam:opam tooling/json ./tooling/json
+COPY --chown=opam:opam tooling/sql ./tooling/sql
 COPY --chown=opam:opam tooling/mcp ./tooling/mcp
 RUN opam install -y dune \
  && opam exec -- dune build tooling/cli/writ.exe tooling/mcp/bin/writ_mcp.exe \
