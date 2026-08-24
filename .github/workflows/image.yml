@@ -52,10 +52,12 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }}
             ghcr.io/${{ github.repository }}:${{ inputs.tag || 'latest' }}
 
-      # The image exists to be USED, so prove it runs before calling the
-      # publish a success. A registry full of images nobody smoke-tested is how
-      # a broken tag survives to the first person who pulls it.
-      - run: |
-          docker run --rm ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} --version
-          docker run --rm --entrypoint sh ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} \
-            -c 'command -v git >/dev/null || { echo "no git: writ compare --git would not run" >&2; exit 1; }'
+      # Pull the tag back down and run it. This is NOT the image's smoke test —
+      # that is a RUN in the Dockerfile's second stage, so it has already passed
+      # by the time anything is pushed, and it passes for `make image` and the
+      # pull request job too. What is left to check here is the part only a
+      # publish has: that the bytes which reached the registry under this tag
+      # are the ones that were built, and come back runnable. A registry full of
+      # images nobody pulled is how a broken tag survives to the first person
+      # who does.
+      - run: docker run --rm ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }} --version

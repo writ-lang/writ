@@ -1,0 +1,59 @@
+# Build the runtime image on every pull request, and never push it.
+#
+# WHY THIS EXISTS. Dockerfile stage 1 does not copy the repository; it copies a
+# hand-written list of directories, one COPY per library, and that list is
+# deliberately the check that `writ` and `writ-mcp` are a small closed set. The
+# cost of that design is a failure mode: a library added to a dune file and not
+# added to the list builds everywhere except in the image. `writ_sql` did
+# exactly that, and because image.yml fires only on a v* tag or by hand, nobody
+# saw it until the publish. This job is the thing that sees it — on the pull
+# request that causes it, not on the release that trips over it.
+#
+# NOT A JOB IN image.yml, and the reason is the token. That workflow holds
+# `packages: write` so it can push to GHCR; anything triggered by a pull request
+# must not be able to publish. Two files, two permission sets.
+#
+# It BUILDS AND STOPS. Every check worth running is already a RUN in the
+# Dockerfile's second stage — the model, the .rules file, the MCP handshake and
+# git — so producing the image is the whole test, and there is nothing to run
+# afterwards that the build has not already run. That is also why this job needs
+# no registry, no login and no `load`.
+
+name: image-check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read the tree, and nothing else. See the note above about image.yml's token.
+permissions:
+  contents: read
+
+# A pull request that gets three pushes in a minute needs one build, not three.
+concurrency:
+  group: image-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v3
+
+      # NO `paths:` FILTER ON THE TRIGGER, on purpose. A paths filter is the
+      # same kind of object as the COPY list it is guarding — a hand-kept
+      # enumeration of what matters — and the drift it would have to catch
+      # arrived in tooling/cli/dune, not in the Dockerfile. A filter listing
+      # only the obvious files would have skipped the very commit that broke
+      # the image. So every pull request builds, and the cache below is what
+      # keeps that affordable enough that nobody is tempted to add the filter
+      # back later.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
