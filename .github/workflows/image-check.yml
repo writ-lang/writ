@@ -18,6 +18,14 @@
 # git — so producing the image is the whole test, and there is nothing to run
 # afterwards that the build has not already run. That is also why this job needs
 # no registry, no login and no `load`.
+#
+# BOTH ARCHITECTURES, for the same reason the job exists at all. image.yml
+# publishes a manifest list built on an amd64 and an arm64 runner; a check that
+# only built amd64 would pass on the pull request and leave arm64 to be
+# discovered by the release, which is the shape of failure this file was added
+# to end. Each runs on a machine of its own architecture — never QEMU — so a
+# green check here means the same compile and the same stage-2 smoke checks that
+# the publish will run.
 
 name: image-check
 
@@ -37,7 +45,17 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
 
@@ -51,9 +69,15 @@ jobs:
       # the image. So every pull request builds, and the cache below is what
       # keeps that affordable enough that nobody is tempted to add the filter
       # back later.
+      #
+      # The cache is SCOPED PER ARCHITECTURE. One shared scope would have the
+      # two jobs overwrite each other's entries every run — an arm64 layer is
+      # not a usable cache hit for an amd64 build — and the result is a cache
+      # that is always cold and always written, which is slower than none.
       - uses: docker/build-push-action@v7
         with:
           context: .
+          platforms: ${{ matrix.platform }}
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
