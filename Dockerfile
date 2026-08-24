@@ -89,6 +89,13 @@ COPY --from=build /tmp/out/share/writ/lib /usr/local/share/writ/lib
 # that is not the install prefix — and it does that TWICE, once for a model and
 # once for a .rules file, because the two libraries ship by the same copy and a
 # glob narrowed back to *.writ would drop the second silently.
+#
+# git is checked HERE rather than after a `docker push`, because git missing is
+# a property of the image and not of the registry: `writ compare --git` shells
+# out to it, so an image without it ships a verb that cannot run. Checked at
+# this line it is checked by every build there is — `make image`, the pull
+# request job, and the publish — instead of only by the one workflow that used
+# to run it afterwards.
 RUN printf '%s\n' \
       '(load "stdlib.writ")' \
       '(schema s (type v (lo hi)) (type box (arrow f (to v))))' \
@@ -101,6 +108,8 @@ RUN printf '%s\n' \
  && writ derive /tmp/smoke.writ /tmp/smoke.rules reach | grep -q '(3 rows)' \
  && printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
       | writ-mcp | grep -q '"protocolVersion"' \
+ && { command -v git >/dev/null \
+      || { echo "no git: writ compare --git would not run" >&2; exit 1; }; } \
  && rm -f /tmp/smoke.writ /tmp/smoke.rules
 
 ENTRYPOINT ["writ"]
