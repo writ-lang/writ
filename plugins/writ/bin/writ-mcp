@@ -25,7 +25,7 @@ set -eu
 
 # Pinned to the version this plugin ships with, so the tools answering are the
 # ones its skill describes. Override for a different build.
-WRIT_IMAGE=${WRIT_IMAGE:-ghcr.io/writ-lang/writ:0.1.0}
+WRIT_IMAGE=${WRIT_IMAGE:-ghcr.io/writ-lang/writ:0.2.0}
 
 native() {
   if command -v writ-mcp >/dev/null 2>&1; then

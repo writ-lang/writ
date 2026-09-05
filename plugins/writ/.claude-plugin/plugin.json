@@ -1,6 +1,6 @@
 {
   "name": "writ",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Answer questions about rule-governed worlds by exhaustive search: deadlock, reachability, scheduling feasibility and optimality \u2014 with a witness route, not a guess. Bundles the writ skill and wires up the writ-mcp server.",
   "author": {
     "name": "Alex Kunich"

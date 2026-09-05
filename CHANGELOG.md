@@ -3,9 +3,17 @@
 Versions are the one in `dune-project`: what opam publishes, what `writ
 --version` prints, and what `make release` names the tarball with.
 
-## 0.1.0 — unreleased
+## 0.2.0 — 2026-09-05
 
-The first packaged version. What exists:
+The first RELEASED version, and it is 0.2.0 rather than 0.1.0 because 0.1.0 is
+already spoken for: `v0.1.0` tags a commit from before most of this existed,
+and `ghcr.io/writ-lang/writ:0.1.0` has been published from it. Re-cutting that
+number would move an image tag under anyone who had pinned it — including this
+repository's own Claude plugin, which pins it deliberately. 0.2.0 costs
+nothing and is unambiguous. Everything below was written against 0.1.0 while it
+was unreleased, and describes this release.
+
+What exists:
 
 **The language.** Twenty-seven kernel words: `schema` / `type` / `arrow` with
 the arrow qualifiers, `instance`, `initial`, `use`, `transition` with `when` /

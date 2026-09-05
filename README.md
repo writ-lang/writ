@@ -606,22 +606,22 @@ libraries, one over the servers and the shared JSON. The toolchain is resolved b
 that one line is what opam publishes, what `writ --version` prints (dune
 generates the module from it), what names the tarball, and what tags the
 container image. The git tag only fires the workflows. So a release is two acts,
-and doing the second without the first is the mistake worth naming: tag `v0.2.0`
-while `dune-project` still says `0.1.0` and every published file says `0.1.0`
-under a release called v0.2.0.
+and doing the second without the first is the mistake worth naming: tag `v0.3.0`
+while `dune-project` still says `0.2.0`, and every published file says `0.2.0`
+under a release called v0.3.0.
 
 ```sh
 # 1. bump the one line, and regenerate the opam file it feeds
-$EDITOR dune-project              # (version 0.2.0)
+$EDITOR dune-project              # (version 0.3.0)
 make build                        # rewrites writ.opam
-git commit -am "writ 0.2.0"
+git commit -am "writ 0.3.0"
 
 # 2. check the tag before pushing it — this is what CI will ask
-sh scripts/check-release-tag.sh v0.2.0
+sh scripts/check-release-tag.sh v0.3.0
 
 # 3. annotate the tag: its subject becomes the first line of the release notes
-git tag -a v0.2.0 -m "what this release is for, in one line"
-git push origin main v0.2.0
+git tag -a v0.3.0 -m "what this release is for, in one line"
+git push origin main v0.3.0
 ```
 
 The tag then runs two workflows. `release.yml` re-checks the tag against
@@ -635,7 +635,7 @@ and `scripts/test-check-release-tag.sh` checks the rule itself.
 
 The three routes under [Install](#install) are the whole distribution, and the
 tag is what makes the opam one work at all: `opam pin add writ
-git+https://github.com/writ-lang/writ#v0.2.0` publishes nothing anywhere, so the
+git+https://github.com/writ-lang/writ#v0.3.0` publishes nothing anywhere, so the
 tag *is* the package.
 
 Every pull request runs `ci.yml` (build, suites, `ocamlformat`, and a check that
