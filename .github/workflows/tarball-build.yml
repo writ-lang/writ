@@ -106,8 +106,11 @@ jobs:
           "$RUNNER_TEMP/$name/install.sh" "$prefix"
           export PATH="$prefix/bin:$PATH"
 
-          test "$(writ --version)" = "writ ${VERSION}" || {
-            echo "the binary reports '$(writ --version)', dune-project says ${VERSION}" >&2
+          # The first line only: --version prints the version and then three
+          # lines of licence.
+          got=$(writ --version | head -n 1)
+          test "$got" = "writ ${VERSION}" || {
+            echo "the binary reports '$got', dune-project says ${VERSION}" >&2
             exit 1; }
 
           # Run from a directory that is neither the checkout nor the prefix, so
