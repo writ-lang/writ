@@ -16,4 +16,10 @@
  (public_name writ-mcp)
  (package writ)
  (modules writ_mcp)
- (libraries writ_data writ_syntax writ_runtime writ_mcp writ_json writ_loadpath))
+ (libraries
+  writ_data
+  writ_syntax
+  writ_runtime
+  writ_mcp
+  writ_json
+  writ_loadpath))

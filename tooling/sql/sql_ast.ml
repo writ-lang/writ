@@ -26,9 +26,9 @@ type column = {
   fixed : bool;
       (** wiring rather than state. A foreign key defaults to [true] — a
           reference is the shape of the world, and a `fixed` arrow costs the
-          state space nothing — and anything else to [false]. A `-- writ:` pragma
-          overrides, which is how the export records an arrow whose mutability
-          the DDL alone could not have said. *)
+          state space nothing — and anything else to [false]. A `-- writ:`
+          pragma overrides, which is how the export records an arrow whose
+          mutability the DDL alone could not have said. *)
   refs : string option;  (** the referenced table, writ spelling *)
   comment : string option;
   cline : int;
