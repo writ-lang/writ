@@ -3,7 +3,7 @@
 Versions are the one in `dune-project`: what opam publishes, what `writ
 --version` prints, and what `make release` names the tarball with.
 
-## 0.2.0 — 2026-09-05
+## 0.2.0 — 2026-09-06
 
 The first RELEASED version, and it is 0.2.0 rather than 0.1.0 because 0.1.0 is
 already spoken for: `v0.1.0` tags a commit from before most of this existed,
