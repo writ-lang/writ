@@ -7,7 +7,11 @@
    file name, exactly as the binary's disk reader would, so a .claims buffer's
    sibling model and a library resolve without touching the filesystem.
 
-   Three behaviours are pinned, one per finished fix:
+   [initialize] is pinned first, because it is the one answer no other test can
+   stand in for: the editor client reads serverInfo to tell whether the server
+   it found is the writ its own version expects.
+
+   Three behaviours are then pinned, one per finished fix:
      1. a VALID .claims buffer publishes NO diagnostic, and its outline shows the
         property / query / accept symbols with range ⊇ selectionRange;
      2. a LIBRARY .writ buffer (no [use]) publishes NO "needs (use)" diagnostic;
@@ -164,6 +168,41 @@ let sym_encloses j =
   | _ -> false
 
 (* --- the drives ----------------------------------------------------------- *)
+
+(* 0. initialize names the writ it is.
+ *
+ * The editor client has no other way to ask. It resolves a server by path — a
+ * checkout's `_build` build, or `writ-lsp` on PATH — and those are separate
+ * installs from the extension itself, so the two CAN be out of step and the
+ * symptom is a diagnostic that disagrees with the CLI. The client compares this
+ * against its own version and says so; that comparison is only as good as this
+ * field, and a client reading `undefined` would report a mismatch that is not
+ * one. Checked against the generated [Version.v] rather than a literal, because a test
+ * that spelled the version out would be one more copy to bump. *)
+let () =
+  let init =
+    Json.Assoc
+      [
+        ("jsonrpc", Json.String "2.0");
+        ("id", Json.Int 1);
+        ("method", Json.String "initialize");
+        ("params", Json.Assoc []);
+      ]
+  in
+  let st = Server.create ~resolve in
+  let r = result_of (Server.handle st init) in
+  check "initialize: still declares its capabilities"
+    (match Json.member "capabilities" r with
+    | Some c -> Json.member "documentSymbolProvider" c <> None
+    | None -> false);
+  check "initialize: names itself and the writ it was built from"
+    (match Json.member "serverInfo" r with
+    | Some si ->
+        Json.member "name" si = Some (Json.String "writ-lsp")
+        && Json.member "version" si = Some (Json.String Writ_lsp.Version.v)
+    | None -> false);
+  check "initialize: the version it reports is not empty"
+    (String.length Writ_lsp.Version.v > 0)
 
 (* 1. a valid claims buffer: no diagnostic, and a property/query/accept outline *)
 let () =

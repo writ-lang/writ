@@ -10,3 +10,16 @@
 (library
  (name writ_lsp)
  (libraries writ_data writ_syntax writ_runtime writ_json))
+
+; The version `initialize` reports in serverInfo, so an editor can tell whether
+; the server answering it is the writ it thinks it installed. The same rule as
+; tooling/cli/dune and tooling/mcp/lib/dune, leading `v` stripped for the reason
+; tooling/cli/dune gives, and a copy for the reason tooling/mcp/lib/dune gives.
+
+(rule
+ (targets version.ml)
+ (action
+  (with-stdout-to
+   version.ml
+   (echo
+    "let v =\n  let raw = \"%{version:writ}\" in\n  if String.length raw > 1 && raw.[0] = 'v' && raw.[1] >= '0' && raw.[1] <= '9'\n  then String.sub raw 1 (String.length raw - 1)\n  else raw\n"))))

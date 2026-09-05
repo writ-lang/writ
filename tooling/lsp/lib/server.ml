@@ -121,9 +121,22 @@ let point st ~meth ~uri ~pos =
 
 (* ------------------------------------------------------------- dispatch *)
 
+(* [serverInfo] is optional in the protocol and answers a question the client
+   cannot otherwise ask: WHICH writ is this. The editor and the checker being
+   the same code is the whole argument for an OCaml server, and that argument
+   is only true when the two are in step — an extension installed from a .vsix
+   beside a server built from a different checkout is a real and silent way for
+   them not to be. The version is [Version.v], generated from dune-project by
+   the same rule as the CLI's and the MCP server's, so it cannot disagree with
+   what `writ --version` prints or what the MCP server reports. *)
 let initialize_result =
   Json.Assoc
     [
+      ( "serverInfo",
+        Json.Assoc
+          [
+            ("name", Json.String "writ-lsp"); ("version", Json.String Version.v);
+          ] );
       ( "capabilities",
         Json.Assoc
           [
