@@ -53,11 +53,24 @@ new=${1:-}
 # without this script quietly falling back to what git happens to hold today.
 declared=${3-$(sed -n 's/^(version \(.*\))/\1/p' "$root/dune-project")}
 
-# The highest release tag that already exists. Note "highest", not "the one
-# before this": comparing against the highest is what makes re-cutting an
-# already-published version fail rather than pass unnoticed.
+# The highest release tag that already exists, NOT COUNTING THE ONE BEING
+# CHECKED. That exclusion is the whole subtlety, and it cost a release to find:
+# this runs in CI on a tag push, where the tag has by definition already been
+# created, so without the exclusion every tag is compared against itself and
+# every release is refused for not coming after itself. v0.2.0 failed exactly
+# that way.
+#
+# What the exclusion gives up: it can no longer tell that a version was
+# ALREADY released — delete v0.2.0, re-tag it elsewhere, and this passes. That
+# case is unreachable from CI anyway (the tag is always present there), so the
+# alternative was not "catch it" but "refuse everything", and a check that
+# refuses everything is one that gets deleted.
+#
+# "Highest", not "the one before this": comparing against the highest is what
+# makes a tag BELOW an existing release fail rather than pass unnoticed.
 highest_tag() {
   git -C "$root" tag --list 'v*' 2>/dev/null | while read -r t; do
+    [ "$t" = "$new" ] && continue
     case $t in
       v[0-9]*.[0-9]*.[0-9]*) printf '%s %s\n' "$(key "$t")" "$t" ;;
     esac
