@@ -73,6 +73,34 @@ jobs:
             echo "writ.opam is out of date — run \`make build\` and commit it." >&2
             exit 1; }
 
+      # THE ONE VERSION PATH NO OTHER JOB TAKES. writ.opam runs `dune subst` in
+      # dev mode — every `opam pin`, which is the install route README lists
+      # first — and subst rewrites dune-project's version from `git describe`,
+      # tag name and all. That made a pinned install report `writ v0.2.0` where
+      # the tarball and the image reported `writ 0.2.0`, and where opam's own
+      # metadata for the same install said 0.2.0. tooling/cli/dune strips the
+      # `v`; nothing would notice if that stopped working, because no ordinary
+      # build runs subst at all. So this stages the situation: a throwaway clone,
+      # tagged, substituted, built, and asked.
+      - name: an opam pin must report the version the tarball does
+        run: |
+          set -eu
+          work="$RUNNER_TEMP/pin"
+          rm -rf "$work"
+          git clone -q . "$work"
+          cd "$work"
+          # Annotated: `git describe`, which is what subst reads, ignores
+          # lightweight tags.
+          git -c user.email=ci@example.com -c user.name=ci tag -a v9.9.9 -m "staged release"
+          opam exec -- dune subst
+          opam exec -- dune build tooling/cli/writ.exe
+          got=$(./_build/default/tooling/cli/writ.exe --version | head -n 1)
+          test "$got" = "writ 9.9.9" || {
+            echo "a pin at tag v9.9.9 reports '$got', not 'writ 9.9.9'" >&2
+            echo "dune-project after subst: $(grep '^(version' dune-project)" >&2
+            exit 1; }
+          echo "a pin at v9.9.9 reports $got, like every other route"
+
       # The release-tag rule, checked against cases rather than against whatever
       # this checkout's tags happen to be. It is what stands between a tag and a
       # release whose every asset carries a different version, so it is worth

@@ -46,9 +46,26 @@
 ; copy that is eventually wrong, and a binary lying about which writ it is
 ; wastes far more time than it saves.
 
+; THE LEADING `v` IS STRIPPED, and the reason is `dune subst`. writ.opam runs
+; it in dev mode — which is every `opam pin`, the install route this project
+; lists FIRST — and it rewrites dune-project's version from `git describe`. At
+; the tag v0.2.0 that is the string "v0.2.0", so a pinned install printed
+; `writ v0.2.0` while the tarball, the image and this checkout all printed
+; `writ 0.2.0`: one release, two answers to "which writ is this".
+;
+; opam already strips the v for its own metadata (writ.opam gets 0.2.0), so
+; before this the binary disagreed with the package it was installed from,
+; inside a single install. Stripping here makes every route agree again, and
+; leaves a dev pin honest — it reports 0.1.0-68-gb054efa, which is not a
+; release version and does not pretend to be one.
+;
+; Only before a DIGIT: a version that genuinely began with a letter would be
+; left alone.
+
 (rule
  (targets version.ml)
  (action
   (with-stdout-to
    version.ml
-   (echo "let v = \"%{version:writ}\"\n"))))
+   (echo
+    "let v =\n  let raw = \"%{version:writ}\" in\n  if String.length raw > 1 && raw.[0] = 'v' && raw.[1] >= '0' && raw.[1] <= '9'\n  then String.sub raw 1 (String.length raw - 1)\n  else raw\n"))))
