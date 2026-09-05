@@ -1,0 +1,176 @@
+# Build the portable release tarball for both architectures, unpack it, install
+# it and use it. Called, never triggered.
+#
+# WHY THIS FILE EXISTS — the same reason image-build.yml does, arrived at the
+# same way. Two workflows want this build: ci.yml on every pull request,
+# throwing the result away, and release.yml on a tag, attaching it to the
+# release. They must build the SAME THING, or the check is not a check; holding
+# two copies of the recipe is how they would stop being the same thing, one
+# runner label or one smoke case at a time.
+#
+# The tarball is the artifact with the least coverage in this repository and the
+# most surface: `make release` builds with a profile nothing else uses (static),
+# copies the stdlib by a path only it knows, and ships an install.sh that no
+# suite runs. The engine suites link the libraries in process; the image checks
+# the image. Until this ran on pull requests, every one of those parts was first
+# exercised by the person downloading it.
+#
+# THE ONE INPUT IS `upload`, and it is the whole difference between the callers.
+# False builds and checks and keeps nothing. True uploads the tarball and its
+# checksum as artifacts, for release.yml's publish job to attach.
+
+name: tarball-build
+
+on:
+  workflow_call:
+    inputs:
+      upload:
+        description: "Keep the tarball as an artifact for the caller to publish"
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    # EACH ARCHITECTURE ON A MACHINE OF THAT ARCHITECTURE — never QEMU, for the
+    # reason image-build.yml gives: an interrogator that enumerates a state
+    # space is exactly the program emulation makes unusable, and the smoke
+    # checks below would be emulated too. arm64 runners are free on public
+    # repositories.
+    #
+    # macOS is not here. `make release` links statically and macOS has no static
+    # libc, so a mac asset would be a dynamically linked binary that travels
+    # only between similar machines. README says to build that locally with
+    # `make release STATIC=0`; attaching one to a release would be claiming
+    # portability this repository cannot check.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # 5.2 is the compiler the Dockerfile builds with, so the tarball and the
+      # image are the same compiler's output.
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.2"
+
+      # writ has no library dependencies — writ.opam names only ocaml and dune,
+      # and the tool is OCaml stdlib only. This is the entire build environment.
+      - run: opam install -y dune
+
+      # The version lives in ONE place, `(version …)` in dune-project: opam
+      # publishes it, `writ --version` prints it (tooling/cli/dune generates the
+      # module from it), `make release` names the tarball with it and
+      # image-publish.yml tags the image with it. Read it, never repeat it.
+      - id: v
+        run: echo "version=$(sed -n 's/^(version \(.*\))/\1/p' dune-project)" >> "$GITHUB_OUTPUT"
+
+      # `opam exec --` around make rather than around dune: the Makefile reaches
+      # dune through scripts/with-ocaml.sh, which looks on PATH first, so the
+      # opam environment has to be live for the whole recipe.
+      - name: build the tarball
+        run: opam exec -- make release
+
+      - name: it is named for the version dune-project declares
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -eu
+          name="writ-${VERSION}-linux-${{ matrix.arch }}"
+          test -f "dist/${name}.tar.gz" || {
+            echo "no dist/${name}.tar.gz — what make release built:" >&2
+            ls -l dist >&2; exit 1; }
+          ( cd dist && sha256sum -c "${name}.tar.gz.sha256" )
+
+      # THE ASSET ITSELF IS INSTALLED AND RUN, not the tree it came from.
+      # install.sh, the stdlib copy and the installed load path are exercised
+      # here or nowhere.
+      - name: unpack it, install it, and use it
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -eu
+          name="writ-${VERSION}-linux-${{ matrix.arch }}"
+          tar xzf "dist/${name}.tar.gz" -C "$RUNNER_TEMP"
+
+          # A prefix that is neither the build tree nor on the default PATH:
+          # anything that resolves only because a file sits beside the checkout
+          # fails here, which is the point.
+          prefix="$RUNNER_TEMP/prefix"
+          "$RUNNER_TEMP/$name/install.sh" "$prefix"
+          export PATH="$prefix/bin:$PATH"
+
+          test "$(writ --version)" = "writ ${VERSION}" || {
+            echo "the binary reports '$(writ --version)', dune-project says ${VERSION}" >&2
+            exit 1; }
+
+          # Run from a directory that is neither the checkout nor the prefix, so
+          # `(load "stdlib.writ")` resolves the way an installed writ resolves
+          # it — <exe>/../share/writ/lib, with $WRIT_LIB unset.
+          work="$RUNNER_TEMP/work"; mkdir -p "$work"; cd "$work"
+          printf '%s\n' \
+            '(load "stdlib.writ")' \
+            '(schema s (type v (lo hi)) (type box (arrow f (to v))))' \
+            '(instance i s (box b (f lo)))' \
+            '(use s)' '(initial i)' \
+            '(transition raise (when (is b.f lo)) (do (set b.f hi)))' \
+            > smoke.writ
+          writ check smoke.writ | grep -q 'states: 2'
+
+          # ct.rules is the second library and it is not a .writ file. Every
+          # shipping path copies the stdlib directory whole; a glob narrowed
+          # back to *.writ would drop this one and nothing else would notice.
+          printf '%s\n' '(load "ct.rules")' > smoke.rules
+          writ derive smoke.writ smoke.rules reach | grep -q '(3 rows)'
+
+          # All THREE binaries, because the tarball ships three where the image
+          # ships two: writ-lsp is checked HERE or nowhere. One framed
+          # initialize proves the process starts, reads Content-Length and
+          # answers; `exit` ends it rather than leaving the job waiting on a
+          # server that never stops.
+          frame() { printf 'Content-Length: %d\r\n\r\n%s' "${#1}" "$1"; }
+          { frame '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+            frame '{"jsonrpc":"2.0","method":"exit"}'
+          } | writ-lsp | grep -q '"capabilities"'
+
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            | writ-mcp | grep -q '"protocolVersion"'
+
+          echo "the tarball installs and all three binaries run"
+
+      # README's claim about this file — "no libc version floor, the same
+      # tarball runs on any Linux of its architecture" — holds only if the link
+      # really came out static. It is one flag away from silently not being, and
+      # a dynamically linked binary works perfectly on the machine that built
+      # it, so this is the only place the claim can fail.
+      - name: the binaries must be statically linked
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -eu
+          name="writ-${VERSION}-linux-${{ matrix.arch }}"
+          for exe in writ writ-lsp writ-mcp; do
+            out=$(ldd "$RUNNER_TEMP/$name/bin/$exe" 2>&1 || true)
+            case $out in
+              *"not a dynamic executable"*|*"statically linked"*) ;;
+              *) echo "$exe is dynamically linked, so the tarball is not portable:" >&2
+                 echo "$out" >&2; exit 1 ;;
+            esac
+          done
+          echo "static — any linux/${{ matrix.arch }} will run these"
+
+      - if: inputs.upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarball-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7

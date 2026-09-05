@@ -358,6 +358,25 @@ also installs without opam at all. Every route lands the same layout — `bin/`
 holding `writ`, `writ-lsp` and `writ-mcp`, plus the `.writ` standard library at
 `share/writ/lib`, which is where the resolver looks.
 
+### A released tarball
+
+Nothing to build, and no toolchain to install. Every version tag publishes a
+[release](https://github.com/writ-lang/writ/releases) carrying one tarball per
+architecture — `linux-x86_64` and `linux-aarch64` — each **statically linked**,
+so it runs on any Linux of that architecture whatever its libc:
+
+```sh
+v=writ-<version>-linux-$(uname -m)      # the version from the releases page
+curl -fLO https://github.com/writ-lang/writ/releases/latest/download/$v.tar.gz
+curl -fLO https://github.com/writ-lang/writ/releases/latest/download/$v.tar.gz.sha256
+sha256sum -c $v.tar.gz.sha256
+tar xzf $v.tar.gz && cd $v && ./install.sh     # -> ~/.local
+```
+
+The same tarball `make release` builds locally — the release job builds it,
+unpacks it, installs it into an empty prefix and runs all three binaries out of
+it before attaching it, so what is published is what was exercised.
+
 ### With opam
 
 **It is not in opam-repository**, so there is nothing to `opam install writ`.
@@ -404,8 +423,9 @@ uninstall-writ`.
 
 For a machine with no OCaml, no opam and no network: `make release` produces
 one tarball holding **statically linked** binaries, the stdlib and an
-`install.sh`. No libc version floor — the same tarball is verified
-to run on Debian 12 (glibc) and Alpine (musl):
+`install.sh` — the same artifact each release publishes, so this is for building
+one from a commit that is not a release. No libc version floor — the same
+tarball is verified to run on Debian 12 (glibc) and Alpine (musl):
 
 ```sh
 sha256sum -c writ-<version>-linux-x86_64.tar.gz.sha256   # built beside the tarball
@@ -579,6 +599,50 @@ All of those are IO-free. IO lives in exactly three executables — `tooling/cli
 express, so two fitness gates check it instead — one over the engine
 libraries, one over the servers and the shared JSON. The toolchain is resolved by
 `scripts/with-ocaml.sh` (dune on `PATH`, else a central `writ` opam switch).
+
+## Cutting a release
+
+**The version is not in the tag.** It is `(version …)` in `dune-project`, and
+that one line is what opam publishes, what `writ --version` prints (dune
+generates the module from it), what names the tarball, and what tags the
+container image. The git tag only fires the workflows. So a release is two acts,
+and doing the second without the first is the mistake worth naming: tag `v0.2.0`
+while `dune-project` still says `0.1.0` and every published file says `0.1.0`
+under a release called v0.2.0.
+
+```sh
+# 1. bump the one line, and regenerate the opam file it feeds
+$EDITOR dune-project              # (version 0.2.0)
+make build                        # rewrites writ.opam
+git commit -am "writ 0.2.0"
+
+# 2. check the tag before pushing it — this is what CI will ask
+sh scripts/check-release-tag.sh v0.2.0
+
+# 3. annotate the tag: its subject becomes the first line of the release notes
+git tag -a v0.2.0 -m "what this release is for, in one line"
+git push origin main v0.2.0
+```
+
+The tag then runs two workflows. `release.yml` re-checks the tag against
+`dune-project`, builds the tarball on an `x86_64` and an `aarch64` runner,
+installs each one into an empty prefix and uses it, and attaches both plus their
+checksums to a GitHub release whose body opens with the tag's own annotation.
+`image-publish.yml` builds and pushes `ghcr.io/writ-lang/writ` for both
+architectures and joins them under one manifest. Both refuse a tag that
+disagrees with `dune-project`; `scripts/check-release-tag.sh` holds that rule,
+and `scripts/test-check-release-tag.sh` checks the rule itself.
+
+The three routes under [Install](#install) are the whole distribution, and the
+tag is what makes the opam one work at all: `opam pin add writ
+git+https://github.com/writ-lang/writ#v0.2.0` publishes nothing anywhere, so the
+tag *is* the package.
+
+Every pull request runs `ci.yml` (build, suites, `ocamlformat`, and a check that
+`writ.opam` still matches `dune-project`), plus the same tarball build the
+release uses and the same image build the publish uses — each shared as one
+called workflow rather than copied, so what is verified on the way in is what
+ships on the way out.
 
 ## Status
 

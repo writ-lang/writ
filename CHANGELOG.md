@@ -109,6 +109,20 @@ binary, verified on glibc (Debian 12) and musl (Alpine); and `make install-writ`
 for a plain copy into `~/.local`. The Docker image carries the CLI and the
 standard library.
 
+A **version tag publishes all of it**. `release.yml` builds the tarball on an
+`x86_64` and an `aarch64` runner, unpacks each one, installs it into an empty
+prefix, runs all three binaries out of it, and attaches both tarballs and their
+checksums to a GitHub release whose notes open with the tag's own annotation;
+`image-publish.yml` pushes `ghcr.io/writ-lang/writ` for both architectures under
+one manifest. The tarball build is one called workflow, run on every pull
+request as well, so what ships is what was checked.
+
+The version stays the one line in `dune-project` — and now nothing can tag
+around it. `scripts/check-release-tag.sh` refuses a tag whose version disagrees
+with `dune-project`, is malformed, or does not go forward; both publishing
+workflows run it before they build, and `ci.yml` checks the rule itself and that
+`writ.opam` still matches the file it is generated from.
+
 **Three repositories.** This one is the language, the engine, the CLI and the
 servers. The worked scenarios moved to
 [writ-problems](https://github.com/writ-lang/writ-problems) and the editor client

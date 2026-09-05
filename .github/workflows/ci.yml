@@ -1,0 +1,85 @@
+# Build the engine, run its suites, and build the thing people download.
+#
+# WHY IT EXISTS. Until this file, nothing in CI ran `make test`: the only
+# workflows were the image ones and the CLA bot, so a pull request could turn
+# every suite red and the only signal was a green docker build. A release is cut
+# from a tag on main, and a tag is only as good as what main was in.
+#
+# It ends with the SAME tarball build release.yml uses — one file, called twice
+# — for the reason image-check.yml gives about the image: a check that builds
+# something other than what ships is not a check, and the tarball is the least
+# covered artifact this repository has.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # First, and with no toolchain: the version is one line in dune-project,
+      # and three files hold a hand-written copy of it that nothing substitutes
+      # into. The drift arrives in the commit that bumps dune-project, so it is
+      # caught on that pull request rather than at the release it would spoil.
+      - run: sh scripts/check-versions.sh
+
+      # 5.2 is the compiler the Dockerfile builds with and the one .ocamlformat
+      # names — under 5.4 `effect` is a keyword, and this codebase has an
+      # [Ast.effect] named for the domain.
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.2"
+
+      # writ has no library dependencies: writ.opam names only ocaml and dune,
+      # and the tool is OCaml stdlib only — the suites are plain assertions with
+      # no test framework. ocamlformat is pinned to the version .ocamlformat
+      # declares, because dune refuses to format with any other.
+      - run: opam install -y dune ocamlformat.0.29.0
+
+      # `opam exec --` around make, not around dune: the Makefile reaches dune
+      # through scripts/with-ocaml.sh, which looks on PATH first.
+      - run: opam exec -- make build
+
+      - run: opam exec -- make test
+
+      # Formatting, and warnings-as-errors — the dev profile treats a partial
+      # match as an error, which is the same mechanism the engine uses to find
+      # gaps in a model.
+      - run: opam exec -- make lint
+
+      # writ.opam is GENERATED from dune-project by (generate_opam_files true)
+      # and COMMITTED, because `opam pin` has to find it in the sources before
+      # anything is built. Two files, one of them derived, is a pair that drifts:
+      # bump the version in dune-project, forget to build before committing, and
+      # the opam package installs the old number while everything else ships the
+      # new one. The build above regenerates it, so any difference here is drift.
+      - name: writ.opam must match dune-project
+        run: |
+          git diff --exit-code writ.opam || {
+            echo "writ.opam is out of date — run \`make build\` and commit it." >&2
+            exit 1; }
+
+      # The release-tag rule, checked against cases rather than against whatever
+      # this checkout's tags happen to be. It is what stands between a tag and a
+      # release whose every asset carries a different version, so it is worth
+      # more than the two seconds it costs.
+      - run: sh scripts/test-check-release-tag.sh
+
+  # Build the portable tarball on both architectures, install it, and use it.
+  # `upload: false` — a pull request keeps nothing.
+  tarball:
+    uses: ./.github/workflows/tarball-build.yml
