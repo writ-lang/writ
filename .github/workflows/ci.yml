@@ -85,15 +85,22 @@ jobs:
       - name: an opam pin must report the version the tarball does
         run: |
           set -eu
+          # setup-ocaml makes a switch LOCAL to the workspace, and opam resolves
+          # a local switch from the current directory — so `opam exec` outside
+          # the workspace fails with "No switch is currently set". Name the
+          # switch here, while it can still be found, and carry it across.
+          sw=$(opam switch show)
+
           work="$RUNNER_TEMP/pin"
           rm -rf "$work"
           git clone -q . "$work"
           cd "$work"
+          eval "$(opam env --switch="$sw" --set-switch)"
           # Annotated: `git describe`, which is what subst reads, ignores
           # lightweight tags.
           git -c user.email=ci@example.com -c user.name=ci tag -a v9.9.9 -m "staged release"
-          opam exec -- dune subst
-          opam exec -- dune build tooling/cli/writ.exe
+          dune subst
+          dune build tooling/cli/writ.exe
           got=$(./_build/default/tooling/cli/writ.exe --version | head -n 1)
           test "$got" = "writ 9.9.9" || {
             echo "a pin at tag v9.9.9 reports '$got', not 'writ 9.9.9'" >&2
