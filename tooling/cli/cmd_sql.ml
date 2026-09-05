@@ -53,7 +53,9 @@ let import (file : string) ~(with_data : bool) ~(strict : bool) =
   let db = Sql_parse.parse ~with_data src in
   let name = Filename.remove_extension (Filename.basename file) in
   let name = Sql_names.ident_to_pol name in
-  let text, clashes = Emit_writ.file ~name ~source:(Filename.basename file) db in
+  let text, clashes =
+    Emit_writ.file ~name ~source:(Filename.basename file) db
+  in
   let ds = db.declines @ clashes in
   (* refuse BEFORE writing: a redirected run that emitted a model and then
      exited 2 would leave a file behind that reads like an answer *)
@@ -88,5 +90,5 @@ let run (file : string) ~(with_data : bool) ~(strict : bool) =
   | ".writ" -> export file ~strict
   | _ ->
       die 2
-        "writ sql: the direction is the extension — give it a .sql file to read \
-         a model, or a .writ file to write DDL"
+        "writ sql: the direction is the extension — give it a .sql file to \
+         read a model, or a .writ file to write DDL"

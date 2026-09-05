@@ -57,12 +57,28 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the check below compares this tag against the others
 
       # The version dune-project holds is the one `writ --version` prints and
       # `make release` names its tarball with. Read it rather than repeating
       # it: a hand-kept copy of a version number is one that goes wrong.
       - id: v
         run: echo "version=$(sed -n 's/^(version \(.*\))/\1/p' dune-project)" >> "$GITHUB_OUTPUT"
+
+      # THE TAG THAT FIRED THIS AND THE VERSION BELOW ARE NOT THE SAME NUMBER,
+      # and nothing here would notice. The line above reads dune-project; the
+      # trigger is `v*`. Tag v0.2.0 without bumping dune-project and this
+      # workflow happily publishes ghcr.io/writ-lang/writ:0.1.0 — over the image
+      # that tag already names — while release.yml, which checks, fails beside
+      # it. So the same check runs here, before the manifest is tagged, and the
+      # push-by-digest blobs from the build job stay untagged and unreferenced.
+      #
+      # The rule itself is in the script, so both workflows and a laptop are
+      # asking one question rather than three.
+      - name: the tag and dune-project must agree
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: sh scripts/check-release-tag.sh "${GITHUB_REF_NAME}"
 
       - uses: actions/download-artifact@v4
         with:

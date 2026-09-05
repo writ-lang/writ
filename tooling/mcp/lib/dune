@@ -11,9 +11,16 @@
 ; client that asks which writ it is talking to must not get a hand-kept copy.
 ; It lives in the library rather than beside the binary — see bin/dune.
 
+; The leading `v` is stripped here too, and tooling/cli/dune says why — a
+; `dune subst` in an opam pin substitutes the tag verbatim. The two rules are
+; the same five lines because the two modules are separate by design; a shared
+; library for one string would be a new node in a dependency graph the fitness
+; gates check.
+
 (rule
  (targets version.ml)
  (action
   (with-stdout-to
    version.ml
-   (echo "let v = \"%{version:writ}\"\n"))))
+   (echo
+    "let v =\n  let raw = \"%{version:writ}\" in\n  if String.length raw > 1 && raw.[0] = 'v' && raw.[1] >= '0' && raw.[1] <= '9'\n  then String.sub raw 1 (String.length raw - 1)\n  else raw\n"))))

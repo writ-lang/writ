@@ -1,0 +1,147 @@
+# Publish the installable artifacts on a version tag.
+#
+# WHAT THIS REPOSITORY DISTRIBUTES, and where each one comes from:
+#
+#   the container image   ghcr.io/writ-lang/writ  — image-publish.yml, same tag
+#   the portable tarball  binaries + stdlib + install.sh, one per architecture
+#                         — built by tarball-build.yml, attached here
+#   the opam package      `opam pin add writ git+https://…#vX.Y.Z` — there is
+#                         nothing to publish; a tag IS the distribution, which
+#                         is another reason the tag has to be right
+#
+# A release is a tag. Until this file existed a tag produced an image and
+# nothing else: `make release` built a tarball on somebody's laptop, where it
+# stayed, and this repository had no GitHub releases at all.
+#
+# THE VERSION IS NOT IN THE TAG. It is `(version …)` in dune-project, and every
+# artifact takes it from there — the tarball's name, `writ --version`, the image
+# tag, the opam package. The tag only fires the workflow. That is what makes the
+# first job worth its half minute: nothing else in the pipeline would notice a
+# tag and a dune-project that disagree, and the result is a release called
+# v0.2.0 whose every file says 0.1.0.
+#
+# workflow_dispatch builds and checks everything and publishes nothing, so the
+# release path can be exercised without cutting a release.
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Before anything is built or uploaded, so a wrong tag costs nothing.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the rule compares this tag against every other one
+
+      - id: v
+        run: echo "version=$(sed -n 's/^(version \(.*\))/\1/p' dune-project)" >> "$GITHUB_OUTPUT"
+
+      # The rule lives in the script, not here: `sh scripts/check-release-tag.sh
+      # v0.2.0` says the same thing on a laptop, before the tag is pushed, which
+      # is where you want to hear it.
+      - name: the tag and dune-project must agree
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: sh scripts/check-release-tag.sh "${GITHUB_REF_NAME}"
+
+      # …and so must every file that keeps its own copy of the version: the
+      # opam file, the Claude plugin's manifest, and the image tag that plugin
+      # pulls. A release is exactly when those go out of step, because the bump
+      # is one edit in dune-project and three edits everywhere else.
+      - run: sh scripts/check-versions.sh
+
+  # The same build ci.yml runs on every pull request — one file, called twice —
+  # so what is attached to the release is what was checked on the way in.
+  tarball:
+    needs: version
+    uses: ./.github/workflows/tarball-build.yml
+    with:
+      upload: true
+
+  # One job writes the release, once. Two jobs each attaching their own assets
+  # to the same release is how a body ends up generated twice.
+  publish:
+    needs: [version, tarball]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: tarball-*
+          merge-multiple: true
+
+      # The body LEADS WITH THE TAG'S OWN ANNOTATION. Whoever tagged the release
+      # knew why it was worth taking; a generated list of commit subjects does
+      # not say that, and it is the first thing anyone deciding whether to
+      # upgrade reads. `git tag -a` writes it; a lightweight tag leaves it
+      # empty, and then the generated notes below are all there is.
+      - name: release notes from the tag annotation
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -eu
+          git fetch --force --tags --depth=1 origin \
+            "+refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          {
+            git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}"
+            echo
+            body=$(git tag -l --format='%(contents:body)' "${GITHUB_REF_NAME}")
+            [ -n "$body" ] && { echo "$body"; echo; } || true
+            cat <<EOF
+          ## Install
+
+          **A tarball**, for a machine with no OCaml and no opam. Statically
+          linked: no libc version floor, so it runs on any Linux of its
+          architecture. It carries \`writ\`, \`writ-lsp\`, \`writ-mcp\` and the
+          standard library.
+
+          \`\`\`sh
+          v=writ-${VERSION}-linux-\$(uname -m)
+          sha256sum -c \$v.tar.gz.sha256
+          tar xzf \$v.tar.gz && cd \$v && ./install.sh     # -> ~/.local
+          \`\`\`
+
+          **The container image**, amd64 and arm64:
+
+          \`\`\`sh
+          docker run --rm ghcr.io/${{ github.repository }}:${VERSION} --version
+          \`\`\`
+
+          **As an opam package**, pinned to this tag:
+
+          \`\`\`sh
+          opam pin add writ git+https://github.com/${{ github.repository }}#${GITHUB_REF_NAME}
+          \`\`\`
+
+          macOS has no static libc, so there is no mac tarball here: build one
+          from this tag with \`make release STATIC=0\`.
+          EOF
+          } > RELEASE_BODY.md
+          cat RELEASE_BODY.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+          body_path: RELEASE_BODY.md
+          generate_release_notes: true

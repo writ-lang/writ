@@ -15,7 +15,7 @@
 ; The single source of truth for "which writ is this": opam publishes it,
 ; `writ --version` prints it (tooling/cli/dune generates the module from it), and
 ; `make release` names the tarball with it. Bump it here and nowhere else.
-(version 0.1.0)
+(version 0.2.0)
 
 (generate_opam_files true)
 

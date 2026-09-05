@@ -16,12 +16,17 @@
 #   make opam-install  # the opam package: `opam install .` (needs a switch)
 #   make release       # a portable tarball: binary + stdlib + install.sh
 #
+# Releasing is a tag, and the version is the ONE line in dune-project that
+# everything else reads. Before tagging:
+#   make check-versions          # the files that keep their own copy agree
+#   sh scripts/check-release-tag.sh v0.2.0    # the tag agrees with dune-project
+#
 # The toolchain is resolved by scripts/with-ocaml.sh: dune on PATH, else $SWITCH,
 # else a local ./_opam. Set SWITCH=/path/to/switch to force one.
 
 DUNE = scripts/with-ocaml.sh dune
 
-.PHONY: build dev test lint fmt run image \
+.PHONY: build dev test lint fmt run image check-versions \
         install-writ uninstall-writ opam-install opam-uninstall release \
         clean
 build:
@@ -61,6 +66,13 @@ lint:
 
 fmt:
 	$(DUNE) build @fmt --auto-promote
+
+# The version is one line in dune-project; writ.opam, the Claude plugin's
+# manifest and the image tag that plugin pulls each keep a hand-written copy,
+# because nothing substitutes into them. This is the check that they still
+# agree — the same one CI runs on every pull request. Needs no toolchain.
+check-versions:
+	sh scripts/check-versions.sh
 
 run:
 	$(DUNE) exec tooling/cli/writ.exe -- $(FILE)

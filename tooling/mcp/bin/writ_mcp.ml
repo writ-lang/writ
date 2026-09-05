@@ -61,7 +61,8 @@ let respond line =
                  ] );
            ])
   | Ok msg ->
-      Writ_mcp.Server.handle ~resolve:resolve_for ~version:Writ_mcp.Version.v msg
+      Writ_mcp.Server.handle ~resolve:resolve_for ~version:Writ_mcp.Version.v
+        msg
 
 let () =
   set_binary_mode_in stdin true;
