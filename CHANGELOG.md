@@ -3,6 +3,15 @@
 Versions follow `dune-project`: what opam publishes, `writ --version` prints and
 `make release` names the tarball with.
 
+## Unreleased
+
+**Pinned questions work with the Claude plugin.** The plugin started
+`writ-mcp` with no arguments, so `--claims-dir` — the guard that keeps an
+assistant from editing its own questions — could not be turned on. Set
+`WRIT_CLAIMS_DIR` and the launcher passes it, mounting the directory into the
+container when it lies outside the project. `docs/mcp.md` is new: what the MCP
+server gives you, how to install it in any client, and how to use it.
+
 ## 0.3.0 — 2026-10-03
 
 **Certificates, checked by a checker proved sound in Lean.** `writ check`

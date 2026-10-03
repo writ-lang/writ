@@ -130,25 +130,25 @@ Without it, reports end `not certified`.
 outline. The [VS Code client](https://github.com/writ-lang/writ-vscode) finds
 it on `PATH`.
 
-**From an AI assistant**: `writ-mcp` lets an assistant check its own model and
-answer with a route instead of a guess. Install the Claude plugin, which runs
-the server in Docker:
+**From an AI assistant**: `writ-mcp` lets an assistant check a system with
+writ instead of guessing — and it cannot quietly cheat: your questions stay
+pinned, every check reports what an edit **LOST**, and answers are certified.
+In Claude Code:
 
 ```
 /plugin marketplace add writ-lang/writ
 /plugin install writ@writ
 ```
 
-Two things keep the assistant honest. With `writ-mcp --claims-dir DIR` the
-questions are read from your directory, not from wherever the assistant points.
-And every check reports which guarantees the latest edit **LOST** — including a
-property turned `n/a` by deleting what it asked about.
+Other clients, pinning your questions, and what each tool does:
+[docs/mcp.md](docs/mcp.md).
 
 ## Documentation
 
 - [docs/tour.md](docs/tour.md) — learn the language, step by step.
 - [docs/kernel-spec.md](docs/kernel-spec.md) — the language, normative.
 - [docs/tractability.md](docs/tractability.md) — whether a problem fits.
+- [docs/mcp.md](docs/mcp.md) — using writ from an AI assistant.
 - [docs/interrogator.md](docs/interrogator.md) — `.rules` and `writ derive`.
 - [docs/certificates.md](docs/certificates.md) and [lean/](lean/) — the certificate checker.
 - [docs/json.md](docs/json.md), [docs/bridges.md](docs/bridges.md) — the JSON
