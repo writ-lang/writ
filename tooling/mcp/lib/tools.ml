@@ -34,8 +34,14 @@ let exists ~arg resolve path =
            {
              Errors.pos = None;
              msg =
-               arg ^ ": " ^ path ^ " not found (resolved to " ^ absolute path
-               ^ ")";
+               (arg ^ ": " ^ path ^ " not found (resolved to " ^ absolute path
+              ^ ")"
+               ^
+               if Filename.is_relative path then
+                 "; a relative path resolves against the server's working \
+                  directory, " ^ Sys.getcwd ()
+                 ^ ", which writ-mcp --root DIR (or WRIT_MCP_ROOT) sets"
+               else "");
            })
 
 let load ?(arg = "model") resolve path =
@@ -747,10 +753,37 @@ let collect ~resolve ~path read =
 
 let validate ?(json = false) ?(pinned = None) ~resolve ~model ~claims ~rules ()
     =
-  let* m = collect ~resolve ~path:model (fun r -> load r model) in
+  (* Claims and rules are typed against the model, so a broken model leaves
+     them unread: say so, or a client takes them for clean. *)
+  let skipped (f : Fault.failure) =
+    let not_checked source what path =
+      {
+        Fault.source;
+        code = Some "E_NOT_CHECKED";
+        err =
+          {
+            Errors.pos = None;
+            msg =
+              what ^ " " ^ path
+              ^ ": not checked — it is typed against the model, which has \
+                 errors";
+          };
+        meant = None;
+      }
+    in
+    let extra =
+      Option.to_list (Option.map (not_checked Fault.Claims "claims") claims)
+      @ Option.to_list (Option.map (not_checked Fault.Rules "rules") rules)
+    in
+    match f with Fault.Bad fs -> Fault.Bad (fs @ extra) | l -> l
+  in
+  let* m =
+    collect ~resolve ~path:model (fun r -> load r model)
+    |> Result.map_error skipped
+  in
   let* ctx, _ =
     State.build_ctx m.Model.schema m.Model.initial
-    |> Result.map_error (model_fault model)
+    |> Result.map_error (fun e -> skipped (model_fault model e))
   in
   let claims = Option.map (pin ~pinned) claims in
   let cl =

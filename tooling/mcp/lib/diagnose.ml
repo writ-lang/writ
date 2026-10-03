@@ -370,6 +370,18 @@ let codes : entry list =
       right = Call "writ_check({model_source: \"(schema …) …\"})";
     };
     {
+      code = "E_NOT_CHECKED";
+      cause =
+        "Claims and rules are typed against the model, so while the model has \
+         errors they are not read at all. This is not a verdict on them.";
+      hint =
+        "Fix the model's errors, then validate again: the claims are checked \
+         then.";
+      wrong =
+        Call "writ_validate({model_source: <with errors>, claims_source: …})";
+      right = Call "writ_validate({model_source: <valid>, claims_source: …})";
+    };
+    {
       code = "E_NO_SITUATION";
       cause =
         "An index is out of range. Indices are positions in this model's space \
@@ -963,7 +975,10 @@ let to_text (d : t) =
     | _ -> ""
   in
   Buffer.add_string b
-    (Printf.sprintf "error %s in %s%s\n" d.code
+    (* Not checked is not an error in the file; it says why there is none. *)
+    (Printf.sprintf "%s %s in %s%s\n"
+       (if d.code = "E_NOT_CHECKED" then "note" else "error")
+       d.code
        (Fault.source_name d.source)
        (if where = "" then "" else " at " ^ where));
   Buffer.add_string b ("  " ^ d.message ^ "\n");

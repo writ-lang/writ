@@ -63,8 +63,15 @@ use a writ installed on your machine instead of Docker, set `WRIT_MCP_NATIVE=1`.
 `make install-writ`):
 
 ```json
-{ "mcpServers": { "writ": { "command": "writ-mcp" } } }
+{ "mcpServers": { "writ": { "command": "writ-mcp",
+    "args": ["--root", "/path/to/project"] } } }
 ```
+
+`--root` (or `WRIT_MCP_ROOT`) is the directory relative `model`, `claims` and
+`rules` paths resolve against. Without it they resolve against wherever the
+client started the server; Claude Desktop through WSL starts it in
+`C:\Windows\System32`. The server writes nothing there either way: it reads
+models, and its only files are temporary ones.
 
 **Any other MCP client, with only Docker:**
 
@@ -156,7 +163,8 @@ would answer `n/a`, is an error in `writ_validate`, and `writ_check` adds a
 `why n/a` line naming it.
 
 `writ_validate` reports every error it can find in a file, one per top-level
-form, up to 20: after a name or type error it leaves that form out and reads
+form, up to 20. While the model has errors, the claims and rules are not read
+(they are typed against it), and a `note E_NOT_CHECKED` says so: after a name or type error it leaves that form out and reads
 the file again. A syntax error, or one in the schema or instance, stops there.
 A path argument that names no file is `E_FILE_NOT_FOUND`, with the path it
 resolved to; `E_LOAD` is kept for a `(load …)` form.

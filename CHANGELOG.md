@@ -12,6 +12,12 @@ half-way no longer look alike.
 
 **MCP, from live testing:**
 
+- `writ-mcp --root DIR` (or `WRIT_MCP_ROOT`) sets the directory relative
+  paths resolve against; a client may start the server anywhere, Claude
+  Desktop through WSL in `C:\Windows\System32`. A missing relative path now
+  names the working directory and the flag.
+- While the model has errors, `writ_validate` says the claims and rules were
+  not checked (`note E_NOT_CHECKED`), instead of leaving them looking clean.
 - `writ_validate` reports every error it can find, one per top-level form
   (up to 20), not only the first; a syntax error still stops the file.
 - A missing `model`, `claims` or `rules` path is `E_FILE_NOT_FOUND` in the
