@@ -1,0 +1,19 @@
+; Two slots of one type, set independently: `.rules` compares them path
+; against path, as the kernel guard does.
+
+(schema pair
+  (type yn (no yes))
+  (type size (small big))
+  (type box
+    (arrow x (to yn))
+    (arrow y (to yn))
+    (arrow z (to size) fixed)))
+
+(instance i pair
+  (box b (x no) (y no) (z small)))
+
+(use pair)
+(initial i)
+
+(transition flip-x (when (is b.x no)) (do (set b.x yes)))
+(transition flip-y (when (is b.y no)) (do (set b.y yes)))

@@ -69,6 +69,11 @@ situation and by move), `final-phase` and `dead-end`.
 - **A body joins in written order.** Positive relations, built-ins and a
   top-level `(is PATH V)` bind variables; a negation or test may only use
   variables bound before it. An unbound variable is rejected where it occurs.
+- **`(is PATH PATH)` compares two paths** in the same situation, as the
+  kernel's chain-against-chain test does, so a form like stdlib's `differ`
+  over two cells reads the same in `.rules` as in a claims file. It only
+  tests, never binds, and two paths that land in different types are
+  rejected: they could never be equal.
 - Semantics: semi-naïve least fixpoint, per stratum; recursion through
   negation has no stratum order and is rejected at read time.
 - A `.rules` file may `load` libraries: their forms expand here too, and

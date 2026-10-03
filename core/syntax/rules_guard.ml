@@ -63,10 +63,17 @@ let rec guard (d : Reader.t) : (Rules.gexp, Errors.t) result =
       | "not", [ g ] ->
           let* g = guard g in
           Ok (Rules.Not (g, kp))
-      | "is", [ pd; vd ] ->
+      | "is", [ pd; vd ] -> (
           let* pth = gpath pd in
-          let* v = term vd in
-          Ok (Rules.Is (pth, v))
+          match vd with
+          (* A dotted right-hand side is a second path, compared with the
+             first in the same situation; anything else is a term. *)
+          | Reader.Atom (s, _) when String.contains s '.' ->
+              let* q = gpath vd in
+              Ok (Rules.Is_path (pth, q))
+          | _ ->
+              let* v = term vd in
+              Ok (Rules.Is (pth, v)))
       | "defined", [ pd ] ->
           let* pth = gpath pd in
           Ok (Rules.Defined pth)

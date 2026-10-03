@@ -1,4 +1,4 @@
-; Names `b.ghost`, an arrow `box` lacks: n/a under kernel §8, exit 0, not a
+; Names `b.ghost`, an arrow `box` lacks: n/a under kernel §8, exit 1, not a
 ; parse error.
 
 (property phantom-arrow "a property naming an arrow the schema lacks"

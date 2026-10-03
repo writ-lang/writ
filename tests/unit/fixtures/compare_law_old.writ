@@ -1,0 +1,15 @@
+; A law both models declare alike. Here nothing can break it; in
+; compare_law_new.writ one more move can, and compare must say LOST.
+
+(schema lock
+  (type yn (no yes))
+  (type door (arrow open (to yn)))
+  (equation shut (not (is door.open yes))))
+
+(instance i lock
+  (door d (open no)))
+
+(use lock)
+(initial i)
+
+(transition knock (when (is d.open no)) (do (set d.open no)))

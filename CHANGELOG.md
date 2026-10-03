@@ -5,6 +5,25 @@ Versions follow `dune-project`: what opam publishes, `writ --version` prints and
 
 ## Unreleased
 
+**An n/a property is a finding.** `writ check` exits 1 when a property is
+`n/a`, as it does when one fails. An edit that deletes what a question asks
+about no longer passes a gate that reads the exit status; `compare` and the
+MCP server already treated it this way.
+
+**`compare` reports a law NEW breaks as LOST.** An equation declared alike in
+both models used to read `preserved` even when NEW reached a violation of it.
+It is now LOST, with NEW's route to the violation, like a property that stops
+holding.
+
+**`writ sql` declines `NOT VALID`.** The constraint is still read, but the
+clause is declined, so `--strict` fails on it: the model would otherwise claim
+the constraint for rows the database never checked. `VALIDATE CONSTRAINT` is
+declined with its own reason.
+
+**`.rules` guards compare two paths.** `(is P Q)` with a path on each side is
+the kernel's chain-against-chain test, so forms like `differ` over two cells
+work in a `.rules` file as in a claims file.
+
 **Pinned questions work with the Claude plugin.** The plugin started
 `writ-mcp` with no arguments, so `--claims-dir` — the guard that keeps an
 assistant from editing its own questions — could not be turned on. Set

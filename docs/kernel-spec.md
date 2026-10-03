@@ -1493,7 +1493,7 @@ forms.
   solvable river prints its crossing). The other three hold with no single
   witness.
 - A property naming structure the schema lacks is **n/a** — never a
-  pass.
+  pass, and a finding: `check` exits 1 on it, as on a failure.
 - **`(show QUERY…)`** names queries of the same file (§16.2) to answer at
   the situation the verdict singles out: the stuck situation of a failing
   `live` or `inevitable`, the violating situation of a failing `never`, the
@@ -1608,7 +1608,9 @@ the arrow.*
 
 - **`writ compare OLD NEW [--map M]`** — builds both models and reports
   each equation and property **preserved / lost / gained** across the
-  pair. Where schemas differ, M contains bare `(map X Y)` datums;
+  pair. An equation declared alike in both is still **lost** when no
+  reachable situation of OLD breaks it and one of NEW's does, with NEW's
+  route to the violation. Where schemas differ, M contains bare `(map X Y)` datums;
   identity is assumed where names coincide; the pair is given by the
   invocation (old → new).
 
@@ -1699,8 +1701,9 @@ writ solve    --morphism SMALL.writ LARGE.writ
 writ migrate  --along F.writ MODEL.writ
 ```
 
-Exit status: `0` — clean · `1` — a finding (failed property; violated,
-unadmitted, or stale law result; lost-in-compare; non-universal roster)
+Exit status: `0` — clean · `1` — a finding (failed or n/a property;
+violated, unadmitted, or stale law result; lost-in-compare; non-universal
+roster)
 · `2` — unreadable input.
 
 **A search that finds nothing is a finding only where the absence is the

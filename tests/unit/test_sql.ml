@@ -383,4 +383,31 @@ let () =
     (declined_for ~sub:"not numeric"
        "CREATE TABLE t (id uuid PRIMARY KEY, a text, CHECK (a < 5));")
 
+(* NOT VALID: the foreign key is read, and the clause is declined, because writ
+   would read the key as holding for rows the database never checked. *)
+let () =
+  let _, db =
+    import
+      "CREATE TABLE customers (id uuid PRIMARY KEY);\n\
+       CREATE TABLE orders (id uuid PRIMARY KEY, customer_id uuid NOT NULL);\n\
+       ALTER TABLE orders ADD CONSTRAINT fk FOREIGN KEY (customer_id)\n\
+      \  REFERENCES customers (id) NOT VALID;\n\
+       ALTER TABLE orders VALIDATE CONSTRAINT fk;"
+  in
+  let orders =
+    List.find (fun (t : Sql_ast.table) -> t.tname = "orders") db.tables
+  in
+  check "not valid: the foreign key is still read"
+    (List.exists
+       (fun (c : Sql_ast.column) -> c.refs = Some "customers")
+       orders.columns);
+  check "not valid: the clause is declined"
+    (List.exists
+       (fun (d : Sql_ast.decline) -> contains ~sub:"NOT VALID" d.why)
+       db.declines);
+  check "validate: declined, saying what it is"
+    (List.exists
+       (fun (d : Sql_ast.decline) -> contains ~sub:"VALIDATE CONSTRAINT" d.why)
+       db.declines)
+
 let () = print_string ("test_sql: " ^ string_of_int !passed ^ " passed\n")

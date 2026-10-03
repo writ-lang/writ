@@ -1,5 +1,5 @@
 ; A minimal model; its sibling na.claims has a property that is n/a (§8):
-; `n/a  phantom-arrow`, exit 0.
+; `n/a  phantom-arrow`, exit 1 — an unanswered question is a finding.
 
 (schema tiny
   (type flag (lo hi))

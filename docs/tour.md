@@ -601,8 +601,8 @@ Every `GUARD` is the language's own (§10.2).
  6  writ schema  MODEL                  the schema, as data
 ```
 
-**0** clean · **1** a finding — a failed property, a violated or unadmitted or
-stale law, a lost guarantee · **2** unreadable input.
+**0** clean · **1** a finding — a failed or n/a property, a violated or
+unadmitted or stale law, a lost guarantee · **2** unreadable input.
 
 ## Things that will catch you once
 

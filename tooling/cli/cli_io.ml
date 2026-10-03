@@ -5,7 +5,8 @@
    loading models, claims and rules, and dying with the right exit status.
 
    Exit status is the interface (kernel §18): 0 = answered, nothing failed;
-   1 = a finding (a failed property, or a violated / unadmitted / stale law);
+   1 = a finding (a failed or n/a property, or a violated / unadmitted / stale
+   law);
    2 = unreadable input or a bad command line. Every failure here is a 2. *)
 
 open Writ_data

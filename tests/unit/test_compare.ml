@@ -90,4 +90,22 @@ let () =
   (* identity map on matching schemas changes nothing *)
   let report', any_lost' = Compare.run old_sp new_sp claims [] in
   check "compare: deterministic" (report = report' && any_lost = any_lost');
+  (* A law declared alike in both, unbroken in OLD and violated in NEW, is a
+     guarantee lost — not "preserved" because the declarations match. *)
+  let lo = model "compare_law_old.writ" and ln = model "compare_law_new.writ" in
+  let lo_sp = space "compare_law_old.writ" lo
+  and ln_sp = space "compare_law_new.writ" ln in
+  let rows = Compare.equation_rows [] lo_sp ln_sp in
+  check "compare: a law NEW violates is LOST"
+    (List.exists
+       (fun (r : Compare.row) -> r.name = "shut" && r.status = "LOST")
+       rows);
+  check "compare: with NEW's route to the violation"
+    (List.exists
+       (fun (r : Compare.row) ->
+         r.name = "shut" && r.witness = Some [ "force" ])
+       rows);
+  let same = Compare.equation_rows [] lo_sp lo_sp in
+  check "compare: a law unbroken on both sides is preserved"
+    (List.for_all (fun (r : Compare.row) -> r.status = "preserved") same);
   print_string ("compare tests: " ^ string_of_int !passed ^ " checks passed\n")
