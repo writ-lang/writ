@@ -232,6 +232,24 @@ let () =
   check "route: a move changes at least one cell"
     (Route.deltas sp sp.Space.initial s1 <> [])
 
+(* --- fibers ------------------------------------------------------------------ *)
+
+let () =
+  let m = model "captured_trap.writ" in
+  let sp = space m in
+  let cl = claims m "captured_trap.claims" in
+  let p = List.hd cl.Claims.props in
+  let cell = Option.get (Fiber.cell_index sp "gov.regime") in
+  let fs = Fiber.outcomes sp [ cell ] p in
+  let j = roundtrip (Report_json.fibers sp fs) in
+  check "fibers: one object per value" (len j = 2);
+  let f0 = nth 0 j in
+  check "fibers: the cell and its value are named"
+    (str (get "gov.regime" (get "cells" f0)) = "normal");
+  check "fibers: a verdict per fiber" (str (get "verdict" f0) = "fails");
+  check "fibers: a failing fiber carries a witness with landings"
+    (len (get "witness" f0) >= 1)
+
 (* --- (show QUERY…) ----------------------------------------------------------- *)
 
 let () =

@@ -88,13 +88,15 @@ let () =
      has — no verb, and nothing in the engine, learns that stdin exists. *)
   | _ :: "check" :: rest -> (
       let json, rest = Writ_dispatch.take_json rest in
+      let fibers, rest = Writ_dispatch.take_fibers rest in
       let stdin_, rest = Writ_dispatch.take_stdin rest in
       match (stdin_, rest) with
-      | true, [] -> Cmd_check.run ~json Cli_io.stdin_name None
+      | true, [] -> Cmd_check.run ~json ~fibers Cli_io.stdin_name None
       | true, [ "--claims"; c ] ->
-          Cmd_check.run ~json Cli_io.stdin_name (Some c)
-      | false, [ model ] -> Cmd_check.run ~json model None
-      | false, [ model; "--claims"; c ] -> Cmd_check.run ~json model (Some c)
+          Cmd_check.run ~json ~fibers Cli_io.stdin_name (Some c)
+      | false, [ model ] -> Cmd_check.run ~json ~fibers model None
+      | false, [ model; "--claims"; c ] ->
+          Cmd_check.run ~json ~fibers model (Some c)
       | _ -> die 2 usage)
   | _ :: "query" :: rest -> (
       let json, rest = Writ_dispatch.take_json rest in

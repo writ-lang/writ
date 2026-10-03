@@ -147,6 +147,31 @@ let property ?(queries : Claims.query list = []) (sp : Space.t)
   in
   Json.Assoc (head @ tail @ [ ("show", shown) ])
 
+(* The §17 fibers of a property, each a verdict with its witness. *)
+let fibers (sp : Space.t) (fs : (Fiber.fiber * Checker.outcome) list) : Json.t =
+  Json.List
+    (List.map
+       (fun ((f : Fiber.fiber), oc) ->
+         let verdict, witness, stuck =
+           match oc with
+           | Checker.Holds r -> ("holds", route sp r, Json.Null)
+           | Checker.Not_applicable _ -> ("n/a", Json.List [], Json.Null)
+           | Checker.Fails { route = r; stuck } ->
+               ("fails", route sp r, opt int (Option.bind stuck (index_of sp)))
+         in
+         Json.Assoc
+           [
+             ( "cells",
+               Json.Assoc
+                 (List.map2
+                    (fun (n, _) v -> (n, str v))
+                    f.Fiber.cells f.Fiber.values) );
+             ("verdict", str verdict);
+             ("witness", witness);
+             ("stuck_at", stuck);
+           ])
+       fs)
+
 let ack (tr, eq) = Json.Assoc [ ("move", str tr); ("law", str eq) ]
 
 (* The whole of `writ check`, in the order the prose prints it. [exit] is in

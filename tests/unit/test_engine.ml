@@ -223,6 +223,44 @@ let () =
     (contains ~sub:"regime: committing — no move can be undone"
        (Report.build sp))
 
+(* --- fibers: the same question, per value of a cell ------------------------ *)
+
+let () =
+  let sp = build_ok toggle in
+  let cell = Option.get (Fiber.cell_index sp "s.pos") in
+  check "fiber: a cell is found by its SRC.ARROW spelling" (snd cell = 0);
+  check "fiber: an unknown cell is not" (Fiber.cell_index sp "s.nope" = None);
+  check "fiber: the values in order of first appearance"
+    (Fiber.values_of sp 0 = [ "down"; "up" ]);
+  (* `never up` fails in the up fiber and holds in the down one: the question
+     narrows to the situations the fiber holds, the dynamics do not. *)
+  let never_up = prop "n" Never (is "s" "pos" "up") in
+  let fs = Fiber.outcomes sp [ cell ] never_up in
+  check "fiber: one outcome per value" (List.length fs = 2);
+  check "fiber: never holds where the value is absent"
+    (match fs with (_, Checker.Holds _) :: _ -> true | _ -> false);
+  check "fiber: and fails where it is present, with the route in"
+    (match fs with
+    | [ _; (_, Checker.Fails { route = [ "raise" ]; _ }) ] -> true
+    | _ -> false);
+  let lines = Report.fiber_lines sp fs in
+  check "fiber: the report labels each fiber by cell and value"
+    (contains ~sub:"fiber s.pos=down" (List.hd lines)
+    && contains ~sub:"holds" (List.hd lines));
+  check "fiber: a failing fiber says FAILS with its witness"
+    (contains ~sub:"fiber s.pos=up" (List.nth lines 1)
+    && contains ~sub:"FAILS   witness: 1. raise → #1" (List.nth lines 1));
+  (* `live down`: from the up fiber the toggle can still lower, so it holds
+     there too — the dynamics stayed whole. *)
+  let live_down = prop "l" Live (is "s" "pos" "down") in
+  check "fiber: live asks reachability through the whole space"
+    (List.for_all
+       (fun (_, o) -> match o with Checker.Holds _ -> true | _ -> false)
+       (Fiber.outcomes sp [ cell ] live_down));
+  (* two cells: the product of their values *)
+  let both = Fiber.outcomes sp [ cell; cell ] never_up in
+  check "fiber: several cells give the product" (List.length both = 4)
+
 (* --- inevitable: the gap between "can still" and "cannot avoid" ------------- *)
 
 (* A cycle does not refute [inevitable] by existing — only one that stays off

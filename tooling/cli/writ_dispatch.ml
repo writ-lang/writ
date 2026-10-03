@@ -25,6 +25,15 @@ let take_stdin = take_flag "--stdin"
    never be counted among them. *)
 let take_json = take_flag "--json"
 
+(* [--fiber CELL], repeatable: every occurrence comes out, in order. *)
+let take_fibers (args : string list) : string list * string list =
+  let rec go cells acc = function
+    | [] -> (List.rev cells, List.rev acc)
+    | "--fiber" :: c :: rest -> go (c :: cells) acc rest
+    | a :: rest -> go cells (a :: acc) rest
+  in
+  go [] [] args
+
 (* Remove [--claims FILE] and report the file, for the same reason: pulling the
    pair out before the positionals are counted keeps every remaining shape the
    arity it already had, so adding the flag costs the match no new cases.

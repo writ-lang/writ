@@ -56,11 +56,14 @@ Then query answers and law acknowledgments (unadmitted / stale).|};
           "--claims FILE    the questions to ask (properties, queries, accepts)";
           "--stdin          read the model from stdin instead of a path";
           "--json           the same answer as one JSON object (docs/json.md)";
+          "--fiber CELL     also answer each property per value of CELL \
+           (SRC.ARROW), the §17 fibers; repeatable for a product";
         ];
       examples =
         [
           "writ check   tests/models/any_model.writ --claims \
            tests/models/any_model.claims";
+          "writ check   model.writ --claims model.claims --fiber gov.regime";
         ];
     };
     {

@@ -5,6 +5,15 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**Fiber reporting (§17), built.** `writ check … --fiber gov.regime` answers
+every property once per value the cell takes — `fiber gov.regime=normal
+holds` / `fiber gov.regime=emergency   FAILS   witness: …` under the
+whole-space verdict — the question narrowed to the situations holding that
+value, the dynamics left whole. Repeatable for a product of cells; a
+failing fiber is a finding; `--json` carries them as `fibers`. The checker
+gained a `within` predicate and nothing else: a fiber is the same four
+questions asked of fewer situations.
+
 **The MCP server as a verifier an agent cannot argue with.** Two new tools,
 `writ_show` (a situation by the index a witness names) and `writ_compare`
 (what an edit kept, LOST and gained); `json: true` on every tool answers as

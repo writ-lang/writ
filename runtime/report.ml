@@ -286,6 +286,36 @@ let outcome ?(queries : Claims.query list = []) (sp : Space.t)
       | _ -> parts := witness_block sp route :: !parts);
       String.concat "\n" (List.rev !parts @ shown)
 
+(* --- §17 fibers ------------------------------------------------------------ *)
+
+(* Under a property's whole-space verdict, one line per fiber: the value the
+   cell holds, holds or FAILS, and a failing fiber's inline witness. FAILS in
+   capitals, as compare's LOST is: it is the line a reader scans for. *)
+let fiber_lines (sp : Space.t) (fibers : (Fiber.fiber * Checker.outcome) list) :
+    string list =
+  let width =
+    List.fold_left
+      (fun w (f, _) -> max w (String.length (Fiber.label f)))
+      0 fibers
+  in
+  List.map
+    (fun (f, oc) ->
+      let lab = Fiber.label f in
+      let pad = String.make (width - String.length lab) ' ' in
+      let head = "  fiber " ^ lab ^ pad ^ "   " in
+      match oc with
+      | Checker.Holds _ -> head ^ "holds"
+      | Checker.Not_applicable _ -> head ^ "n/a"
+      | Checker.Fails { route = []; _ } -> head ^ "FAILS"
+      | Checker.Fails { route; _ } ->
+          let landing =
+            match List.rev (Route.walk sp route) with
+            | k :: _ -> " → #" ^ string_of_int k
+            | [] -> ""
+          in
+          head ^ "FAILS   witness: " ^ inline_route route ^ landing)
+    fibers
+
 (* --- §16.3 acknowledgments ------------------------------------------------- *)
 
 let acks (unadmitted : (string * string) list) (stale : (string * string) list)

@@ -119,12 +119,19 @@ let nearest (sp : Space.t) (pred : State.t -> bool) : State.t option =
     sp.states;
   !best
 
-let check (sp : Space.t) (prop : Claims.property) : outcome =
+(* [within] narrows WHICH situations the question is about — the fiber of
+   §17 — without narrowing the dynamics: a `live` asked within the situations
+   where `gov.regime=emergency` asks whether each of THOSE can still reach F,
+   through whatever moves there are. The default is every situation, which
+   is the plain question. *)
+let check ?(within : State.t -> bool = fun _ -> true) (sp : Space.t)
+    (prop : Claims.property) : outcome =
   let ctx = sp.Space.ctx in
   if not (guard_ok ctx [] prop.formula) then
     Not_applicable ("schema lacks structure named by " ^ prop.name)
   else
     let sat s = Eval.guard_holds ctx s [] prop.formula in
+    let nearest sp pred = nearest sp (fun s -> within s && pred s) in
     match prop.modality with
     | Claims.Possible -> (
         (* Holding evidence = the shortest path to a satisfying situation: the
