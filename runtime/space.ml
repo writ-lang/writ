@@ -25,12 +25,48 @@ type t = {
 
 let cap = 200_000
 
+(* Why a bounded search stopped short: how far it got, and, per mutable cell,
+   how many distinct values it had seen, most first, the cells driving the
+   growth. *)
+type cutoff = {
+  reason : [ `Cap of int | `Timeout of float ];
+  explored : int;
+  edges_seen : int;
+  spread : (string * int * int) list; (* cell, values seen, domain size *)
+}
+
+(* The most situations the mutable cells allow: the product of their domains.
+   A float, since it overflows an int long before it is interesting. *)
+let bound (lay : State.layout) : float =
+  Array.fold_left
+    (fun acc d -> acc *. float_of_int (max 1 (Array.length d)))
+    1.0 lay.State.domains
+
+let show_bound f =
+  if f < 1e9 then Printf.sprintf "%.0f" f else Printf.sprintf "%.2g" f
+
+let spread_of (ctx : State.ctx) (states : State.t list) =
+  let lay = ctx.State.layout in
+  let n = Array.length lay.State.cells in
+  let seen = Array.init n (fun _ -> Hashtbl.create 8) in
+  List.iter
+    (fun (s : State.t) ->
+      Array.iteri (fun i v -> Hashtbl.replace seen.(i) v ()) s)
+    states;
+  List.init n (fun i ->
+      let cr = lay.State.cells.(i) in
+      ( cr.Instance.src ^ "." ^ cr.Instance.arrow,
+        Hashtbl.length seen.(i),
+        Array.length lay.State.domains.(i) ))
+  |> List.stable_sort (fun (_, a, _) (_, b, _) -> compare b a)
+
 (* Breadth-first search from the initial state, firing every enabled
-   transition. Unnamed transitions get a positional label [#i]. Overflowing
-   [cap] is an error. *)
-let build (m : Model.t) : (t, string) result =
+   transition. Unnamed transitions get a positional label [#i]. The search
+   stops at [max] situations or after [timeout] seconds of CPU time. *)
+let explore ?(max = cap) ?timeout (m : Model.t) :
+    (t, [ `Model of string | `Cutoff of cutoff ]) result =
   match State.build_ctx m.schema m.initial with
-  | Error e -> Error e
+  | Error e -> Error (`Model e)
   | Ok (ctx, init) ->
       let index = ref State.M.empty in
       let dist = ref State.M.empty in
@@ -50,8 +86,20 @@ let build (m : Model.t) : (t, string) result =
         incr count;
         Queue.add s queue
       in
+      let started = Sys.time () in
+      let timed_out = ref None in
+      (* The clock is read every 256 situations expanded, not added: adding
+         can stall while the queue drains. *)
+      let popped = ref 0 in
       add_state init 0;
-      while (not (Queue.is_empty queue)) && not !overflow do
+      while
+        (not (Queue.is_empty queue)) && (not !overflow) && !timed_out = None
+      do
+        incr popped;
+        (match timeout with
+        | Some t when !popped land 255 = 0 && Sys.time () -. started > t ->
+            timed_out := Some t
+        | _ -> ());
         let s = Queue.pop queue in
         let d = State.M.find s !dist in
         List.iteri
@@ -69,12 +117,23 @@ let build (m : Model.t) : (t, string) result =
               | `Next s' ->
                   edges := { src = s; via; dst = `To s' } :: !edges;
                   if not (State.M.mem s' !index) then
-                    if !count >= cap then overflow := true
+                    if !count >= max then overflow := true
                     else add_state ~from:(s, via) s' (d + 1)
             end)
           m.transitions
       done;
-      if !overflow then Error "state space exceeds cap (200000)"
+      let cutoff reason =
+        Error
+          (`Cutoff
+             {
+               reason;
+               explored = !count;
+               edges_seen = List.length !edges;
+               spread = spread_of ctx !states;
+             })
+      in
+      if !overflow then cutoff (`Cap max)
+      else if !timed_out <> None then cutoff (`Timeout (Option.get !timed_out))
       else
         Ok
           {
@@ -87,6 +146,14 @@ let build (m : Model.t) : (t, string) result =
             parent = !parent;
             transitions = m.transitions;
           }
+
+(* The unbounded-by-choice search the CLI uses: [cap] situations, no clock. *)
+let build (m : Model.t) : (t, string) result =
+  match explore m with
+  | Ok t -> Ok t
+  | Error (`Model e) -> Error e
+  | Error (`Cutoff _) ->
+      Error ("state space exceeds cap (" ^ string_of_int cap ^ ")")
 
 let same (a : State.t) (b : State.t) : bool = Value.compare_cells a b = 0
 
@@ -291,7 +358,18 @@ let enabled_names (t : t) : string list array =
    takes it is removed, repeatedly (Emerson–Lei). Stops are unaffected.
    Not closed backward: the closure gives the same verdict but its shortest
    witness would usually be the empty route. *)
-let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
+(* The region a run can stay in for ever without F: the non-F situations on
+   a cycle that survives the fairness deletions, plus the non-F dead ends.
+   [escape.(i)] marks them; [comp] numbers the surviving cycles' components,
+   so a reader can be shown the loop itself. *)
+type avoidance = {
+  escape : bool array;
+  alive : bool array;
+  comp : int array;
+  stopped : bool array;
+}
+
+let avoidance ?(fair = []) (t : t) (sat : State.t -> bool) : avoidance =
   let n = Array.length t.states in
   let f = Array.init n (fun i -> sat t.states.(i)) in
   let all = succs t in
@@ -369,11 +447,69 @@ let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
   Array.iteri
     (fun i k -> if alive.(i) && k >= 0 then size.(k) <- size.(k) + 1)
     c;
-  Array.init n (fun i ->
-      (not f.(i))
-      && ((* stopped: no real move out of the model at all *)
-          all.(i) = []
-         || (alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)))))
+  let cyclic i = alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)) in
+  (* stopped: no real move out of the model at all *)
+  let stopped = Array.init n (fun i -> (not f.(i)) && all.(i) = []) in
+  {
+    escape = Array.init n (fun i -> stopped.(i) || ((not f.(i)) && cyclic i));
+    alive = Array.init n cyclic;
+    comp = c;
+    stopped;
+  }
+
+let escapes_f ?fair (t : t) (sat : State.t -> bool) : bool array =
+  (avoidance ?fair t sat).escape
+
+(* The situations of [i]'s avoiding cycle, and a shortest loop from [i] back
+   to itself inside it: (move, landing index) steps. [None] for a dead end. *)
+let avoid_loop (a : avoidance) (t : t) (i : int) :
+    (int list * (string * int) list) option =
+  if (not a.alive.(i)) || a.stopped.(i) then None
+  else
+    let k = a.comp.(i) in
+    let inside j = a.alive.(j) && a.comp.(j) = k in
+    let members =
+      List.filter inside (List.init (Array.length t.states) Fun.id)
+    in
+    let out = Array.make (Array.length t.states) [] in
+    List.iter
+      (fun e ->
+        match e.dst with
+        | `To s' -> (
+            match
+              (State.M.find_opt e.src t.index, State.M.find_opt s' t.index)
+            with
+            | Some si, Some di when inside si && inside di ->
+                out.(si) <- (e.via, di) :: out.(si)
+            | _ -> ())
+        | `Gap _ -> ())
+      t.edges;
+    Array.iteri (fun j l -> out.(j) <- List.rev l) out;
+    (* BFS from i until an edge leads back into i. [parent] maps a reached
+       situation to the move and situation it was first reached from. *)
+    let parent = Hashtbl.create 16 in
+    let q = Queue.create () in
+    Queue.add i q;
+    let rec path_to d acc =
+      if d = i then acc
+      else
+        let via, from = Hashtbl.find parent d in
+        path_to from ((via, d) :: acc)
+    in
+    let found = ref None in
+    while !found = None && not (Queue.is_empty q) do
+      let u = Queue.pop q in
+      List.iter
+        (fun (via, d) ->
+          if !found = None then
+            if d = i then found := Some (path_to u [] @ [ (via, i) ])
+            else if not (Hashtbl.mem parent d) then begin
+              Hashtbl.replace parent d (via, u);
+              Queue.add d q
+            end)
+        out.(u)
+    done;
+    Option.map (fun loop -> (members, loop)) !found
 
 (* The edges out of a state, gap edges included — so a gap-firing state is not
    a dead end (§15: a gap is a declared boundary, listed separately). *)

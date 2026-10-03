@@ -15,3 +15,14 @@
    version.ml
    (echo
     "let v =\n  let raw = \"%{version:writ}\" in\n  if String.length raw > 1 && raw.[0] = 'v' && raw.[1] >= '0' && raw.[1] <= '9'\n  then String.sub raw 1 (String.length raw - 1)\n  else raw\n"))))
+
+; The writ_guide topics, from ../guide/*.md (tooling/mcp/gen/embed.ml).
+
+(rule
+ (targets guide_data.ml)
+ (deps
+  (glob_files ../guide/*.md))
+ (action
+  (with-stdout-to
+   guide_data.ml
+   (run ../gen/embed.exe %{deps}))))

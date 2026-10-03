@@ -86,6 +86,22 @@ let decode_transition ?(origin : Reader.t -> string option = fun _ -> None)
             | _ -> None)
           clauses
       in
+      (* Anything else was silently dropped, so a bare (set …) outside (do …)
+         made a move that changes nothing. *)
+      let* () =
+        match
+          List.find_opt
+            (function
+              | Reader.List (Reader.Atom (("when" | "do"), _) :: _, _) -> false
+              | _ -> true)
+            clauses
+        with
+        | Some c ->
+            Reader.err_at c
+              "unknown transition clause: a transition is (transition [NAME] \
+               (when GUARD) (do EFFECT…)), and effects go inside (do …)"
+        | None -> Ok ()
+      in
       let* gdatum =
         match occurrences "when" with
         | [ ([ g ], _) ] -> Ok g

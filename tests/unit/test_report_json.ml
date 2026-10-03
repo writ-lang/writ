@@ -333,6 +333,33 @@ let () =
   check "certificate: the report rides along"
     (int (get "states" (get "report" j)) = n)
 
+(* All n/a and no query: the certified line must not claim the claims. *)
+let () =
+  let na = Checker.Not_applicable "x" and held = Checker.Holds [] in
+  let line nothing_decided =
+    Certify_json.verdict_line ~nothing_decided Certify_json.Certified
+  in
+  let has sub s =
+    let n = String.length sub in
+    let rec go i =
+      i + n <= String.length s && (String.sub s i n = sub || go (i + 1))
+    in
+    go 0
+  in
+  check "nothing decided: all n/a, no query"
+    (Certify_json.nothing_decided [ na; na ] ~queries:0);
+  check "decided: one property held"
+    (not (Certify_json.nothing_decided [ na; held ] ~queries:0));
+  check "decided: a query was answered"
+    (not (Certify_json.nothing_decided [ na ] ~queries:1));
+  check "decided: no claims at all is not all-n/a"
+    (not (Certify_json.nothing_decided [] ~queries:0));
+  check "certified line says n/a when nothing was decided"
+    (has "every property is n/a" (line true));
+  check "certified line unchanged otherwise"
+    (line false
+   = "certified: every answer re-derived from the model (writ-cert)")
+
 let () =
   print_string
     ("test_report_json: " ^ string_of_int !passed ^ " checks passed\n")

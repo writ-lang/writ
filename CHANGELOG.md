@@ -3,6 +3,48 @@
 Versions follow `dune-project`: what opam publishes, `writ --version` prints and
 `make release` names the tarball with.
 
+## Unreleased
+
+**An assistant can author models through MCP with no documentation pasted
+in.** `writ-mcp` now teaches the language and accepts what an assistant
+writes:
+
+- every file argument also takes inline text (`model_source`,
+  `claims_source`, `rules_source`, `old_model_source`, `new_model_source`), so a
+  client that cannot write to the server's disk can author; `model_name` keeps
+  revision history per inline model;
+- `writ_guide` serves the language by topic (syntax, semantics, idioms, five
+  worked examples, every error code), also as `writ://guide/<topic>` resources
+  and a `writ_model_system` prompt; the server sets `instructions`, and
+  `writ_check`'s description carries a complete example;
+- `writ_validate` parses and type-checks without building the space and
+  summarises what the sources declare, including the most situations they
+  allow;
+- every error carries a code (`E_UNKNOWN_ARROW`, `E_STATE_LIMIT`, …), position,
+  found and expected names, a hint, and, for a misspelt name, the corrected
+  line;
+- `max_situations` and `timeout_ms` bound a search, and a cut-off search says
+  how far it got and which cells drove the growth, and decides nothing.
+
+**Breaking:** a transition with a clause other than `when` and `do` is now an
+error: a bare `(set …)` outside `(do …)` used to be dropped silently, leaving a
+move that changed nothing. No model in writ, writ-problems, writ-arch or
+writ-scheduling-verification has one.
+
+**A failing `inevitable` says how a run avoids the goal.** Under the witness,
+`avoids: the run stops at #N` when no move is left, or `loop:` a shortest cycle
+back to the stuck situation; under `(fair …)`, `loops among:` the situations a
+fair run circles in. Prose only: `--json` and certificates are unchanged.
+
+**Long dead-end lists are readable.** A route over 24 moves keeps its first and
+last ten and counts the rest; past 20 dead ends the report says how many more.
+
+**`certified` no longer reads as if n/a claims were checked.** When every
+property is `n/a` and no query was asked, the last line is `certified: the
+situation count only — every property is n/a, so no claim was checked`, in
+`writ check` and `writ_check` alike. The `certification` JSON field is
+unchanged.
+
 ## 0.4.0 — 2026-10-03
 
 **Upgrading:** `writ check` now exits 1 when a property is `n/a`. A pipeline

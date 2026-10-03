@@ -117,7 +117,7 @@ rule's, so `(holds S (is X.a Y))` finds where a mutable arrow points in S.
 
 ```lisp
 (relation can-reach 1)
-(rule (can-reach S) (holds S F))            ; the goal set itself
+(rule (can-reach S) (situation S) (holds S F))   ; the goal set itself
 (rule (can-reach S) (edge E S T) (can-reach T))   ; and a move into it
 ```
 

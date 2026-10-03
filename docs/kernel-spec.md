@@ -1488,6 +1488,12 @@ forms.
   vacant side). A `stuck at:` line leads with that same index. One numbering
   runs through the whole tool, so a witness can be followed with `writ show
   --at N` without counting.
+- A failing **`inevitable`** also says how a run avoids F from the stuck
+  situation: `avoids: the run stops at #N` when no move is left, or `loop:` a
+  shortest cycle back to it, every situation on it outside F. Under
+  `(fair …)` a single cycle could starve a fair move, so the line is `loops
+  among:` the situations a fair run circles in. The prose report carries this;
+  `--json` does not.
 - A holding **`possible`** also carries a witness: the shortest route to a
   satisfying situation — the example the question asked for (Appendix C's
   solvable river prints its crossing). The other three hold with no single

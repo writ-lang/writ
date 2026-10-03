@@ -96,6 +96,11 @@ Time is a ladder of named ticks walked by an arrow, never a number.
 - **`writ_derive`** — a relation from a `.rules` file; `why: true` returns the
   derivation tree down to the model facts it rests on.
 - Every tool takes `json: true` to answer as the object `writ … --json` prints.
+- **Newer servers** also list `writ_guide` (the language by topic, with worked
+  examples and every error code) and `writ_validate` (parse and type-check,
+  instantly). When `writ_guide` is listed, read its `index` before writing a
+  model; when `writ_validate` is listed, run it before `writ_check`. Every file
+  argument then also takes inline text (`model_source`, `claims_source`).
 
 An index (`#17`, or a rules row's `17`) is not an answer: one numbering runs
 through the whole tool, so follow it with `writ_show` and quote the situation,
