@@ -303,6 +303,47 @@ already has.|};
           "writ show    model.writ --at 17 --at 19";
         ];
     };
+    {
+      name = "graph";
+      summary = "draw the state space — by phase, with a witness lit";
+      usage =
+        [
+          "writ graph    MODEL.writ [--claims F] [--d2|--dot|--json] \
+           [--witness P]… [--states]";
+          "writ graph    --stdin --claims F […]";
+        ];
+      body =
+        {|Emit the reachable state space as a picture. By default the PHASE
+quotient: one node per class of mutually reachable situations — inside
+one nothing has been spent, and a step between two can never be walked
+back — labelled by its least-indexed situation and its size; edges
+labelled by the moves that cross; gaps as dashed exits; a phase nothing
+leads out of double-bordered. That graph is acyclic by construction and
+stays readable where the raw space does not. --states draws every
+situation instead, and is refused above a cap with the phase count as
+the suggestion.
+
+--witness P lights P's route — the solution of a holding `possible`, the
+counterexample of a failing property — as it runs through the picture.
+The questions come from the model's sibling .claims, or --claims.
+
+D2 is the default because the repository's own diagrams are drawn in it;
+`d2` is not a dependency, the text is:
+
+  writ graph oversight.writ --witness accountability | d2 - out.svg
+  writ graph oversight.writ --dot | dot -Tsvg > out.svg|};
+      options =
+        [
+          "--claims FILE    where the questions live (default: the sibling \
+           .claims)";
+          "--witness P      light property P's route; repeatable";
+          "--states         every situation, not the phase quotient (cap 200)";
+          "--d2 | --dot | --json   the notation (default: D2)";
+          "--stdin          read the model from stdin instead of a path";
+        ];
+      examples =
+        [ "writ graph   tests/models/any_model.writ --witness accountability" ];
+    };
   ]
 
 (* ---- rendering ---------------------------------------------------------- *)

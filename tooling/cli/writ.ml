@@ -116,6 +116,12 @@ let () =
       | true, flags -> Cmd_show.run ~json Cli_io.stdin_name flags
       | false, model :: flags -> Cmd_show.run ~json model flags
       | false, [] -> die 2 usage)
+  | _ :: "graph" :: rest -> (
+      let stdin_, rest = Writ_dispatch.take_stdin rest in
+      match (stdin_, rest) with
+      | true, flags -> Cmd_graph.run Cli_io.stdin_name flags
+      | false, model :: flags -> Cmd_graph.run model flags
+      | false, [] -> die 2 usage)
   | _ :: "control" :: rest -> (
       let stdin_, rest = Writ_dispatch.take_stdin rest in
       match (stdin_, rest) with

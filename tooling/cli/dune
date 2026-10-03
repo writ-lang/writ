@@ -28,6 +28,7 @@
   cmd_schema
   cmd_derive
   cmd_show
+  cmd_graph
   cmd_sql
   help
   writ_dispatch)

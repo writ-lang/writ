@@ -89,6 +89,21 @@ A move out that ends at a gap carries `gap` (the message) instead of `to`.
 {"name": "captured-bureaus", "at": 7, "rows": [{"b": "watchdog"}]}
 ```
 
+## `writ graph MODEL [--witness P]… [--states] --json`
+
+```json
+{"by": "phase",
+ "nodes": [{"id": 0, "size": 12, "initial": true, "final": false,
+            "gaps": ["the text is silent"], "lit": true}],
+ "edges": [{"from": 0, "to": 3, "moves": ["capture-watchdog"], "lit": true}]}
+```
+
+`by` is `"phase"` or `"situation"`. A node's `id` is the index of its
+representative situation (the least in its phase) or the situation itself;
+`size` counts the situations in a phase; `final` means nothing leads out;
+`gaps` lists the messages of gap edges fired from inside. `lit` marks the
+nodes and edges a `--witness` route passes through.
+
 ## `writ derive MODEL RULES RELATION --json`
 
 ```json

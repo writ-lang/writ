@@ -225,6 +225,37 @@ let situation (sp : Space.t) (i : int) : Json.t =
 let show (sp : Space.t) (idxs : int list) : Json.t =
   Json.Assoc [ ("situations", Json.List (List.map (situation sp) idxs)) ]
 
+(* --- graph ----------------------------------------------------------------- *)
+
+let graph (g : Graph.t) : Json.t =
+  let node (n : Graph.node) =
+    Json.Assoc
+      [
+        ("id", int n.Graph.id);
+        ("size", int n.Graph.size);
+        ("initial", Json.Bool n.Graph.initial);
+        ("final", Json.Bool n.Graph.final);
+        ("gaps", strs n.Graph.gaps);
+        ("lit", Json.Bool (List.mem n.Graph.id g.Graph.lit_nodes));
+      ]
+  in
+  let edge (e : Graph.edge) =
+    Json.Assoc
+      [
+        ("from", int e.Graph.src);
+        ("to", int e.Graph.dst);
+        ("moves", strs e.Graph.moves);
+        ( "lit",
+          Json.Bool (List.mem (e.Graph.src, e.Graph.dst) g.Graph.lit_edges) );
+      ]
+  in
+  Json.Assoc
+    [
+      ("by", str (if g.Graph.by_phase then "phase" else "situation"));
+      ("nodes", Json.List (List.map node g.Graph.nodes));
+      ("edges", Json.List (List.map edge g.Graph.edges));
+    ]
+
 (* --- derive ---------------------------------------------------------------- *)
 
 let sort_name = function

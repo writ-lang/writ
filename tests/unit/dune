@@ -58,6 +58,14 @@
 ; members. Its own stanza for [test_stdin]'s reason — the library is unwrapped.
 
 (test
+ (name test_graph)
+ (deps
+  (glob_files fixtures/*.{writ,claims,rules})
+  (glob_files %{workspace_root}/tests/models/*.{writ,claims})
+  (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
+ (libraries writ_data writ_syntax writ_runtime))
+
+(test
  (name test_report_json)
  (deps
   (glob_files fixtures/*.{writ,claims,rules})

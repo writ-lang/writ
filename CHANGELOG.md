@@ -5,6 +5,17 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**`writ graph`** draws the state space — in D2 by default, the notation the
+repository's own diagrams use, or DOT, or JSON. The picture is the PHASE
+quotient: one node per class of mutually reachable situations (the
+`phase` the interrogator already computes), labelled by its representative
+and its size; edges labelled by the one-way moves that cross; gaps as
+dashed exits; a phase nothing leads out of double-bordered. It is acyclic
+by construction and stays readable where the raw space does not; `--states`
+draws every situation and is refused above 400 with the phase count as the
+suggestion. `--witness P` lights a property's route through the picture.
+Recommendations Gap #3.
+
 **`(show QUERY…)` on a property.** A property may name queries of its
 file to answer at the situation its verdict singles out — the stuck
 situation of a failing `live` or `inevitable`, the violating one of a
