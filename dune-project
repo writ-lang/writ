@@ -6,7 +6,7 @@
 (name writ)
 
 ; The one version number: opam, `writ --version` and `make release` all read it.
-(version 0.3.0)
+(version 0.4.0)
 
 (generate_opam_files true)
 
