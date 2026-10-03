@@ -53,6 +53,7 @@ plus query answers and law acknowledgments (unadmitted / stale).|};
         [
           "--claims FILE    the questions to ask (properties, queries, accepts)";
           "--stdin          read the model from stdin instead of a path";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [
@@ -84,6 +85,7 @@ has no sibling to find.|};
           "--stdin          read the model from stdin instead of a path";
           "--claims FILE    where the questions live (default: the model's \
            sibling .claims; required with --stdin)";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [
@@ -113,6 +115,7 @@ file (`git show REV:MODEL`).|};
           "--map MAP.writ    `(map X => Y)` renames when two schemas differ";
           "--git R1 R2 M    compare git revisions R1 and R2 of model M";
           "--stdin          the NEW model comes from stdin; follows OLD.writ";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [
@@ -250,6 +253,7 @@ rooted in an arrow name that two types share.|};
         [
           "--why \"(R A…)\"   print one fact's derivation tree instead of rows";
           "--stdin          read the model from stdin instead of a path";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [
@@ -289,6 +293,7 @@ already has.|};
         [
           "--at STATE       a situation's index; repeatable (default: 0)";
           "--stdin          read the model from stdin instead of a path";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [

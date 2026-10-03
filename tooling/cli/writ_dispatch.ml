@@ -14,9 +14,16 @@
    bare `writ query health` could not be told apart from a model named
    `health` with a missing query name, which is why the bare form was
    rejected. *)
-let take_stdin (args : string list) : bool * string list =
-  let rest = List.filter (fun a -> a <> "--stdin") args in
+let take_flag (flag : string) (args : string list) : bool * string list =
+  let rest = List.filter (fun a -> a <> flag) args in
   (List.length rest <> List.length args, rest)
+
+let take_stdin = take_flag "--stdin"
+
+(* [--json] is taken the same way, for the same reason, and before [--stdin]
+   is: an output format is orthogonal to every verb's positionals, so it must
+   never be counted among them. *)
+let take_json = take_flag "--json"
 
 (* Remove [--claims FILE] and report the file, for the same reason: pulling the
    pair out before the positionals are counted keeps every remaining shape the

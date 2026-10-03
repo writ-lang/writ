@@ -59,4 +59,14 @@ let () =
   check "strip anywhere" (fst (strip [ "health"; "--stdin" ]) = true);
   check "strip absent" (fst (strip [ "health" ]) = false);
   check "strip leaves order" (snd (strip [ "a"; "--stdin"; "b" ]) = [ "a"; "b" ]);
+  (* --json is the same shape of flag: an output format is orthogonal to a
+     verb's positionals, so it comes out before they are counted. *)
+  let takej = Writ_dispatch.take_json in
+  check "json: absent" (takej [ "m.writ" ] = (false, [ "m.writ" ]));
+  check "json: taken anywhere"
+    (takej [ "m.writ"; "--json"; "--claims"; "c" ]
+    = (true, [ "m.writ"; "--claims"; "c" ]));
+  check "json: composes with --stdin"
+    (let j, r = takej [ "--stdin"; "--json" ] in
+     j && fst (strip r) && snd (strip r) = []);
   Printf.printf "test_stdin: %d checks passed\n" !checks

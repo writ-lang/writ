@@ -22,8 +22,8 @@ let state_at (sp : Space.t) (spec : string option) : int * State.t =
           (i, sp.Space.states.(i))
       | _ -> die 2 ("--at expects a state index in range: " ^ s))
 
-let run ~(claims : string option) (model : string) (name : string)
-    (at : string option) =
+let run ?(json = false) ~(claims : string option) (model : string)
+    (name : string) (at : string option) =
   let resolve = make_resolve model in
   let m = load_model resolve model in
   let sp = build_space model m in
@@ -50,6 +50,9 @@ let run ~(claims : string option) (model : string) (name : string)
     | None -> die 2 ("no query named `" ^ name ^ "` in " ^ cpath)
   in
   let idx, st = state_at sp at in
-  say (Report.query_rows q idx (Query.run sp q ~at:st ()));
+  let rows = Query.run sp q ~at:st () in
+  say
+    (if json then Json.to_string (Report_json.query_rows q idx rows)
+     else Report.query_rows q idx rows);
   flush stdout;
   exit 0

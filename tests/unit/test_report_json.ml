@@ -1,0 +1,231 @@
+(* Copyright (C) 2026 Alex Kunich *)
+(* SPDX-License-Identifier: AGPL-3.0-or-later *)
+
+(* The JSON rendering (docs/json.md). Every object is serialised and then
+   PARSED BACK, so the test proves two things at once: that what the tool
+   prints is JSON, and that it carries what the prose carries — the verdict,
+   the witness with the situation each step lands in, the stuck situation as
+   an index a reader can hand to `writ show`. Stdlib only; the resolver reads
+   core/stdlib then tests/unit/fixtures, as the compare suite does. *)
+
+open Writ_data
+open Writ_syntax
+open Writ_runtime
+
+let passed = ref 0
+
+let check name cond =
+  if cond then incr passed
+  else (
+    print_string ("FAIL: " ^ name ^ "\n");
+    exit 1)
+
+let repo_root () =
+  let rec up dir n =
+    if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
+    else if n = 0 then dir
+    else up (Filename.dirname dir) (n - 1)
+  in
+  up (Sys.getcwd ()) 8
+
+let resolve : Loader.resolve =
+ fun name ->
+  let root = repo_root () in
+  let read p =
+    match open_in_bin p with
+    | exception Sys_error _ -> None
+    | ic ->
+        let n = in_channel_length ic in
+        let s = really_input_string ic n in
+        close_in ic;
+        Some s
+  in
+  let rec go = function
+    | [] -> Error { Errors.pos = None; msg = "cannot resolve " ^ name }
+    | p :: rest -> ( match read p with Some s -> Ok s | None -> go rest)
+  in
+  go
+    [
+      Filename.concat root ("core/stdlib/" ^ name);
+      Filename.concat root ("tests/unit/fixtures/" ^ name);
+    ]
+
+let model path =
+  match Loader.read_model resolve path with
+  | Ok m -> m
+  | Error e ->
+      check ("read_model " ^ path ^ ": " ^ Errors.to_string e) false;
+      exit 1
+
+let claims m path =
+  match Loader.read_claims resolve m path with
+  | Ok c -> c
+  | Error e ->
+      check ("read_claims " ^ path ^ ": " ^ Errors.to_string e) false;
+      exit 1
+
+let space m =
+  match Space.build m with
+  | Ok sp -> sp
+  | Error e ->
+      check ("build: " ^ e) false;
+      exit 1
+
+(* Serialise, then parse back: the object under test is the TEXT. *)
+let roundtrip (j : Json.t) : Json.t =
+  match Json_parse.parse (Json.to_string j) with
+  | Ok v -> v
+  | Error e ->
+      check ("parses back: " ^ e) false;
+      exit 1
+
+let get k j =
+  match Json.member k j with
+  | Some v -> v
+  | None ->
+      check ("has member " ^ k) false;
+      exit 1
+
+let nth i = function
+  | Json.List l -> (
+      match List.nth_opt l i with
+      | Some v -> v
+      | None ->
+          check ("has element " ^ string_of_int i) false;
+          exit 1)
+  | _ ->
+      check "is a list" false;
+      exit 1
+
+let str j = Option.get (Json.to_string_opt j)
+let int j = Option.get (Json.to_int_opt j)
+let len = function Json.List l -> List.length l | _ -> -1
+
+(* --- check ----------------------------------------------------------------- *)
+
+let () =
+  let m = model "captured_trap.writ" in
+  let sp = space m in
+  let cl = claims m "captured_trap.claims" in
+  let props =
+    List.map (fun (p : Claims.property) -> (p, Checker.check sp p)) cl.props
+  in
+  let j =
+    roundtrip
+      (Report_json.check ~sp ~unadmitted:[] ~stale:[] ~props ~queries:[] ~exit:1)
+  in
+  check "check: states is the space's count"
+    (int (get "states" j) = Array.length sp.Space.states);
+  check "check: edges is the edge count"
+    (int (get "edges" j) = List.length sp.Space.edges);
+  check "check: exit carried" (int (get "exit" j) = 1);
+  let p = nth 0 (get "properties" j) in
+  check "check: property named" (str (get "name" p) = "accountability");
+  check "check: modality spelled" (str (get "modality" p) = "live");
+  check "check: a live trap fails" (str (get "verdict" p) = "fails");
+  let w = get "witness" p in
+  check "check: witness is non-empty" (len w >= 1);
+  let last = nth (len w - 1) w in
+  check "check: a step names its move"
+    (String.length (str (get "move" last)) > 0);
+  (* The stuck situation IS where the witness lands: one numbering through the
+     whole tool, so `writ show --at` on either reaches the same situation. *)
+  check "check: stuck_at is the witness's last landing"
+    (int (get "stuck_at" p) = int (get "to" last));
+  (* The gap fixture: a declared hole, with its message and fewest moves. *)
+  let g = nth 0 (get "gaps" j) in
+  check "check: a gap carries its move" (str (get "move" g) <> "");
+  check "check: a gap carries its message"
+    (String.length (str (get "message" g)) > 0);
+  check "check: a gap carries its distance" (int (get "min_moves" g) >= 0)
+
+(* --- queries, laws ---------------------------------------------------------- *)
+
+let () =
+  let m = model "query_rows.writ" in
+  let sp = space m in
+  let cl = claims m "query_rows.claims" in
+  let q = List.hd cl.Claims.queries in
+  let rows = Query.run sp q () in
+  let j = roundtrip (Report_json.query_rows q 0 rows) in
+  check "query: named" (str (get "name" j) = "captured");
+  check "query: at the initial situation" (int (get "at" j) = 0);
+  let r = nth 0 (get "rows" j) in
+  check "query: a row binds its variable" (str (get "b" r) = "watchdog");
+  let m = model "equations.writ" in
+  let sp = space m in
+  let j =
+    roundtrip
+      (Report_json.check ~sp
+         ~unadmitted:[ ("m", "law") ]
+         ~stale:[] ~props:[] ~queries:[] ~exit:1)
+  in
+  check "laws: an equation is listed" (len (get "equations" j) >= 1);
+  let u = nth 0 (get "unadmitted" j) in
+  check "acks: unadmitted carries move and law"
+    (str (get "move" u) = "m" && str (get "law" u) = "law")
+
+(* --- show ------------------------------------------------------------------- *)
+
+let () =
+  let m = model "captured_trap.writ" in
+  let sp = space m in
+  let j = roundtrip (Report_json.show sp [ 0; 1 ]) in
+  let s0 = nth 0 (get "situations" j) in
+  check "show: index" (int (get "index" s0) = 0);
+  check "show: the initial situation says so" (get "initial" s0 = Json.Bool true);
+  check "show: initial route is empty" (len (get "route" s0) = 0);
+  check "show: moves out are listed" (len (get "moves" s0) >= 1);
+  let s1 = nth 1 (get "situations" j) in
+  check "show: a later situation has a route" (len (get "route" s1) = 1);
+  check "show: the route lands where it says"
+    (int (get "to" (nth 0 (get "route" s1))) = 1);
+  (* A vacant cell is null, not the prose's sigil. *)
+  let cells = get "cells" s0 in
+  check "show: cells is an object"
+    (match cells with Json.Assoc _ -> true | _ -> false)
+
+(* --- compare ---------------------------------------------------------------- *)
+
+let () =
+  let old_m = model "compare_old.writ" and new_m = model "compare_new.writ" in
+  let old_sp = space old_m and new_sp = space new_m in
+  let cl = claims old_m "compare_old.claims" in
+  let equations = Compare.equation_rows [] old_sp new_sp in
+  let properties = Compare.property_rows [] old_sp new_sp cl in
+  let j =
+    roundtrip (Report_json.compare ~new_sp ~equations ~properties ~exit:1)
+  in
+  check "compare: exit carried" (int (get "exit" j) = 1);
+  let lost =
+    match get "properties" j with
+    | Json.List l -> List.find_opt (fun r -> str (get "status" r) = "LOST") l
+    | _ -> None
+  in
+  check "compare: a LOST property is reported" (lost <> None);
+  check "compare: the LOST property carries a witness with landings"
+    (match lost with
+    | Some r ->
+        len (get "witness" r) >= 1
+        && Json.to_int_opt (get "to" (nth 0 (get "witness" r))) <> None
+    | None -> false)
+
+(* --- route ------------------------------------------------------------------ *)
+
+let () =
+  let m = model "captured_trap.writ" in
+  let sp = space m in
+  let s1 = sp.Space.states.(1) in
+  let route = Space.shortest_path sp s1 in
+  check "route: walk lands on the state the path reaches"
+    (Route.walk sp route = [ 1 ]);
+  check "route: an unknown move stops the walk"
+    (Route.walk sp [ "no-such-move" ] = []);
+  check "route: deltas between a state and itself are none"
+    (Route.deltas sp s1 s1 = []);
+  check "route: a move changes at least one cell"
+    (Route.deltas sp sp.Space.initial s1 <> [])
+
+let () =
+  print_string
+    ("test_report_json: " ^ string_of_int !passed ^ " checks passed\n")

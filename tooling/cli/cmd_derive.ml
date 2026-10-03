@@ -51,7 +51,8 @@ let ground (spec : string) (args : string option list) : string list =
            ^ spec))
     args
 
-let run (model : string) (rules_path : string) ~(why : bool) (spec : string) =
+let run ?(json = false) (model : string) (rules_path : string) ~(why : bool)
+    (spec : string) =
   let m = load_model (make_resolve model) model in
   let sp = build_space model m in
   (* Two resolvers, because [(load …)] searches the INCLUDING file's directory
@@ -76,11 +77,19 @@ let run (model : string) (rules_path : string) ~(why : bool) (spec : string) =
       (rel ^ " takes " ^ string_of_int arity ^ " arguments, not "
       ^ string_of_int (List.length args)
       ^ ": " ^ spec);
+  let render_rows tuples =
+    if json then Json.to_string (Report_json.derive_rows t rel tuples)
+    else Report_derive.rows t rel tuples
+  in
+  let render_why args =
+    if json then Json.to_string (Report_json.derive_why t rel args)
+    else Report_derive.why t rel args
+  in
   let answer =
-    if why then Report_derive.why t rel (ground spec args)
+    if why then render_why (ground spec args)
     else
       match Derive_answers.query t rel args with
-      | Some (Ok tuples) -> Report_derive.rows t rel tuples
+      | Some (Ok tuples) -> render_rows tuples
       (* A constant its column can never hold is a mis-asked question, not an
          empty answer, and the same wording the .rules parser uses — a query is
          not a looser door into the engine than a file is. *)

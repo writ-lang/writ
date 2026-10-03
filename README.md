@@ -247,6 +247,7 @@ what it costs.
 | `writ derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
 | `writ derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
 | `writ show MODEL [--at STATE]…` | print what a situation is — its cells, the fewest moves to it, and every move out |
+| `… --json` | on `check`, `query`, `compare`, `show` and `derive`: the same answer as one JSON object, witnesses carrying the situation each move lands in ([docs/json.md](docs/json.md)) |
 | `writ help VERB` · `writ VERB --help` | one verb's reference — usage, options, examples, exit status |
 | `writ --help` · `writ --version` | the full reference · the version this binary was built from |
 

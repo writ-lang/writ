@@ -3,6 +3,15 @@
 Versions are the one in `dune-project`: what opam publishes, what `writ
 --version` prints, and what `make release` names the tarball with.
 
+## Unreleased
+
+**`--json`** on `check`, `query`, `compare`, `show` and `derive`: the same
+answer as one JSON object, rendered from the same engine values as the prose
+by `tooling/report_json/`, so the two cannot drift. A witness carries the
+situation each move lands in, a vacant cell is `null`, and the exit status
+travels inside the object as `exit`. The schema is `docs/json.md`. The prose
+is unchanged and stays the default.
+
 ## 0.2.0 — 2026-09-06
 
 The first RELEASED version, and it is 0.2.0 rather than 0.1.0 because 0.1.0 is

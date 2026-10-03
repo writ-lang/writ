@@ -47,20 +47,28 @@ let claims_for (resolve : Loader.resolve) (m : Model.t) (old_path : string) :
   let cpath = claims_beside old_path in
   if Sys.file_exists cpath then read_claims resolve m cpath else empty_claims
 
-let emit_compare (old_sp : Space.t) (new_sp : Space.t) (claims : Claims.t)
-    (mp : (string * string) list) =
+let emit_compare ~(json : bool) (old_sp : Space.t) (new_sp : Space.t)
+    (claims : Claims.t) (mp : (string * string) list) =
   let report, any_lost = Compare.run old_sp new_sp claims mp in
-  say report;
+  let code = if any_lost then 1 else 0 in
+  if json then
+    let equations = Compare.equation_rows mp old_sp new_sp in
+    let properties = Compare.property_rows mp old_sp new_sp claims in
+    say
+      (Json.to_string
+         (Report_json.compare ~new_sp ~equations ~properties ~exit:code))
+  else say report;
   flush stdout;
-  if any_lost then exit 1 else exit 0
+  exit code
 
-let run (old_p : string) (new_p : string) (map_p : string option) =
+let run ?(json = false) (old_p : string) (new_p : string)
+    (map_p : string option) =
   let mp = match map_p with None -> [] | Some p -> parse_map p in
   let old_r = make_resolve old_p and new_r = make_resolve new_p in
   let old_m = load_model old_r old_p in
   let old_sp = build_space old_p old_m in
   let new_sp = build_space new_p (load_model new_r new_p) in
-  emit_compare old_sp new_sp (claims_for old_r old_m old_p) mp
+  emit_compare ~json old_sp new_sp (claims_for old_r old_m old_p) mp
 
 (* Fetch a revision of a file with [git show REV:path] into a temp file, read
    it back, and delete it — Stdlib only ([Sys.command] + [Filename.temp_file]),
@@ -91,7 +99,7 @@ let git_resolve (model : string) (content : string) : Loader.resolve =
   let entry = Filename.basename model in
   fun name -> if String.equal name entry then Ok content else base name
 
-let run_git (rev1 : string) (rev2 : string) (model : string)
+let run_git ?(json = false) (rev1 : string) (rev2 : string) (model : string)
     (map_p : string option) =
   let mp = match map_p with None -> [] | Some p -> parse_map p in
   let r1 = git_resolve model (git_show rev1 model) in
@@ -99,4 +107,4 @@ let run_git (rev1 : string) (rev2 : string) (model : string)
   let old_m = load_model r1 model in
   let old_sp = build_space model old_m in
   let new_sp = build_space model (load_model r2 model) in
-  emit_compare old_sp new_sp (claims_for r1 old_m model) mp
+  emit_compare ~json old_sp new_sp (claims_for r1 old_m model) mp
