@@ -5,6 +5,14 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**Positioning.** The README now says in its second paragraph what the tool
+is for, in domain words — a model checker for finite business and
+governance systems whose negative answer is a census — and where the bound
+comes from (the schema, not a scope the user chose), against the
+neighbours; and lists Appendix G's domains with the worked scenario beside
+each, so a reader who knows TLA+ can say after one screen what writ refuses
+and what it gets for refusing it. Recommendations Gap #5.
+
 **Fiber reporting (§17), built.** `writ check … --fiber gov.regime` answers
 every property once per value the cell takes — `fiber gov.regime=normal
 holds` / `fiber gov.regime=emergency   FAILS   witness: …` under the

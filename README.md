@@ -7,6 +7,13 @@
 A model is one page. What it *means* is every situation those rules can
 produce — that page writ large, which is where the language gets its name.
 
+In practice: **a model checker for finite business and governance systems** —
+approval workflows, entitlements and access, schema migrations, deployment
+runbooks, configuration spaces, protocols — whose negative answer is a
+**census, not a search that gave up**. "No reachable situation breaks this
+rule" is checked over every situation there is, because the schema fixes how
+many there are; and every "yes" comes with the route that proves it.
+
 A writ model is a state machine written down: a **schema** (the kinds of things
 that exist and the typed arrows between them, plus the laws certain arrow-chains
 must obey), an **instance** (one starting configuration), and **transitions**
@@ -67,6 +74,32 @@ prey, and from there the crossing can never succeed.
 **Want to write one?** [The tour](docs/tour.md) goes from a three-line model to
 the whole language in ten runnable steps, and ends in a one-page cheat sheet.
 The rest of this page is why the language is shaped the way it is.
+
+## What it is for
+
+The same six shapes of question — a trap, a law violation, a vacancy, a
+silence, a comparison, an embedding — asked of different furniture.
+[Appendix G](docs/kernel-spec.md#appendix-g--problems-tractable-with-writ)
+lists the questions per domain; the worked models live in
+[writ-problems](https://github.com/writ-lang/writ-problems):
+
+| domain | the question it is usually asked | worked |
+| --- | --- | --- |
+| access and privilege | is there a grant sequence after which some privilege can never be revoked? | `access/` |
+| regulated case-work | can a case reach a state that is neither settleable nor closable? | `workflow/` |
+| constitutional and institutional design | can lawful moves alone permanently disable the oversight pipeline? | `oversight/`, `gotha/` |
+| protocols and agreement | can the parties finish disagreeing, or be left waiting for ever? | `two-phase-commit/` |
+| schema migrations and runbooks | is this plan safe at every instant, including mid-rollout? | `db-migration-problems/` |
+| system design from a parts bank | which architectures satisfy the brief, and what does the brief fail to say? | `arch/` |
+| scheduling and allocation | does a valid schedule exist, and is the one a solver produced acceptable? | `jobshop-*/`, `timetable/` |
+| economic arrangements | which guarantees does one rule's repeal cost? | `calculation/` |
+| games and puzzles | is it solvable, and is there a first-move blunder? | `river/`, `island/`, `queens/` |
+| safety interlocks, clinical protocols, succession, incident runbooks | see Appendix G | — |
+
+What does not fit, and the test for telling in advance, is
+[docs/tractability.md](docs/tractability.md): a fixed cast; quantities
+compared against constants, never against each other; moves that set a slot to
+a name; an answer set small enough to want.
 
 ## Language design
 
@@ -172,6 +205,20 @@ from kernel word to library form without the grammar changing by a line; no
 construct ever needed an operator or a precedence rule, guards included; the
 notation states its own structure; and every worked model's properties are read
 twice — once in branching time, once relationally — by two engines that agree.
+
+**Where the bound comes from** is the distinguishing claim, and it is worth
+stating against the neighbours
+([Appendix H](docs/kernel-spec.md#appendix-h--design-notes-neighbouring-languages)
+has the full table):
+
+| | the space searched | "no counterexample" means |
+| --- | --- | --- |
+| Alloy, TLC, bounded SMT | a scope or depth the **user** chose | none within that scope — a hedge that never goes away |
+| writ | every situation the **schema** admits | none exists — a census |
+
+The price of the second row is the whole of §2.4: no arithmetic, no unbounded
+populations, no "for every *n*". What it buys is that `never` means what it
+says.
 
 Whether a *particular* domain fits is a test, not a feeling:
 [docs/tractability.md](docs/tractability.md) states it in four conditions — a
