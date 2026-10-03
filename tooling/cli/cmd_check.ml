@@ -43,12 +43,19 @@ let answer ?(cells = []) resolve (m : Model.t) (sp : Space.t)
           List.map
             (fun (p : Claims.property) ->
               let o = Checker.check sp p in
-              (match o with Checker.Fails _ -> failed := true | _ -> ());
+              (* An n/a is a question left unanswered — usually because an
+                 edit deleted what it asked about — so it is a finding, as
+                 compare and the MCP server already treat it. *)
+              (match o with
+              | Checker.Fails _ | Checker.Not_applicable _ -> failed := true
+              | Checker.Holds _ -> ());
               let fs = if cells = [] then [] else Fiber.outcomes sp cells p in
               if
                 List.exists
                   (fun (_, o) ->
-                    match o with Checker.Fails _ -> true | _ -> false)
+                    match o with
+                    | Checker.Fails _ | Checker.Not_applicable _ -> true
+                    | Checker.Holds _ -> false)
                   fs
               then failed := true;
               (p, o, fs))

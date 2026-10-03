@@ -24,6 +24,7 @@ let arity_of (r : Rules.relation) : int =
 let rec guard_terms (g : Rules.gexp) : Rules.term list =
   match g with
   | Rules.Is (p, v) -> [ p.Rules.root; v ]
+  | Rules.Is_path (p, q) -> [ p.Rules.root; q.Rules.root ]
   | Rules.Defined p -> [ p.Rules.root ]
   | Rules.And gs | Rules.Or gs -> List.concat_map guard_terms gs
   | Rules.Not (g, _) -> guard_terms g

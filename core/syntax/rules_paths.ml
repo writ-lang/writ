@@ -87,6 +87,18 @@ let rec check_guard m sorts rid benv ~fixed_only (g : Rules.gexp) =
   | Rules.Defined p ->
       let* _ = resolve m sorts rid benv ~fixed_only p in
       Ok ()
+  | Rules.Is_path (p, q) -> (
+      let* ap = resolve m sorts rid benv ~fixed_only p in
+      let* aq = resolve m sorts rid benv ~fixed_only q in
+      (* Kernel §5 for two paths: they must land in the same type, or the
+         comparison could never hold. *)
+      match (List.rev ap, List.rev aq) with
+      | a :: _, b :: _ when a.Schema.cod <> b.Schema.cod ->
+          Errors.err ~pos:q.Rules.pos
+            ("`" ^ Rules_terms.path_str p ^ "` lands in `" ^ a.Schema.cod
+           ^ "` and `" ^ Rules_terms.path_str q ^ "` in `" ^ b.Schema.cod
+           ^ "`, so they can never be equal")
+      | _ -> Ok ())
   | Rules.And gs | Rules.Or gs ->
       iter_r (check_guard m sorts rid benv ~fixed_only) gs
   | Rules.Not (g, _) -> check_guard m sorts rid benv ~fixed_only g

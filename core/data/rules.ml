@@ -29,6 +29,10 @@ type gpath = {
 
 type gexp =
   | Is of gpath * gterm
+  (* [(is P Q)] with a path on both sides: the kernel's chain-against-chain
+     test (§10.2). It only tests, never binds: both roots must already be
+     bound, like a guard under [not]. *)
+  | Is_path of gpath * gpath
   | Defined of gpath
   | And of gexp list
   | Or of gexp list
@@ -52,6 +56,7 @@ let lower_path (env : env) (p : gpath) : Value.path =
 let rec lower (g : gexp) (env : env) : Model.guard =
   match g with
   | Is (p, v) -> Model.Is (lower_path env p, Model.Lit (subst env v))
+  | Is_path (p, q) -> Model.Is (lower_path env p, Model.Chain (lower_path env q))
   | Defined p -> Model.Defined (lower_path env p)
   | And gs -> Model.And (List.map (fun g -> lower g env) gs)
   | Or gs -> Model.Or (List.map (fun g -> lower g env) gs)

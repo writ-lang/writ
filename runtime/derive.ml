@@ -123,7 +123,8 @@ let rec guard_step t rid sit (env : Rules.env) (g : Rules.gexp) kont =
                 seq e (List.rev_append ps prems) rest)
       in
       seq env [] gs
-  | Rules.Defined _ | Rules.Or _ | Rules.Not _ | Rules.Some_ _ ->
+  | Rules.Defined _ | Rules.Is_path _ | Rules.Or _ | Rules.Not _ | Rules.Some_ _
+    ->
       let mg = Rules.lower g env in
       if Facts.holds t.sp sit mg then kont env [ Rules.Premise_guard mg ]
 

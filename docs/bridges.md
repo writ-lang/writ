@@ -35,7 +35,11 @@ Report everything the artifact says and the model does not on stderr, each with
 its line and reason; a schema imported quietly makes "writ proved this safe" a
 claim about a schema nobody has. `--strict` turns a decline into exit 1 for CI.
 
-Every decline makes the model **laxer** than the artifact, so:
+Every decline makes the model **laxer** than the artifact — with one
+exception the importer flags rather than hides: SQL's `NOT VALID` adds a
+constraint the existing rows were never checked against, and the model reads
+it as holding for every row, which is stricter. `writ sql` keeps the
+constraint and declines the clause, so `--strict` fails on it. Otherwise:
 
 - a `never` that holds on the model holds on the artifact;
 - a `possible` or `live` that holds may hold only in the model, since its

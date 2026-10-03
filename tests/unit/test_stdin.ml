@@ -52,4 +52,37 @@ let () =
   check "json: composes with --stdin"
     (let j, r = takej [ "--stdin"; "--json" ] in
      j && fst (strip r) && snd (strip r) = []);
+  (* An n/a property is a finding: `check` exits 1 on it, so a gate that
+     reads the exit status cannot be talked out of a question by an edit that
+     deletes what the question asks about. *)
+  let resolve : Writ_syntax.Loader.resolve =
+   fun name ->
+    let rec up dir n =
+      let p = Filename.concat dir name in
+      let f = Filename.concat dir ("fixtures/" ^ name) in
+      let s = Filename.concat dir ("core/stdlib/" ^ name) in
+      let read p =
+        let ic = open_in_bin p in
+        let t = really_input_string ic (in_channel_length ic) in
+        close_in ic;
+        Ok t
+      in
+      if Sys.file_exists f then read f
+      else if Sys.file_exists s then read s
+      else if Sys.file_exists p then read p
+      else if n = 0 then
+        Error { Writ_data.Errors.pos = None; msg = "cannot resolve " ^ name }
+      else up (Filename.dirname dir) (n - 1)
+    in
+    up (Sys.getcwd ()) 8
+  in
+  (match Writ_syntax.Loader.read_model resolve "na.writ" with
+  | Error e -> check ("na.writ: " ^ Writ_data.Errors.to_string e) false
+  | Ok m -> (
+      match Writ_runtime.Space.build m with
+      | Error e -> check ("na space: " ^ e) false
+      | Ok sp ->
+          let a = Cmd_check.answer resolve m sp (Some "na.claims") in
+          check "an n/a property makes check exit 1" (a.Cmd_check.exit_code = 1)
+      ));
   Printf.printf "test_stdin: %d checks passed\n" !checks

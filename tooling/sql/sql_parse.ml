@@ -631,9 +631,37 @@ let parse_alter_table ~(pragmas : (int * string) list) (st : stmt)
         { dline = st.sline; what = head_words 5 st.toks; why } :: db.declines;
     }
   in
+  (* NOT VALID adds a constraint that is enforced on new writes only: the rows
+     already there are never checked until VALIDATE CONSTRAINT. The schema
+     still has the constraint, so it is read; but writ would read it as
+     holding for every row, which is exactly what NOT VALID does not promise,
+     so the clause is also declined — a note by default, a finding under
+     --strict. *)
+  let rec not_valid = function
+    | { tk = Word "not"; _ } :: { tk = Word "valid"; _ } :: _ -> true
+    | _ :: r -> not_valid r
+    | [] -> false
+  in
   match qualified_name rest with
   | Some (raw, { tk = Word "add"; _ } :: body) -> (
       let tname = Sql_names.ident_to_pol raw in
+      let db =
+        if not_valid body then
+          {
+            db with
+            declines =
+              {
+                dline = st.sline;
+                what = head_words 5 st.toks;
+                why =
+                  "NOT VALID — the constraint is read, but rows already \
+                   present are not checked by it, and writ reads it as holding \
+                   for every row";
+              }
+              :: db.declines;
+          }
+        else db
+      in
       match List.find_opt (fun t -> t.tname = tname) db.tables with
       | None -> decline "ALTER TABLE on a table that was not read"
       | Some t -> (
@@ -682,6 +710,10 @@ let parse_alter_table ~(pragmas : (int * string) list) (st : stmt)
               in
               { db with tables }
           | Tc_declined d -> { db with declines = d :: db.declines }))
+  | Some (_, { tk = Word "validate"; _ } :: _) ->
+      decline
+        "VALIDATE CONSTRAINT — changes whether a constraint has been checked \
+         against existing rows, which a schema does not record"
   | _ -> decline "ALTER TABLE that adds no constraint"
 
 let parse_comment (st : stmt) (rest : tok list) (db : db) : db =

@@ -141,6 +141,9 @@ let rec seed_guard st rid benv (g : Rules.gexp) =
               seed_var st rid v (Rules.Entity cod)
                 ("the codomain of `" ^ Rules_terms.path_str p ^ "`")))
   | Rules.Defined p -> seed_root st rid p
+  | Rules.Is_path (p, q) ->
+      let* () = seed_root st rid p in
+      seed_root st rid q
   | Rules.And gs | Rules.Or gs -> iter_r (seed_guard st rid benv) gs
   | Rules.Not (g, _) -> seed_guard st rid benv g
   | Rules.Some_ (x, ty, g, _) -> seed_guard st rid ((x, ty) :: benv) g

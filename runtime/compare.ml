@@ -6,7 +6,8 @@ open Writ_data
 (* [writ compare OLD NEW [--map M]] — every equation and property preserved,
    LOST or gained across an amendment (kernel §17, design D5). Properties come
    from OLD's claims, checked on both models, n/a counting as not-pass
-   (§16.1); equations match by name and meaning. The map is a literal atom
+   (§16.1); equations match by name and meaning, and one that holds in OLD
+   but is violated in NEW is LOST, with NEW's route to the violation. The map is a literal atom
    rename, so an unmapped rename reports LOST (design M2, intended). *)
 
 (* --- the literal atom-rename transform (map application) -------------------- *)
@@ -31,8 +32,8 @@ let rec map_guard (mp : (string * string) list) (g : Model.guard) : Model.guard
 
 (* --- classification -------------------------------------------------------- *)
 
-(* A rendered line: name, status word, and — for a LOST property only — NEW's
-   witness route. *)
+(* A rendered line: name, status word, and — for a LOST property, or a law
+   NEW violates — NEW's witness route. *)
 type row = { name : string; status : string; witness : string list option }
 
 let eqs_of (sp : Space.t) : Schema.equation list =
@@ -44,12 +45,26 @@ let equation_rows (mp : (string * string) list) (old_sp : Space.t)
   let same_meaning (oe : Schema.equation) (ne : Schema.equation) : bool =
     Guard.equal (map_guard mp oe.Schema.body) ne.Schema.body
   in
+  (* The shortest route to a reachable violation of the law named [n], if any. *)
+  let violated (sp : Space.t) (n : string) : string list option =
+    List.find_map
+      (fun (l : Observe.law) ->
+        if l.Observe.name = n then Option.map snd l.Observe.violation else None)
+      (Observe.laws sp)
+  in
   let preserved_or_lost (oe : Schema.equation) : row =
     match
       List.find_opt (fun (ne : Schema.equation) -> ne.name = oe.name) new_eqs
     with
-    | Some ne when same_meaning oe ne ->
-        { name = oe.name; status = "preserved"; witness = None }
+    | Some ne when same_meaning oe ne -> (
+        (* Declared alike is not enough: a law that no reachable situation of
+           OLD breaks, and one of NEW's does, is a guarantee lost — the same
+           as a property that stops holding. *)
+        match (violated old_sp oe.name, violated new_sp ne.name) with
+        | None, Some route ->
+            let witness = if route = [] then None else Some route in
+            { name = oe.name; status = "LOST"; witness }
+        | _ -> { name = oe.name; status = "preserved"; witness = None })
     | _ -> { name = oe.name; status = "LOST"; witness = None }
   in
   let gained (ne : Schema.equation) : row option =

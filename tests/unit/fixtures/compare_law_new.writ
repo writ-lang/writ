@@ -1,0 +1,15 @@
+; compare_law_old.writ plus one move that breaks the law.
+
+(schema lock
+  (type yn (no yes))
+  (type door (arrow open (to yn)))
+  (equation shut (not (is door.open yes))))
+
+(instance i lock
+  (door d (open no)))
+
+(use lock)
+(initial i)
+
+(transition knock (when (is d.open no)) (do (set d.open no)))
+(transition force (when (is d.open no)) (do (set d.open yes)))

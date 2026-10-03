@@ -34,7 +34,7 @@ whether a move can break the law and where it is violated. With
   holds NAME   — the property is true (a holding `possible` prints its
                  shortest satisfying route: the solution/example)
   fails NAME   — with `stuck at:` and a numbered witness route
-  n/a   NAME   — the property names structure the schema lacks
+  n/a   NAME   — the property names structure the schema lacks (a finding)
 A property with a (show QUERY…) clause also answers those queries at the
 situation its verdict singles out — the affected entities, named.
 Then query answers and law acknowledgments (unadmitted / stale).
@@ -364,8 +364,9 @@ let bullets n xs =
 let exit_status =
   {|EXIT STATUS  (the interface — scriptable)
   0   clean — the model built and nothing failed
-  1   a finding — a failed property; a violated, unadmitted, or stale law; a
-      guarantee lost in a comparison; or, with --strict, a declined construct
+  1   a finding — a failed or n/a property; a violated, unadmitted, or stale
+      law; a guarantee lost in a comparison; or, with --strict, a declined
+      construct
   2   unreadable input — a missing file, a parse error, or a bad command line|}
 
 (* `writ VERB --help`. The body is indented 2 here and 11 in the full text. *)

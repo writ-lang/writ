@@ -41,7 +41,10 @@
 
 (test
  (name test_stdin)
- (libraries writ_cli))
+ (deps
+  (glob_files fixtures/*.{writ,claims,rules})
+  (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
+ (libraries writ_data writ_syntax writ_runtime writ_cli))
 
 ; The JSON rendering: serialise, parse back, read the members. Its own stanza
 ; because [writ_report_json] is unwrapped, as above.

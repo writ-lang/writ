@@ -1,0 +1,2 @@
+(relation same (Situation))
+(rule (same S) (situation S) (holds S (is b.x b.y)))

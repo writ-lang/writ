@@ -227,5 +227,23 @@ let () =
   check "a built-in can be the question, with no user relation computed"
     (all b "edge" = all full "edge" && Derive_answers.sorts_of b "want" = None)
 
+(* (is P Q) with a path on each side: the kernel's chain-against-chain test,
+   which [holds] answers per situation. b.x and b.y are each no or yes, so
+   they agree in two of the four situations. *)
+let () =
+  let m = model_file "is_path.writ" in
+  let d = Derive.run (space m) (program m "is_path.rules") in
+  check "is path path: the rows are the situations where the paths agree"
+    (List.length (all d "same") = 2);
+  check "is path path: two paths that can never agree are refused"
+    (match
+       Rules_parser.parse m.Model.schema
+         (read
+            "(relation odd (Situation))\n\
+             (rule (odd S) (situation S) (holds S (is b.x b.z)))")
+     with
+    | Error _ -> true
+    | Ok t -> Result.is_error (Rules_check.check m t))
+
 let () =
   print_string ("derive tests: " ^ string_of_int !passed ^ " checks passed\n")

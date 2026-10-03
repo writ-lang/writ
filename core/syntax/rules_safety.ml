@@ -51,7 +51,9 @@ let rec top sorts rid bound (g : Rules.gexp) =
       bind bound v;
       Ok ()
   | Rules.And gs -> iter_r (top sorts rid bound) gs
-  | Rules.Defined _ | Rules.Or _ | Rules.Not _ | Rules.Some_ _ -> closed bound g
+  | Rules.Defined _ | Rules.Is_path _ | Rules.Or _ | Rules.Not _ | Rules.Some_ _
+    ->
+      closed bound g
 
 let literal sorts rid bound (l : Rules.literal) =
   match l with
