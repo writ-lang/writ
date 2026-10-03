@@ -1,6 +1,6 @@
 ; Loads the standard library and still means `relation`: forms expand in every
-; file type, so stdlib must not define a `relation` form (it is `span`,
-; extension §10). The stdlib's schemas are skipped, not rejected.
+; file type, so stdlib must not define a `relation` form (it is `span`;
+; extension §1). The stdlib's schemas are skipped, not rejected.
 
 (load "stdlib.writ")
 

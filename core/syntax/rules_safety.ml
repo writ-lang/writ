@@ -3,7 +3,7 @@
 
 open Writ_data
 
-(* Extension §4: range restriction, simulating the join in written order (of
+(* Extension §1: range restriction, simulating the join in written order (of
    literals, and of a top-level [and]'s conjuncts). Positive relations and
    built-ins bind their variables; a top-level [(is PATH V)] binds V and
    enumerates its root; anything else is a closed test. In [(holds S G)], S
@@ -15,7 +15,7 @@ let iter_r f xs = Rules_terms.iter_r f xs
 let unbound x =
   "`" ^ x
   ^ "` is not bound by any earlier literal; a body joins in written order \
-     (extension §4), and nothing before this point could have bound it"
+     (extension §1), and nothing before this point could have bound it"
 
 let need bound (t : Rules.term) =
   match t with
@@ -93,7 +93,7 @@ let head_bound bound (r : Rules.rule) =
             Errors.err ~pos:p
               ("`" ^ x
              ^ "` is in the head but is not bound by the body; every head \
-                variable must be bound (extension §4)"))
+                variable must be bound (extension §1)"))
     r.Rules.head_args
 
 let check_rule sorts (r : Rules.rule) =

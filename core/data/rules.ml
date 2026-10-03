@@ -13,7 +13,7 @@
 type gterm = Var of string * Errors.pos | Const of string * Errors.pos
 
 (* Guard terms and literal terms are one type: a guard's free variables are the
-   rule's variables (extension §4). *)
+   rule's variables (extension §1). *)
 type term = gterm
 
 (* ── The positioned guard mirror ─────────────────────────────────────────── *)
@@ -107,7 +107,7 @@ type rule = {
   id : rule_id;
   head : string;
   head_args : term list;
-  (* Joined in written order (extension §4); range restriction depends on it. *)
+  (* Joined in written order (extension §1); range restriction depends on it. *)
   body : literal list;
   rule_pos : Errors.pos;
 }
@@ -130,7 +130,7 @@ type program = {
 type fact = { rel : string; args : int array }
 type fact_id = int
 
-(* Why a fact holds (extension §7). A [Premise_fact] is interior if derived,
+(* Why a fact holds (extension §4, `--why`). A [Premise_fact] is interior if derived,
    else a leaf read off the space; guards and completed-stratum absences are
    leaves. *)
 type premise =

@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Derivation tests: [Facts] and [Derive] (extension §2, §6). Expected rows are
+(* Derivation tests: [Facts] and [Derive] (extension §1, §2). Expected rows are
    counted by hand: rules_base.writ wires nabu → mid → cabinet, four
    situations, four edges. *)
 

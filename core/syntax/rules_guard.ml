@@ -92,7 +92,7 @@ and binder (d : Reader.t) : (string * string * Errors.pos, Errors.t) result =
       else Ok (x, ty, xp)
   | _ -> Reader.err_at d "expected a binder shaped (VAR TYPE)"
 
-(* The G of [(holds S G)] is a guard datum, not a term (extension §3); a
+(* The G of [(holds S G)] is a guard datum, not a term (extension §2); a
    variable there would be silently joined, so it is rejected. *)
 let holds_guard (d : Reader.t) : (Rules.gexp, Errors.t) result =
   match d with

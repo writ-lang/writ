@@ -42,7 +42,7 @@ let literal_terms (l : Rules.literal) : Rules.term list =
       | Rules.Gap_edge (e, s) -> [ e; s ]
       | Rules.Phase (s, p) -> [ s; p ]
       | Rules.Phase_step (p, q) -> [ p; q ]
-      (* G is not a term (extension §3), but its contents are. *)
+      (* G is not a term (extension §2), but its contents are. *)
       | Rules.Holds (s, g) -> s :: guard_terms g)
 
 let terms_of_rule (r : Rules.rule) : Rules.term list =

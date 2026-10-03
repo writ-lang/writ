@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Sort inference: [Rules_sorts.infer] (extension §3). Every rejection lands
+(* Sort inference: [Rules_sorts.infer] (extension §1). Every rejection lands
    on an exact [line:col]. *)
 
 open Writ_data
