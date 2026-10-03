@@ -316,4 +316,32 @@ let () =
   check "a colliding member falls back to a spelling nothing else can take"
     (Sql_names.member_for ~taken:[ "ts" ] "timestamp" = "timestamp*")
 
+(* Provenance (docs/bridges.md §5): every law the import writes carries the
+   line of the CHECK it came from, so a violation names the DDL line. *)
+let () =
+  let text, _ =
+    import
+      "CREATE TABLE orders (\n\
+      \  id uuid PRIMARY KEY,\n\
+      \  status text NOT NULL CHECK (status IN ('open','shipped')),\n\
+      \  shipped_at timestamptz,\n\
+      \  CONSTRAINT shipped_needs_stamp CHECK (status <> 'shipped' OR \
+       shipped_at IS NOT NULL)\n\
+       );"
+  in
+  check "origin: a law carries the line of its CHECK"
+    (contains ~sub:"; writ:origin t.sql:5\n  (equation shipped-needs-stamp" text);
+  let m = model_of_string "origin" text in
+  ignore m;
+  (* Read back through the loader, the pragma becomes the law's origin. *)
+  let resolve : Loader.resolve = fun _ -> Ok text in
+  match Loader.read_model resolve "orders.writ" with
+  | Ok m ->
+      check "origin: the loader attaches it to the equation"
+        (List.exists
+           (fun (e : Schema.equation) ->
+             e.name = "shipped-needs-stamp" && e.origin = Some "t.sql:5")
+           m.Model.schema.Schema.equations)
+  | Error e -> check ("origin: read back: " ^ Errors.to_string e) false
+
 let () = print_string ("test_sql: " ^ string_of_int !passed ^ " passed\n")

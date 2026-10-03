@@ -140,16 +140,17 @@ let decode_type (d : Reader.t) :
    that type: "case.investigator… means for every case". Both rules about that
    subject — that there is exactly one, and that it is a declared type — are
    [Decl_checks.check_equation]'s, so they read together. *)
-let decode_equation (d : Reader.t) :
-    (Schema.equation * Errors.pos, Errors.t) result =
+let decode_equation ?(origin : Reader.t -> string option = fun _ -> None)
+    (d : Reader.t) : (Schema.equation * Errors.pos, Errors.t) result =
   match d with
   | Reader.List ([ Reader.Atom ("equation", _); Reader.Atom (name, _); body ], p)
     ->
       let* g = Grammar.guard body in
-      Ok ({ Schema.name; body = g }, p)
+      Ok ({ Schema.name; body = g; origin = origin d }, p)
   | _ -> Reader.err_at d "malformed equation: expected (equation NAME GUARD)"
 
-let decode_schema (d : Reader.t) : (Schema.t, Errors.t) result =
+let decode_schema ?(origin : Reader.t -> string option = fun _ -> None)
+    (d : Reader.t) : (Schema.t, Errors.t) result =
   match d with
   | Reader.List
       (Reader.Atom ("schema", _) :: Reader.Atom (name, _) :: clauses, _) ->
@@ -184,7 +185,7 @@ let decode_schema (d : Reader.t) : (Schema.t, Errors.t) result =
                   "an arrow is declared inside the (type …) that owns it, not \
                    at schema top"
             | Reader.List (Reader.Atom ("equation", _) :: _, _) ->
-                let* eq = decode_equation c in
+                let* eq = decode_equation ~origin c in
                 go types arrows (eq :: eqs) rest
             | _ -> Reader.err_at c "unknown schema clause")
       in

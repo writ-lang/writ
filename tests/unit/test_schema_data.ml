@@ -65,6 +65,7 @@ let () =
                 ( { Value.root = "case"; steps = [ "investigator" ] },
                   Guard.Chain
                     { Value.root = "case"; steps = [ "investigator" ] } );
+            origin = None;
           };
         ];
     }

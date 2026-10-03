@@ -35,9 +35,11 @@ let is e a v = Model.Is (path e [ a ], Model.Lit v)
 let set e a v = Model.Set (path e [ a ], Model.Lit v)
 
 let named n g effs : Model.transition =
-  { name = Some n; when_ = g; effects = effs }
+  { name = Some n; when_ = g; effects = effs; origin = None }
 
-let anon g effs : Model.transition = { name = None; when_ = g; effects = effs }
+let anon g effs : Model.transition =
+  { name = None; when_ = g; effects = effs; origin = None }
+
 let flip n from_ to_ = named n (is "s" "pos" from_) [ set "s" "pos" to_ ]
 
 let pos_arrow : Schema.arrow =

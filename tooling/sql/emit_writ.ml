@@ -164,7 +164,8 @@ let column_datum (c : column) : string =
         ^ ")"
       else "(" ^ n ^ (if c.nullable then "?" else "") ^ " " ^ c.cname ^ ")"
 
-let emit_schema (b : Buffer.t) (name : string) (db : db) (u : usage) =
+let emit_schema (b : Buffer.t) ~(source : string) (name : string) (db : db)
+    (u : usage) =
   buf_add b ("\n(schema " ^ name ^ "\n");
   buf_add b
     "\n\
@@ -220,9 +221,19 @@ let emit_schema (b : Buffer.t) (name : string) (db : db) (u : usage) =
       \  ;; A CHECK is a claim the world is measured against, not a filter on\n\
       \  ;; it: `writ check` reports not only where a law is broken but WHICH\n\
       \  ;; move can break it.\n";
+    (* Each law carries where it was written, as a provenance pragma the
+       loader reads (docs/bridges.md): a violation then names the CHECK's
+       line in the DDL, not only the law's name in this file. *)
     List.iter
       (fun (t, (n, c)) ->
-        buf_add b ("  (equation " ^ n ^ "\n    " ^ guard t.tname c ^ ")\n"))
+        let line =
+          match List.assoc_opt n t.check_lines with
+          | Some l -> l
+          | None -> t.tline
+        in
+        buf_add b
+          ("  ; writ:origin " ^ source ^ ":" ^ string_of_int line ^ "\n"
+         ^ "  (equation " ^ n ^ "\n    " ^ guard t.tname c ^ ")\n"))
       laws
   end;
   buf_add b ")\n"
@@ -327,7 +338,7 @@ let file ~(name : string) ~(source : string) (db : db) : string * decline list =
       ;;\n\
       ;; What the DDL said and this file does not is on stderr, by line.\n\n");
   emit_forms b u;
-  emit_schema b name db u;
+  emit_schema b ~source name db u;
   emit_instance b name db u;
   buf_add b ("\n(use " ^ name ^ ")\n(initial seed)\n");
   (Buffer.contents b, name_clashes db u)

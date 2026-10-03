@@ -364,6 +364,12 @@ would cost the negative answer.
 pg_dump is the input that matters, so casts, `= ANY (ARRAY[…])`, `ALTER TABLE …
 ADD CONSTRAINT` and dollar-quoted function bodies all read correctly.
 
+Every law the import writes carries a **provenance pragma** — `; writ:origin
+shop.sql:14` on the line above it — which `writ check` echoes beside the law,
+so a violation names the `CHECK`'s line in the DDL. The pragma is a comment
+and the language ignores it; [docs/bridges.md](docs/bridges.md) is the
+contract for writing a bridge of your own, including this one.
+
 Round-tripping is defined on the **model**, not the text — the export
 normalises spellings on purpose — and the two facts SQL cannot state (whether a
 key is ever `UPDATE`d, whether a plain column is wiring) travel as `-- writ:`

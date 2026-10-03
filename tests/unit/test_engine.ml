@@ -38,7 +38,7 @@ let ind a = path "case" [ a; "independence" ] (* total: strict = Kleene *)
 let set e a v = Model.Set (path e [ a ], Model.Lit v)
 
 let tr name g effs : Model.transition =
-  { name = Some name; when_ = g; effects = effs }
+  { name = Some name; when_ = g; effects = effs; origin = None }
 
 let cr a s : Instance.cellref = { arrow = a; src = s }
 let fill a s v = (cr a s, Value.Filled v)
@@ -457,6 +457,7 @@ let anti_schema : Schema.t =
         {
           name = "same-agency";
           body = Guard.Is (ind "investigator", Guard.Chain (ind "prosecutor"));
+          origin = None;
         };
       ];
   }

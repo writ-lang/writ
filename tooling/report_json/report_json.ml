@@ -41,7 +41,12 @@ let route (sp : Space.t) (moves : string list) : Json.t =
   Json.List
     (List.mapi
        (fun i m ->
-         Json.Assoc [ ("move", str m); ("to", opt int (List.nth_opt tos i)) ])
+         Json.Assoc
+           [
+             ("move", str m);
+             ("to", opt int (List.nth_opt tos i));
+             ("origin", opt str (Report.move_origin sp m));
+           ])
        moves)
 
 (* --- §15 build report ------------------------------------------------------ *)
@@ -69,6 +74,7 @@ let laws (sp : Space.t) : Json.t =
          Json.Assoc
            [
              ("name", str l.Observe.name);
+             ("origin", opt str (Report.law_origin sp l.Observe.name));
              ("breakers", strs l.Observe.breakers);
              ( "violated",
                match l.Observe.violation with

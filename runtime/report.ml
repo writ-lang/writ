@@ -55,9 +55,27 @@ let inline_route (route : string list) : string =
   String.concat " "
     (List.mapi (fun i m -> string_of_int (i + 1) ^ ". " ^ m) route)
 
+(* A tool's note of where a move or a law came from, echoed in brackets after
+   it (docs/bridges.md). Absent for anything written by hand. *)
+let origin_tag = function Some o -> "   [" ^ o ^ "]" | None -> ""
+
+let move_origin (sp : Space.t) (mv : string) : string option =
+  List.find_map
+    (fun (t : Model.transition) ->
+      if t.Model.name = Some mv then t.Model.origin else None)
+    sp.Space.transitions
+
+let law_origin (sp : Space.t) (name : string) : string option =
+  List.find_map
+    (fun (e : Schema.equation) ->
+      if e.Schema.name = name then e.Schema.origin else None)
+    sp.Space.ctx.State.schema.Schema.equations
+
 let laws (sp : Space.t) : string =
   let one (l : Observe.law) =
-    let lines = ref [ "equation " ^ l.name ] in
+    let lines =
+      ref [ "equation " ^ l.name ^ origin_tag (law_origin sp l.name) ]
+    in
     (match l.breakers with
     | [] -> ()
     | bs ->
@@ -154,7 +172,11 @@ let witness_block (sp : Space.t) (route : string list) : string =
           else indent ^ string_of_int (i + 1) ^ ". "
         in
         let shown = if landing = None then m else pad m in
-        let line = head ^ shown ^ step_trailer sp prev landing in
+        let line =
+          head ^ shown
+          ^ step_trailer sp prev landing
+          ^ origin_tag (move_origin sp m)
+        in
         let next =
           match landing with Some k -> sp.Space.states.(k) | None -> prev
         in

@@ -40,6 +40,9 @@ type table = {
   columns : column list;
   pk : string list;
   checks : (string * check) list;
+  check_lines : (string * int) list;
+      (** where each CHECK was written, by its writ name: the line `writ sql`
+          echoes as the law's origin, so a violation names the DDL line *)
   comment : string option;
   tline : int;
 }

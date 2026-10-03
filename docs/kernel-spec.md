@@ -1421,6 +1421,14 @@ On any successful build, an interrogator reports:
 - **laws** — for every (move, equation) pair, whether the move *can*
   break the law (guard-and-effect analysis); and every reachable
   situation violating an equation, with a minimal route.
+- **provenance** — a `; writ:origin TEXT` comment on the line above a
+  `transition` or `equation` datum (or above a form invocation, for every
+  move it expands into) attaches TEXT to what the datum declares, and the
+  interrogator echoes it in brackets wherever that move or law is named.
+  A comment is nothing to the language (§5): the model means the same with
+  every pragma deleted. It is how a model generated from a foreign artifact
+  names the source line each step and each law came from
+  ([docs/bridges.md](bridges.md)).
 
 ```
 states: 12   edges: 31

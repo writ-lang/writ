@@ -45,10 +45,12 @@ let env_of_instance (i : Instance.t) : Grammar.env =
       List.map (fun e -> (e, r.Instance.ty)) r.Instance.entities)
     i.Instance.rosters
 
-let collect_decls (datums : Reader.t list) : (decls, Errors.t) result =
+let collect_decls ?(origin : Reader.t -> string option = fun _ -> None)
+    (datums : Reader.t list) : (decls, Errors.t) result =
   let* () = Names.check datums in
   let* schemas =
-    map_r Decl.decode_schema
+    map_r
+      (Decl.decode_schema ~origin)
       (List.filter
          (function
            | Reader.List (Reader.Atom ("schema", _) :: _, _) -> true
@@ -70,7 +72,8 @@ let parse_library (datums : Reader.t list) : (decls, Errors.t) result =
   collect_decls datums
 
 (* [(transition [NAME] (when GUARD) (do EFFECT…))] — NAME optional. *)
-let decode_transition (schema : Schema.t) (env : Grammar.env) (d : Reader.t) :
+let decode_transition ?(origin : Reader.t -> string option = fun _ -> None)
+    (schema : Schema.t) (env : Grammar.env) (d : Reader.t) :
     (Model.transition, Errors.t) result =
   match d with
   | Reader.List (Reader.Atom ("transition", _) :: rest, dp) ->
@@ -114,7 +117,7 @@ let decode_transition (schema : Schema.t) (env : Grammar.env) (d : Reader.t) :
       let effs = match do_clause with Some es -> es | None -> [] in
       let* effects = map_r Grammar.effect effs in
       let* () = iter_r (Grammar.check_effect schema env) effs in
-      Ok { Model.name; when_; effects }
+      Ok { Model.name; when_; effects; origin = origin d }
   | _ -> Reader.err_at d "expected a (transition …)"
 
 (* §10.1: "NAME, if present, fresh." Unlike §8.1 this does *not* cite §7, so the
@@ -165,9 +168,10 @@ let check_instance_names (datums : Reader.t list) : (unit, Errors.t) result =
   in
   go [] datums
 
-let parse_model (datums : Reader.t list) : (Model.t, Errors.t) result =
+let parse_model ?(origin : Reader.t -> string option = fun _ -> None)
+    (datums : Reader.t list) : (Model.t, Errors.t) result =
   let* () = check_instance_names datums in
-  let* decls = collect_decls datums in
+  let* decls = collect_decls ~origin datums in
   let rec classify use_ init trs = function
     | [] -> Ok (use_, init, List.rev trs)
     | d :: rest -> (
@@ -223,5 +227,5 @@ let parse_model (datums : Reader.t list) : (Model.t, Errors.t) result =
   in
   let env = env_of_instance initial in
   let* () = Decl_checks.check_equations_in schema env in
-  let* transitions = map_r (decode_transition schema env) trs in
+  let* transitions = map_r (decode_transition ~origin schema env) trs in
   Ok { Model.schema; initial; transitions }

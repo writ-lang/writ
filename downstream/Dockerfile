@@ -4,8 +4,8 @@
 # WHAT IT IS FOR. The runtime image (../Dockerfile) is a product and runs a
 # smoke check. It cannot tell you that a change to the engine broke a worked
 # scenario in writ-problems, a generator in writ-arch, the CP-SAT audit in
-# writ-scheduling-verification, or the translator in mgtt2writ, because none of
-# them live here. This image is the place where they all meet the writ in your
+# writ-scheduling-verification, the translator in mgtt2writ, or the editor
+# client in writ-vscode, because none of them live here. This image is the place where they all meet the writ in your
 # working tree, uncommitted changes included, before anything is merged.
 #
 #   make downstream                       # from the writ checkout
@@ -22,8 +22,9 @@
 #   engine       OCaml. Builds the whole tree, runs writ's own suites
 #                (`make test`), installs writ, writ-lsp, writ-mcp.
 #   mgtt2writ    OCaml. Builds mgtt2writ and runs its unit suite.
-#   suites       Debian 12 + Python. The binaries from above, d2, CP-SAT, and
-#                a checkout of each downstream repository.
+#   vscode       Node. Checks out writ-vscode and installs its dependencies.
+#   suites       Debian 12 + Python. The binaries from above, node, d2,
+#                CP-SAT, and a checkout of each downstream repository.
 #   check-*      One per suite, each a RUN of downstream/run.sh.
 #   all          Depends on every check-*, and reruns them as its entrypoint.
 #
@@ -43,6 +44,8 @@ ARG OCAML_IMAGE=ocaml/opam:debian-12-ocaml-5.2
 # Debian 12 to match OCAML_IMAGE: the binaries are linked against its glibc.
 # The unsuffixed python:3.12-slim tag has moved on to a newer Debian.
 ARG SUITES_IMAGE=python:3.12-slim-bookworm
+# Debian 12 too, for the same reason: its `node` binary is copied across.
+ARG NODE_IMAGE=node:22-bookworm-slim
 
 # ---- engine: build and test this checkout ----------------------------------
 FROM ${OCAML_IMAGE} AS engine
@@ -83,6 +86,21 @@ RUN git clone -q "$MGTT2WRIT_REPO" mgtt2writ \
  && opam exec -- dune build \
  && opam exec -- dune runtest --force \
  && cp -L _build/default/bin/main.exe /home/opam/mgtt2writ.bin
+
+# ---- vscode: the editor client and its dependencies -------------------------
+# npm runs here and stays here. The suites stage gets the checkout with its
+# node_modules and one file from this image, the `node` binary, because the
+# extension's tests are plain node and need nothing else.
+FROM ${NODE_IMAGE} AS vscode
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+ARG VSCODE_REPO=https://github.com/writ-lang/writ-vscode.git
+ARG VSCODE_REF=main
+WORKDIR /build
+RUN git clone -q "$VSCODE_REPO" writ-vscode \
+ && cd writ-vscode && git checkout -q "$VSCODE_REF" \
+ && git log --oneline -1 \
+ && npm ci --omit=dev --no-audit --no-fund
 
 # ---- suites: the binaries, the tools, the downstream checkouts --------------
 FROM ${SUITES_IMAGE} AS suites
@@ -138,6 +156,9 @@ RUN git clone -q "$SCHEDULING_REPO" writ-scheduling-verification \
 COPY --from=mgtt2writ --chown=runner:runner /home/opam/mgtt2writ/test /downstream/mgtt2writ/test
 COPY --from=mgtt2writ /home/opam/mgtt2writ.bin /usr/local/bin/mgtt2writ
 
+COPY --from=vscode /usr/local/bin/node /usr/local/bin/node
+COPY --from=vscode --chown=runner:runner /build/writ-vscode /downstream/writ-vscode
+
 # writ last: it changes on every edit, and everything above it does not.
 COPY --from=engine /opt/writ/bin/ /usr/local/bin/
 COPY --from=engine /opt/writ/share/writ/lib /usr/local/share/writ/lib
@@ -159,6 +180,9 @@ RUN /downstream/run.sh scheduling && touch /tmp/passed
 FROM suites AS check-mgtt2writ
 RUN /downstream/run.sh mgtt2writ && touch /tmp/passed
 
+FROM suites AS check-vscode
+RUN /downstream/run.sh vscode && touch /tmp/passed
+
 # ---- all: the default target ------------------------------------------------
 # The COPYs are what make every check a dependency of this stage. Under
 # BuildKit, a stage nothing depends on is skipped, so a check that is not
@@ -169,6 +193,7 @@ COPY --from=check-crosscheck /tmp/passed /tmp/passed-crosscheck
 COPY --from=check-arch       /tmp/passed /tmp/passed-arch
 COPY --from=check-scheduling /tmp/passed /tmp/passed-scheduling
 COPY --from=check-mgtt2writ  /tmp/passed /tmp/passed-mgtt2writ
+COPY --from=check-vscode     /tmp/passed /tmp/passed-vscode
 
 ENTRYPOINT ["/downstream/run.sh"]
 CMD ["all"]

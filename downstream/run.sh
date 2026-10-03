@@ -33,7 +33,18 @@ scheduling() { (cd "$root/writ-scheduling-verification" && ./run.sh all); }
 # Exit 77 means "skipped, writ not found", which in this image is a failure.
 mgtt2writ()  { (cd "$root/mgtt2writ" && MGTT2WRIT=mgtt2writ sh test/pipeline.sh); }
 
-suites="problems crosscheck arch scheduling mgtt2writ"
+# The editor client: its own suites, and test/engine.test.js, which drives the
+# real writ-lsp and the `writ` command lines the extension builds. Required
+# here, so a missing server is a failure rather than that test's polite skip.
+# A ref from before that test existed still runs the rest, and says so.
+vscode() {
+  (cd "$root/writ-vscode" || exit 1
+   [ -f test/engine.test.js ] \
+     || echo "  [note] no test/engine.test.js at this ref: the engine is not exercised"
+   WRIT_E2E_REQUIRED=1 scripts/test.sh)
+}
+
+suites="problems crosscheck arch scheduling mgtt2writ vscode"
 
 run_one() {
   printf '\n######## %s ########\n' "$1"

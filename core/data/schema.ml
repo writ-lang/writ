@@ -19,7 +19,9 @@ type ty = { name : string; flavor : flavor; arrows : arrow list }
 (* A law is a guard (§8.6), not a pair of chains. It ranges over one type — its
    guard's single free root, the subject the implicit quantification is about —
    which [Decl] checks at declaration and [Eval] binds at evaluation. *)
-type equation = { name : string; body : Guard.t }
+(* [origin] as on a transition: a tool's note of where the law came from — a
+   `CHECK`'s line in the DDL `writ sql` read, say — echoed beside the law. *)
+type equation = { name : string; body : Guard.t; origin : string option }
 
 type t = {
   name : string;

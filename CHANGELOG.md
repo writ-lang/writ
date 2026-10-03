@@ -5,6 +5,19 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**Provenance pragmas, and the bridge contract.** A `; writ:origin TEXT`
+comment above a `transition` or `equation` — or above a form invocation,
+for every move it expands into — attaches TEXT to what the datum declares,
+and every report echoes it in brackets beside the move or law
+(`[orders.sql:14]`), `--json` as `origin`. A comment is nothing to the
+language; the model means the same with every pragma deleted. `writ sql`
+emits one above every law it reads from a `CHECK`, so a violation names the
+DDL line. **`docs/bridges.md`** is the contract the four existing bridges
+converged on — cut each quantity by the constants the rules mention; decline
+out loud and say which way the loss runs; name every move; reserve the
+names; say where each came from — written down so the fifth bridge starts
+from it. Recommendations Gap #1.
+
 **`regime:` in the build report**, under the size line: `committing — no
 move can be undone`, or `reversible — 36 of 36 situations lie on cycles`.
 Measured from the space's phase partition, not guessed from the syntax; it

@@ -17,6 +17,9 @@ Three conventions hold everywhere:
 - **A vacant cell is `null`.** The prose prints `∅`; the object never does.
 - **Names are the model's.** Moves, cells, properties and rows are spelled
   exactly as the model spells them.
+- **Provenance rides along.** A witness step and an equation carry
+  `origin`: the text of the `; writ:origin …` pragma above the move or law
+  ([bridges.md](bridges.md) §5), or `null`.
 
 ## `writ check MODEL [--claims F] --json`
 

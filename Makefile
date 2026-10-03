@@ -199,9 +199,9 @@ image:
 
 # The downstream regression image: this working tree, uncommitted changes and
 # all, built and tested, then writ-problems, writ-arch,
-# writ-scheduling-verification and mgtt2writ run against it. The build is the
-# test, and it fails on the first suite that does. Pin a repository elsewhere
-# with e.g. PROBLEMS_REF=my-branch; see downstream/Dockerfile for the rest.
+# writ-scheduling-verification, mgtt2writ and writ-vscode run against it. The
+# build is the test, and it fails on the first suite that does. Pin a
+# repository elsewhere with e.g. VSCODE_REF=my-branch; see downstream/Dockerfile.
 # `docker run --rm writ-downstream [SUITE]` reruns the suites without a rebuild.
 downstream:
 	sh downstream/build.sh

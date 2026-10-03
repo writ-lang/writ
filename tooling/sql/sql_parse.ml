@@ -407,7 +407,7 @@ let parse_column ~(tname : string) ~(pragmas : (int * string) list)
 type tcon =
   | Tc_pk of string list
   | Tc_fk of string * string  (** column, referenced table *)
-  | Tc_check of string * check
+  | Tc_check of string * check * int  (** name, body, its line *)
   | Tc_declined of decline
 
 let constraint_leader =
@@ -465,7 +465,7 @@ let parse_constraint ~(tname : string) (ts : tok list) : tcon =
                 | Some n -> n
                 | None -> tname ^ "-check-" ^ string_of_int line
               in
-              Tc_check (n, c)
+              Tc_check (n, c, line)
           | None ->
               dec
                 "CHECK outside the expressible fragment (null-ness, \
@@ -521,6 +521,7 @@ let parse_create_table ~(pragmas : (int * string) list) (st : stmt)
           let items = split_commas inner in
           let cols = ref []
           and checks = ref []
+          and clines = ref []
           and pk = ref []
           and fks = ref []
           and decls = ref [] in
@@ -530,7 +531,9 @@ let parse_create_table ~(pragmas : (int * string) list) (st : stmt)
                 match parse_constraint ~tname item with
                 | Tc_pk cs -> pk := cs
                 | Tc_fk (c, t) -> fks := (c, t) :: !fks
-                | Tc_check (n, c) -> checks := (n, c) :: !checks
+                | Tc_check (n, c, l) ->
+                    checks := (n, c) :: !checks;
+                    clines := (n, l) :: !clines
                 | Tc_declined d -> decls := d :: !decls
               else
                 let r = parse_column ~tname ~pragmas item in
@@ -546,6 +549,11 @@ let parse_create_table ~(pragmas : (int * string) list) (st : stmt)
                     then pk := [ c.cname ]
                 | None -> ());
                 checks := r.ck @ !checks;
+                (match r.col with
+                | Some c ->
+                    clines :=
+                      List.map (fun (n, _) -> (n, c.cline)) r.ck @ !clines
+                | None -> ());
                 decls := List.rev_append r.cdecl !decls)
             items;
           (* attach table-level foreign keys to their columns *)
@@ -573,6 +581,7 @@ let parse_create_table ~(pragmas : (int * string) list) (st : stmt)
                 columns = cols;
                 pk = !pk;
                 checks = List.rev !checks;
+                check_lines = List.rev !clines;
                 comment = None;
                 tline = st.sline;
               }
@@ -663,12 +672,16 @@ let parse_alter_table ~(pragmas : (int * string) list) (st : stmt)
                   db.tables
               in
               { db with tables }
-          | Tc_check (n, c) ->
+          | Tc_check (n, c, l) ->
               let tables =
                 List.map
                   (fun x ->
                     if x.tname = tname then
-                      { x with checks = x.checks @ [ (n, c) ] }
+                      {
+                        x with
+                        checks = x.checks @ [ (n, c) ];
+                        check_lines = x.check_lines @ [ (n, l) ];
+                      }
                     else x)
                   db.tables
               in
