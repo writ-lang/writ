@@ -1425,7 +1425,7 @@ gaps: 1
 dead ends: none
 equation same-agency
   can be broken by: capture-watchdog, restore-watchdog   (acknowledge in claims)
-  violated in 4 reachable situations   witness: 1. capture-watchdog
+  violated in 4 reachable situations   witness: 1. capture-watchdog → #3
 ```
 
 ## 16. Claims files
@@ -1470,7 +1470,11 @@ forms.
   can always still arrive and need never do it — the river, where the farmer
   may row back and forth for ever.
 - A failing property is reported with a **shortest witness** — a route,
-  printed as numbered moves.
+  printed as numbered moves, each with the index of the situation it lands
+  in and the cells it changed (`SRC.ARROW: before → after`, `∅` for a
+  vacant side). A `stuck at:` line leads with that same index. One numbering
+  runs through the whole tool, so a witness can be followed with `writ show
+  --at N` without counting.
 - A holding **`possible`** also carries a witness: the shortest route to a
   satisfying situation — the example the question asked for (Appendix C's
   solvable river prints its crossing). The other three hold with no single
@@ -1496,9 +1500,11 @@ and no restoration for it:*
 
 ```
 holds  conviction-possible
+  "the docket can conclude"
 fails  accountability
-  stuck at: (prosecutions.independence=captured docket.stage=open …)
-  witness:  1. capture-prosecutions
+  "the docket can always still conclude"
+  stuck at: #4 (prosecutions.independence=captured docket.stage=open …)
+  witness:  1. capture-prosecutions   → #4   prosecutions.independence: independent → captured
 ```
 
 *Capture is a trap: one move, and no continuation ever concludes the

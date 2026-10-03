@@ -43,22 +43,26 @@ states: 36   edges: 76
 gaps: none
 dead ends: none
 holds  solvable
-  witness:  1. cross-goat-LR
-            2. cross-empty-RL
-            3. cross-wolf-LR
-            4. cross-goat-RL
-            5. cross-cabbage-LR
-            6. cross-empty-RL
-            7. cross-goat-LR
+  "everything can reach the right bank intact"
+  witness:  1. cross-goat-LR      → #3   farmer.at: left → right, goat.at: left → right
+            2. cross-empty-RL     → #8   farmer.at: right → left
+            3. cross-wolf-LR      → #14   farmer.at: left → right, wolf.at: left → right
+            4. cross-goat-RL      → #22   farmer.at: right → left, goat.at: right → left
+            5. cross-cabbage-LR   → #30   farmer.at: left → right, cabbage.at: left → right
+            6. cross-empty-RL     → #33   farmer.at: right → left
+            7. cross-goat-LR      → #34   farmer.at: left → right, goat.at: left → right
 fails  no-blunders
-  stuck at: (farmer.at=right wolf.at=left goat.at=left cabbage.at=left)
-  witness:  1. cross-empty-LR
+  "from every reachable arrangement, the crossing can still succeed"
+  stuck at: #1 (farmer.at=right wolf.at=left goat.at=left cabbage.at=left)
+  witness:  1. cross-empty-LR   → #1   farmer.at: left → right
 ```
 
 `writ` proves the crossing is possible **and prints one** (a holding `possible`
 shows its solution) — the real safe crossing, right down to bringing the goat
-*back* on move 4. It also finds the blunder: one careless crossing strands a
-predator with its prey, and from there the crossing can never succeed.
+*back* on move 4. Every step says where it lands (`#3` is a situation `writ
+show --at 3` will render) and what it changed, in the model's own words. It
+also finds the blunder: one careless crossing strands a predator with its
+prey, and from there the crossing can never succeed.
 
 **Want to write one?** [The tour](docs/tour.md) goes from a three-line model to
 the whole language in ten runnable steps, and ends in a one-page cheat sheet.

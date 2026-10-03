@@ -33,9 +33,10 @@ states: 51   edges: 87        how big the world turned out to be
 gaps: none                    places the rules declare themselves silent
 dead ends: 3                  situations with no move left, each with a route
 holds  all-finish             true — and the witness route IS the example
-  witness: 1. a-enters …
+  witness: 1. a-enters   → #1   m1.held-by: ∅ → a
+           2. …                 each step: where it lands, what it changed
 fails  never-stuck            false — with the shortest counterexample
-  stuck at: …
+  stuck at: #7 (…)            the index is what `writ_show` / `show --at` take
 ```
 
 **A witness under a holding `possible` is the answer, not evidence for it.** If

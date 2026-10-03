@@ -56,9 +56,14 @@ let laws (sp : Space.t) : string =
     (match l.violation with
     | None -> ()
     | Some (n, route) ->
+        let landing =
+          match List.rev (Route.walk sp route) with
+          | k :: _ -> " → #" ^ string_of_int k
+          | [] -> ""
+        in
         lines :=
           ("  violated in " ^ string_of_int n
-         ^ " reachable situations   witness: " ^ inline_route route)
+         ^ " reachable situations   witness: " ^ inline_route route ^ landing)
           :: !lines);
     String.concat "\n" (List.rev !lines)
   in
@@ -84,19 +89,71 @@ let cells_line (sp : Space.t) (s : State.t) : string =
   in
   "(" ^ String.concat " " (Array.to_list (Array.mapi cell cells)) ^ ")"
 
+(* The situation's index leads, so that `writ show --at N` and `writ query
+   --at N` can be run on what the verdict names without counting a route. *)
 let stuck_line (sp : Space.t) (s : State.t) : string =
-  "  stuck at: " ^ cells_line sp s
+  let idx =
+    match State.M.find_opt s sp.Space.index with
+    | Some i -> "#" ^ string_of_int i ^ " "
+    | None -> ""
+  in
+  "  stuck at: " ^ idx ^ cells_line sp s
 
-(* [  witness:  1. m1] then moves 2..n indented under the first move. *)
-let witness_block (route : string list) : string =
-  match route with
-  | [] -> ""
-  | first :: rest ->
-      let indent = String.make (String.length "  witness:  ") ' ' in
-      String.concat "\n"
-        (("  witness:  1. " ^ first)
-        :: List.mapi (fun i m -> indent ^ string_of_int (i + 2) ^ ". " ^ m) rest
-        )
+(* What one move did, in the model's own words: [SRC.ARROW: before → after],
+   a vacant side as [∅]. The names are the author's, so the line reads in the
+   domain's vocabulary with nothing added by the tool. *)
+let delta_text ((cell, before, after) : string * string option * string option)
+    : string =
+  let v = function None -> "∅" | Some x -> x in
+  cell ^ ": " ^ v before ^ " → " ^ v after
+
+(* A step's trailer: where it lands and what it changed. Empty when the route
+   cannot be replayed, so a witness never says more than the space knows. *)
+let step_trailer (sp : Space.t) (prev : State.t) (landing : int option) : string
+    =
+  match landing with
+  | None -> ""
+  | Some k ->
+      let here = sp.Space.states.(k) in
+      let changes =
+        match Route.deltas sp prev here with
+        | [] -> ""
+        | ds -> "   " ^ String.concat ", " (List.map delta_text ds)
+      in
+      "   → #" ^ string_of_int k ^ changes
+
+(* [  witness:  1. m1   → #3   cell: a → b] then moves 2..n indented under the
+   first. The move name stays first after its number, so a reader — or a
+   script looking for a move by name — finds it where it always was. *)
+let witness_block (sp : Space.t) (route : string list) : string =
+  let landings = Route.walk sp route in
+  let indent = String.make (String.length "  witness:  ") ' ' in
+  (* Moves padded to the longest in the route, so the landings line up and a
+     witness reads as a table rather than a ragged list. *)
+  let width = List.fold_left (fun w m -> max w (String.length m)) 0 route in
+  let pad m = m ^ String.make (width - String.length m) ' ' in
+  let rec lines i prev moves acc =
+    match moves with
+    | [] -> List.rev acc
+    | m :: rest ->
+        let landing = List.nth_opt landings i in
+        let head =
+          if i = 0 then "  witness:  1. "
+          else indent ^ string_of_int (i + 1) ^ ". "
+        in
+        let shown = if landing = None then m else pad m in
+        let line = head ^ shown ^ step_trailer sp prev landing in
+        let next =
+          match landing with Some k -> sp.Space.states.(k) | None -> prev
+        in
+        lines (i + 1) next rest (line :: acc)
+  in
+  String.concat "\n" (lines 0 sp.Space.initial route [])
+
+(* The property's own description, under its verdict: the question as its
+   author wrote it, so a verdict is never read apart from what it answers. *)
+let description_line (prop : Claims.property) : string list =
+  if prop.Claims.text = "" then [] else [ "  \"" ^ prop.Claims.text ^ "\"" ]
 
 let outcome (sp : Space.t) (prop : Claims.property) (oc : Checker.outcome) :
     string =
@@ -110,22 +167,27 @@ let outcome (sp : Space.t) (prop : Claims.property) (oc : Checker.outcome) :
         [ "  assuming fair: " ^ String.concat ", " ms ]
     | _ -> []
   in
+  let described = description_line prop in
   match oc with
   | Checker.Holds route ->
       (* A holding [possible] carries its solution path; show it as the witness
          (spec Appendix C). The other three hold with no route. *)
       String.concat "\n"
-        ((("holds  " ^ prop.name) :: assumed)
-        @ match route with [] -> [] | _ -> [ witness_block route ])
-  | Checker.Not_applicable _ -> "n/a  " ^ prop.name
+        ((("holds  " ^ prop.name) :: described)
+        @ assumed
+        @ match route with [] -> [] | _ -> [ witness_block sp route ])
+  | Checker.Not_applicable _ ->
+      String.concat "\n" (("n/a  " ^ prop.name) :: described)
   | Checker.Fails { route; stuck } ->
-      let parts = ref (List.rev (("fails  " ^ prop.name) :: assumed)) in
+      let parts =
+        ref (List.rev ((("fails  " ^ prop.name) :: described) @ assumed))
+      in
       (match stuck with
       | Some s -> parts := stuck_line sp s :: !parts
       | None -> ());
       (match route with
       | [] -> ()
-      | _ -> parts := witness_block route :: !parts);
+      | _ -> parts := witness_block sp route :: !parts);
       String.concat "\n" (List.rev !parts)
 
 (* --- §16.3 acknowledgments ------------------------------------------------- *)

@@ -188,7 +188,24 @@ let () =
   check "report: failing live shows fails + stuck at + witness"
     (contains ~sub:"fails  acc" s
     && contains ~sub:"stuck at:" s
-    && contains ~sub:"witness:  1. capture" s)
+    && contains ~sub:"witness:  1. capture" s);
+  (* Each step says where it lands and what it changed, in the model's own
+     cell names; the stuck line leads with the same index, so `writ show --at`
+     can be run on either without counting. *)
+  check "report: a witness step carries its landing and its delta"
+    (contains ~sub:"1. capture   → #1   s.pos: safe → captured" s);
+  check "report: stuck at leads with the situation's index"
+    (contains ~sub:"stuck at: #1 (" s);
+  (* A property with a description prints it under the verdict; one without
+     prints nothing extra, so a bare verdict line stays exactly as it was. *)
+  let described =
+    { (prop "acc" Live (is "s" "pos" "safe")) with Claims.text = "stays safe" }
+  in
+  check "report: the description is printed under the verdict"
+    (contains ~sub:"fails  acc\n  \"stays safe\"\n"
+       (Report.outcome sp described oc));
+  check "report: no description, no extra line"
+    (contains ~sub:"fails  acc\n  stuck at:" s)
 
 (* --- inevitable: the gap between "can still" and "cannot avoid" ------------- *)
 

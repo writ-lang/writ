@@ -5,6 +5,15 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**Witnesses say where they land and what they changed.** Each step of a
+witness now carries the index of the situation it lands in and the cells it
+wrote — `1. grant-breakglass-admin   → #2   mallory.role: user → admin` — in
+the model's own vocabulary, which is the domain's; the `stuck at:` line leads
+with the same index, and a law's inline witness ends with its landing. A
+property's description is printed under its verdict. The move name stays
+first after its number, so a script that found a move by name finds it where
+it was; writ-problems' 222 checks and writ-arch's 74 pass unchanged.
+
 **`--json`** on `check`, `query`, `compare`, `show` and `derive`: the same
 answer as one JSON object, rendered from the same engine values as the prose
 by `tooling/report_json/`, so the two cannot drift. A witness carries the

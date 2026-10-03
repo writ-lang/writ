@@ -173,8 +173,10 @@ models.
  3  gaps: none
  4  dead ends: none
  5  holds  lendable
- 6    witness:  1. lend
- 7  holds  always-lendable
+ 6    "the book can go out on loan"
+ 7    witness:  1. lend   → #1   hamlet.status: available → lent
+ 8  holds  always-lendable
+ 9    "from every reachable state, a loan is still possible"
 ```
 
 **No new language words — still 12 of 26.** `property`, `possible` and `live`
@@ -188,7 +190,8 @@ is why one set of questions can be put to many models.
 
 The difference between the three is the point of the tool. A holding
 `possible` prints its route — `1. lend` — because the shortest way to get there
-*is* the answer. `live` is the one that finds traps; it has nothing to report
+*is* the answer; each step says which situation it lands in (`#1`, an index
+`writ show --at 1` renders) and which cells it changed. `live` is the one that finds traps; it has nothing to report
 yet, and will in step 10.
 
 **What each modality wraps is a guard — the language's, not the claims file's.**
@@ -358,7 +361,7 @@ which is what an `equation` is.
  4  dead ends: none
  5  equation borrow-local
  6    can be broken by: lend-ana, lend-ben, return   (acknowledge in claims)
- 7    violated in 1 reachable situations   witness: 1. lend-ben
+ 7    violated in 1 reachable situations   witness: 1. lend-ben → #2
  8  $ echo $?
  9  1
 ```
@@ -411,7 +414,7 @@ Two honest answers. Acknowledge the breakage:
  4  dead ends: none
  5  equation borrow-local
  6    can be broken by: lend-ana, lend-ben, return   (acknowledge in claims)
- 7    violated in 1 reachable situations   witness: 1. lend-ben
+ 7    violated in 1 reachable situations   witness: 1. lend-ben → #2
  8  unadmitted  lend-ana may break borrow-local
  9  unadmitted  return may break borrow-local
 ```
@@ -513,12 +516,14 @@ One more move — withdrawing a book from circulation, with no way back:
  7  equation borrow-local
  8    can be broken by: lend-ana, lend-ben, return   (acknowledge in claims)
  9  holds  lendable
-10    witness:  1. lend-ana
-11  fails  always-lendable
-12    stuck at: (hamlet.status=withdrawn hamlet.holder=∅)
-13    witness:  1. withdraw
-14  local-members  (at state 0)
-15    p = ana
+10    "the book can go out on loan"
+11    witness:  1. lend-ana   → #1   hamlet.status: available → lent, hamlet.holder: ∅ → ana
+12  fails  always-lendable
+13    "from every reachable state, a loan is still possible"
+14    stuck at: #2 (hamlet.status=withdrawn hamlet.holder=∅)
+15    witness:  1. withdraw   → #2   hamlet.status: available → withdrawn
+16  local-members  (at state 0)
+17    p = ana
 ```
 
 **No new language words — 23 of 26, and that is where the tour ends.**
