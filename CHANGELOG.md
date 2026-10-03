@@ -3,7 +3,11 @@
 Versions follow `dune-project`: what opam publishes, `writ --version` prints and
 `make release` names the tarball with.
 
-## Unreleased
+## 0.4.0 — 2026-10-03
+
+**Upgrading:** `writ check` now exits 1 when a property is `n/a`. A pipeline
+that gated on exit 0 while some property was unanswerable will now fail. That
+is the intent, but check your claims files for `n/a` before upgrading.
 
 **An n/a property is a finding.** `writ check` exits 1 when a property is
 `n/a`, as it does when one fails. An edit that deletes what a question asks
