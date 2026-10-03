@@ -3,19 +3,10 @@
 
 open Writ_data
 
-(* The state space, drawn. `writ control` emits the move graph — one node, every
-   transition a self-loop — which says what CAN happen and nothing about where.
-   This is the other picture: the situations, and the moves between them.
-
-   By default it is the PHASE quotient, not the raw space. A phase is a class
-   of mutually reachable situations ([Space.phases]): inside one nothing has
-   been spent, and a step between two can never be walked back. That graph is
-   acyclic by construction, it is what most models are for — which decisions
-   are one-way, where the model ends up — and it stays readable where the raw
-   space does not. The raw space is available on request, under a cap.
-
-   Pure: a [t] is data, and the renderers below are string builders. The CLI
-   decides formats and prints. *)
+(* The state space, drawn: situations and the moves between them (`writ
+   control` draws the move graph instead). By default it is the phase quotient
+   ([Space.phases]), which is acyclic and shows which steps are one-way; the
+   raw space is available under [cap]. Pure: the CLI picks formats and prints. *)
 
 type node = {
   id : int;  (** a phase's representative situation, or a situation *)
@@ -37,8 +28,7 @@ type t = {
 
 let cap = 200
 
-(* Collect, per (src, dst) pair, the DISTINCT move names that cross it, in
-   first-seen order. *)
+(* The distinct move names crossing each (src, dst) pair, first-seen order. *)
 let gather (pairs : (int * int * string) list) : edge list =
   let tbl = Hashtbl.create 64 in
   let order = ref [] in
@@ -148,9 +138,8 @@ let states (sp : Space.t) : t =
     lit_edges = [];
   }
 
-(* Light a route: the nodes it passes through and the edges between them, in
-   whichever picture this is. In the phase picture, consecutive steps inside
-   one phase collapse to the node, and only the crossings light. *)
+(* Light a route's nodes and edges. In the phase picture, steps inside one
+   phase collapse to the node and only the crossings light. *)
 let light (sp : Space.t) (g : t) (route : string list) : t =
   let landings = 0 :: Route.walk sp route in
   let node_of =

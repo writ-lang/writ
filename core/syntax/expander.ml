@@ -3,23 +3,16 @@
 
 open Writ_data
 
-(* One-shot fixpoint expansion, no computation (kernel §0.2, §6). Datums are
-   processed left-to-right: a [(form …)] registers into the running scope (via
-   [Forms.collect]) and is dropped from the output; any other datum is rewritten
-   to a fixpoint by substituting a form invocation's blanks and splicing its one
-   [&rest] through [@BLANK]. Because [Forms.collect] forbade a template from
-   naming itself or a later form, no invocation can introduce a cycle, so the
-   fixpoint always terminates; a large step cap is only a safety net. *)
+(* Form expansion by substitution (kernel §0.2, §6), left to right. It
+   terminates because templates name only earlier forms; [cap] is a safety
+   net. *)
 
 let ( let* ) = Result.bind
 let cap = 100_000
 let is_splice s = String.length s > 1 && s.[0] = '@'
 
-(* A form is nullary when it takes no blanks and no [&rest]. Only a nullary
-   form is invoked as a bare atom, so only a nullary name may expand in atom
-   position; a form WITH blanks is invoked as a list head, so its name occurring
-   as a bare atom is data (e.g. a §7 claim-form's [(property NAME …)] symbol)
-   and is left untouched. *)
+(* Only a nullary form expands as a bare atom; any other form's name as an
+   atom is data and is left alone. *)
 let is_nullary (fd : Forms.form_def) =
   fd.Forms.blanks = [] && fd.Forms.rest = None
 
@@ -50,8 +43,7 @@ let bind (fd : Forms.form_def) (args : Reader.t list) (pos : Errors.pos) :
     | Reader.List (_ :: items, _) -> items
     | Reader.Atom _ | Reader.List ([], _) -> []
   in
-  (* Match one pattern item against one argument, extending [env]. A nested
-     list matches structurally; [&rest] never appears below the top level. *)
+  (* Nested lists match structurally; [&rest] appears only at top level. *)
   let rec match1 env (pat : Reader.t) (arg : Reader.t) =
     match pat with
     | Reader.Atom (a, _) when Forms.is_blank a -> Ok ((a, arg) :: env)
@@ -98,13 +90,9 @@ let rec subst env rest (d : Reader.t) : (Reader.t, Errors.t) result =
   | Reader.Atom (a, p) -> (
       match Reader.split_dots a with
       | [] | [ _ ] -> (
-          (* A bare atom (no dot): the whole atom is the blank key, and its
-             bound datum — atom or list — replaces it. *)
-          match List.assoc_opt a env with
-          | Some v -> Ok v
-          | None -> Ok d)
+          match List.assoc_opt a env with Some v -> Ok v | None -> Ok d)
       | head :: tail -> (
-          (* A dot-path: substitute only its ROOT segment, keeping the rest. *)
+          (* A dotted path: substitute only its root. *)
           match List.assoc_opt head env with
           | None -> Ok d
           | Some (Reader.Atom (e, _)) ->
@@ -134,12 +122,7 @@ let instantiate (fd : Forms.form_def) (args : Reader.t list) (pos : Errors.pos)
   let* env, rest = bind fd args pos in
   map_r (subst env rest) fd.Forms.template
 
-(* [expand_grouped] keeps, for every top-level datum, the datums it became —
-   one for a plain declaration, several for a form invocation, none for a
-   form definition. A tool that attached something to a datum before expansion
-   (a provenance pragma, say) can then attach it to everything the datum
-   produced; the language itself never looks at the grouping. [expand] is the
-   flat view. *)
+(* Each top-level datum with what it expanded into (for provenance). *)
 let expand_grouped ?(open_heads = false) (datums : Reader.t list) :
     ((Reader.t * Reader.t list) list, Errors.t) result =
   let forms = ref [] in

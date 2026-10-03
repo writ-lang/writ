@@ -1,7 +1,5 @@
-; shown.claims — a property that singles out a situation, and the queries it
-; asks to be answered there. On query_rows.writ the watchdog is captured at the
-; initial situation, so `no-capture` fails with an EMPTY route — the violating
-; situation is #0 — and `captured` is answered at exactly that situation.
+; `no-capture` fails at the initial situation (empty route, #0), and
+; `captured` is answered there.
 (property no-capture "no bureau is ever captured"
   (never (some (b bureau) (is b.independence captured)))
   (show captured))

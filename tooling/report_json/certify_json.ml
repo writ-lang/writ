@@ -5,19 +5,9 @@ open Writ_data
 open Writ_runtime
 
 (* The certificate a second checker re-derives writ's answers from
-   (docs/certificates.md is the schema; lean/ is the checker).
-
-   It is the QUESTION and writ's ANSWER, and nothing in between: the model as
-   the kernel sees it (forms expanded, loads spliced, the instance split into
-   wiring and a layout), the questions as guards, and the very object
-   `writ check --json` prints. The state graph is deliberately absent. The
-   model determines it, a checker rebuilds and proves its own, and writ's
-   answer — the counts, the verdicts, every situation a witness names by
-   index — is held to that. Carrying writ's graph as well would add nothing to
-   what can be trusted, and was 83% of the bytes: 43 MB of a 52 MB certificate
-   on a 119 000-situation space, most of it moves that do nothing.
-
-   Pure, like its neighbour [Report_json]: values in, a [Json.t] out. *)
+   (docs/certificates.md; lean/ is the checker): the kernel model, the
+   questions as guards, and the `writ check --json` object. No state graph —
+   the checker rebuilds its own and holds writ's answer to it. *)
 
 let str s = Json.String s
 let strs l = Json.List (List.map str l)
@@ -28,9 +18,8 @@ let rhs = function
   | Model.Lit v -> Json.Assoc [ ("lit", str v) ]
   | Model.Chain p -> Json.Assoc [ ("chain", path p) ]
 
-(* A guard as a tagged list, the kernel's own spelling: [["is", PATH, RHS]],
-   [["some", X, TYPE, G]], and so on. A tag and positional arguments rather
-   than objects, because a guard is a tree and this keeps it readable. *)
+(* A guard as a tagged list in the kernel's spelling: [["is", PATH, RHS]],
+   [["some", X, TYPE, G]], and so on. *)
 let rec guard (g : Model.guard) : Json.t =
   match g with
   | Model.And gs -> Json.List (str "and" :: List.map guard gs)
@@ -47,16 +36,14 @@ let effect = function
 
 let cell = function Value.Filled v -> str v | Value.Vacant -> Json.Null
 
-(* The label [Space.build] gives a move: its name, or [#i] by position. The
-   graph's edges carry this label, so it is how an edge finds its move. *)
+(* The label [Space.build] gives a move — its name, or [#i] by position — and
+   so how an edge finds its move. *)
 let via i (tr : Model.transition) =
   match tr.Model.name with Some n -> n | None -> "#" ^ string_of_int i
 
-(* The kernel model. [members] is every type's extent as [Eval] ranges over it
-   — an enumerated type's values, an open type's roster — which is all `some`
-   and a law's subject need. [fixed] is the wiring exactly as [State.build_ctx]
-   reads it: every fixed arrow at every source, the first valuation that names
-   it, vacant where none does. *)
+(* The kernel model. [members] is each type's extent as [Eval] ranges over it.
+   [fixed] is the wiring as [State.build_ctx] reads it: every fixed arrow at
+   every source, the first valuation naming it, vacant where none does. *)
 let model (sp : Space.t) (m : Model.t) : Json.t =
   let ctx = sp.Space.ctx in
   let inst = m.Model.initial in
@@ -131,9 +118,8 @@ let model (sp : Space.t) (m : Model.t) : Json.t =
              schema.Schema.equations) );
     ]
 
-(* A question, lowered. [applicable] is writ's own n/a test, carried so the
-   checker can say WHICH verdicts it re-derived and which it took on trust: a
-   formula naming structure the schema lacks has no kernel meaning to check. *)
+(* A question, lowered. [applicable] is writ's own n/a test, so the checker
+   can say which verdicts it re-derived and which it took on trust. *)
 let property (sp : Space.t) (p : Claims.property) : Json.t =
   let known =
     List.filter_map
@@ -168,3 +154,50 @@ let certificate ~(version : string) ~(sp : Space.t) ~(model_ : Model.t)
           | Some c -> List.map (property sp) c.Claims.props) );
       ("report", report);
     ]
+
+(* What writ-cert said about a certificate. Both front ends run the checker
+   themselves (I/O) and render the result here so they word it the same. *)
+type verdict =
+  | Certified
+  | Disagrees of string list  (** writ-cert refuted writ: a bug in writ *)
+  | Partial of string list  (** some answers could not be certified *)
+  | Absent  (** no writ-cert to ask *)
+  | Failed of string  (** writ-cert ran and could not read the certificate *)
+
+let starts_with p s =
+  String.length s >= String.length p && String.sub s 0 (String.length p) = p
+
+(* writ-cert's exit status and output, read: 0 certified, 1 refuted, 3 partly
+   certified; 126/127 is the shell saying there was nothing to run. *)
+let verdict_of_run ~(code : int) ~(output : string list) : verdict =
+  let tagged p = List.filter (starts_with p) output in
+  match code with
+  | 0 -> Certified
+  | 1 -> Disagrees (tagged "DISAGREES")
+  | 3 -> Partial (tagged "uncertified")
+  | 126 | 127 -> Absent
+  | _ -> Failed (String.concat " " (List.filter (( <> ) "") output))
+
+let verdict_line : verdict -> string = function
+  | Certified -> "certified: every answer re-derived from the model (writ-cert)"
+  | Disagrees ls ->
+      String.concat "\n"
+        ("NOT CERTIFIED: writ-cert refutes this report — a bug in writ:"
+        :: List.map (fun l -> "  " ^ l) ls)
+  | Partial ls ->
+      String.concat "\n"
+        ("partly certified: writ-cert could not certify:"
+        :: List.map (fun l -> "  " ^ l) ls)
+  | Absent -> "not certified: writ-cert is not installed (docs/certificates.md)"
+  | Failed e -> "not certified: writ-cert failed: " ^ e
+
+let verdict_json : verdict -> Json.t =
+  let obj status ls =
+    Json.Assoc [ ("status", str status); ("lines", strs ls) ]
+  in
+  function
+  | Certified -> obj "certified" []
+  | Disagrees ls -> obj "disagrees" ls
+  | Partial ls -> obj "partial" ls
+  | Absent -> obj "absent" []
+  | Failed e -> obj "failed" [ e ]

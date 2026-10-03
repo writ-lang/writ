@@ -8,17 +8,11 @@
 #   make image     # the runtime image, tagged writ:latest
 #   make downstream  # this checkout against every repository that uses it
 #
-# The worked scenarios and the editor client are their own repositories now —
-# github.com/writ-lang/writ-problems and .../writ-vscode — so there is no target
-# here that runs them; each needs an installed writ, or the image above.
-#
-# Three ways to get a `writ` you can run anywhere:
 #   make install-writ   # this checkout -> ~/.local (plain cp; no opam needed)
 #   make opam-install  # the opam package: `opam install .` (needs a switch)
 #   make release       # a portable tarball: binary + stdlib + install.sh
 #
-# Releasing is a tag, and the version is the ONE line in dune-project that
-# everything else reads. Before tagging:
+# The version is the one line in dune-project. Before tagging a release:
 #   make check-versions          # the files that keep their own copy agree
 #   sh scripts/check-release-tag.sh v0.2.0    # the tag agrees with dune-project
 #
@@ -33,24 +27,10 @@ DUNE = scripts/with-ocaml.sh dune
 build:
 	$(DUNE) build
 
-# The edit loop, in one command. `build` deliberately does NOT touch $(PREFIX)
-# — a build should not install — and that is exactly how the `writ` on PATH
-# comes to be a different program from the one just tested: you rebuild, the
-# suites pass, and then you type at yesterday's binary and read its answer as
-# today's. That failure is silent, which is what makes it expensive; this
-# target exists to be the one worth typing.
-#
-# A symlinked dev install would need no remembering at all. It does not work
-# here, and the reason is worth recording so nobody re-tries it: dune's
-# _build/install/default/bin/writ is ITSELF a symlink into
-# _build/default/tooling/cli/writ.exe, OCaml's Sys.executable_name resolves
-# through it, and the `(load …)` search order looks for the stdlib relative to
-# the binary (design D3, candidate 3) — so `../share/writ/lib` lands inside
-# _build, in a directory dune owns and will clobber. Checked, not assumed.
-#
-# Separate $(MAKE) lines rather than prerequisites: prerequisite order is not
-# guaranteed under -j, and installing a binary whose suites have not run yet is
-# the thing being avoided.
+# Build, test and install in one step, so the `writ` on PATH is the one just
+# tested. A symlinked dev install does not work: the stdlib is found relative to
+# the resolved binary, which lands inside _build. Separate $(MAKE) lines because
+# prerequisite order is not guaranteed under -j.
 dev:
 	$(MAKE) build
 	$(MAKE) test
@@ -59,33 +39,26 @@ dev:
 test:
 	$(DUNE) runtest --force
 
-# Dune already compiles with warnings-as-errors in the dev profile; @fmt adds
-# formatting. Warning 8 (partial-match) failing the build is the point — it is
-# the same mechanism the engine uses to find gaps in a model.
+# The dev profile already makes warnings errors (warning 8, partial match, is how
+# the engine finds gaps); @fmt adds the formatting check.
 lint:
 	$(DUNE) build @fmt
 
 fmt:
 	$(DUNE) build @fmt --auto-promote
 
-# The version is one line in dune-project; writ.opam, the Claude plugin's
-# manifest and the image tag that plugin pulls each keep a hand-written copy,
-# because nothing substitutes into them. This is the check that they still
-# agree — the same one CI runs on every pull request. Needs no toolchain.
+# writ.opam, the Claude plugin's manifest and its image tag keep hand-written
+# copies of the version; this checks they agree with dune-project, as CI does.
 check-versions:
 	sh scripts/check-versions.sh
 
 run:
 	$(DUNE) exec tooling/cli/writ.exe -- $(FILE)
 
-# Install the standalone binary and the .writ libraries under ~/.local, matching
-# the resolver's installed layout (bin/../share/writ/lib). No sudo, no npm, no
-# opam — a plain POSIX cp/mkdir. PREFIX overrides the default ~/.local.
+# Install under PREFIX in the resolver's layout (bin/../share/writ/lib).
 PREFIX ?= $(HOME)/.local
-# writ-cert — the certificate checker every `writ check` hands its answer to
-# (lean/, docs/certificates.md). It is written in Lean, so it is built in the
-# Lean box (lean/Dockerfile, stage `static`) and copied out: a static binary,
-# like the three below. Building it needs docker; nothing else here does.
+# writ-cert, the Lean certificate checker, is built in lean/Dockerfile (stage
+# `static`) and copied out. It is the only thing here that needs docker.
 CERT     ?= 1
 CERT_BIN  = _build/writ-cert/writ-cert
 
@@ -97,23 +70,18 @@ writ-cert-bin:
 	  st=$$?; docker rm "$$id" > /dev/null; exit $$st
 
 install-writ: build
-# The library directory is REPLACED, not merged into: a file dropped from the
-# standard library must disappear on upgrade, or an old copy lingers on the
-# search path and keeps resolving after it has been removed from the project.
+# Replace the library directory, not merge into it, so a file removed from the
+# stdlib does not linger on the search path.
 	rm -rf "$(PREFIX)/share/writ/lib"
 	mkdir -p "$(PREFIX)/bin" "$(PREFIX)/share/writ/lib"
-# All THREE binaries, not just the CLI. The editor client looks for `writ-lsp`
-# on PATH when it is not inside a checkout, and an MCP client is pointed at
-# `writ-mcp` by name — so installing only `writ` leaves both of them with nothing
-# to talk to, which is a confusing way to fail.
+# The editor client and MCP clients find writ-lsp and writ-mcp on PATH by name.
 	for exe in writ writ-lsp writ-mcp; do \
 	  rm -f "$(PREFIX)/bin/$$exe"; \
 	  cp -fL "_build/install/default/bin/$$exe" "$(PREFIX)/bin/$$exe"; \
 	  chmod u+w "$(PREFIX)/bin/$$exe"; \
 	done
 	cp -f core/stdlib/* "$(PREFIX)/share/writ/lib/"
-# writ-cert only if it has been built (`make writ-cert-bin`): this target must
-# not start needing docker. `writ check` says "not certified" without it.
+# writ-cert only if already built, so this target never needs docker.
 	@if [ -x "$(CERT_BIN)" ]; then \
 	  rm -f "$(PREFIX)/bin/writ-cert"; cp -f "$(CERT_BIN)" "$(PREFIX)/bin/writ-cert"; \
 	else echo "note: no writ-cert installed — run \`make writ-cert-bin\` first to certify every check"; fi
@@ -125,43 +93,24 @@ uninstall-writ:
 	rm -rf "$(PREFIX)/share/writ"
 
 # ── Packaging ────────────────────────────────────────────────────────────────
-# `writ` is an opam package (see the (package) stanza in dune-project, from which
-# writ.opam is generated). This installs it into the CURRENT opam switch, which
-# puts `writ` and `writ-lsp` on the switch's PATH and the .writ stdlib in the
-# switch's share/writ/lib — the same layout the resolver expects.
-#
-# Note opam builds from the sources it copies out of the checkout's git HEAD, so
-# COMMIT your changes first (or pass --working-dir) or you will install a stale
-# tree. `opam pin add writ .` then tracks this directory.
+# Installs into the current opam switch. opam builds from git HEAD, so commit
+# first (or pass --working-dir) or you install a stale tree.
 opam-install:
 	scripts/with-ocaml.sh opam install . --yes
 
 opam-uninstall:
 	scripts/with-ocaml.sh opam remove writ --yes
 
-# A portable release: one tarball holding the binary, the language server, the
-# .writ stdlib and an install.sh — enough to install `writ` on a machine with no
-# OCaml, no opam and no network.
+# A tarball with the binaries, the stdlib and install.sh, installable with no
+# OCaml and no network.
 #
 #   make release                 # -> dist/writ-<version>-<os>-<arch>.tar.gz
 #   make release VERSION=1.2.3   # override the label for a one-off build
-#   make release STATIC=0        # dynamically linked (see below)
+#   make release STATIC=0        # dynamically linked (required on macOS)
+#   make release CERT=0          # without writ-cert (built in docker)
 #
-# VERSION comes from dune-project — the same number opam publishes and
-# `writ --version` prints, so a tarball can always be traced to a release. It is
-# read with sed rather than duplicated here, for the usual reason: two copies of
-# a version number are one copy and one lie.
-#
-# STATIC=1 (the default) builds with the `static` profile from dune-project, so
-# the binary carries no libc version floor and runs on any Linux of the same
-# architecture. STATIC=0 links dynamically, which is fine for a machine like the
-# one that built it and REQUIRED on platforms with no static libc (macOS). The
-# recipe prints what the binary actually needs, so the portability claim is
-# checked rather than assumed.
-#
-# CERT=1 (the default) puts writ-cert in the tarball beside writ, so an install
-# from it certifies every check. It is built in docker (`writ-cert-bin`); CERT=0
-# leaves it out — for a macOS build, say, where the Linux binary is no use.
+# STATIC=1 uses the `static` profile from dune-project, so the binary runs on
+# any Linux of the same architecture; the recipe prints what it links against.
 VERSION  ?= $(shell sed -n 's/^(version \(.*\))/\1/p' dune-project)
 STATIC   ?= 1
 RELPROF   = $(if $(filter 0,$(STATIC)),release,static)
@@ -185,9 +134,6 @@ release: $(if $(filter 1,$(CERT)),writ-cert-bin)
 	cp README.md LICENSE CHANGELOG.md "$(DIST)/$(RELNAME)/"
 	tar czf "$(DIST)/$(RELNAME).tar.gz" -C "$(DIST)" "$(RELNAME)"
 	rm -rf "$(DIST)/$(RELNAME)"
-# A checksum beside the tarball, so whoever downloads it can tell they got the
-# bytes that were built. Without one, "verify before you install" is advice
-# nobody can act on.
 	cd "$(DIST)" && sha256sum "$(RELNAME).tar.gz" > "$(RELNAME).tar.gz.sha256"
 	@echo
 	@echo "built $(DIST)/$(RELNAME).tar.gz"
@@ -201,32 +147,16 @@ release: $(if $(filter 1,$(CERT)),writ-cert-bin)
 	      echo "    (dynamic: the target needs a glibc at least as new as this host's)"; \
 	 fi
 
-# The worked scenarios and the VS Code client used to live here, behind
-# `make examples` and `make extension`. Both are repositories of their own now:
-#
-#   github.com/writ-lang/writ-problems   the models, their questions, the runner
-#   github.com/writ-lang/writ-vscode     the editor client
-#
-# Each needs an installed writ rather than this checkout — `make install-writ`, or
-# `opam install .`, puts writ, writ-lsp and writ-mcp on PATH — so neither can be a
-# target here without this repository reaching into another one.
-
-# The runtime image: `writ` and the stdlib on a slim Debian. writ-problems builds
-# FROM it, which is how those scenarios run with nothing installed on the host
-# but Docker. Tagged twice — the version for reproducibility, `latest` because
-# that is what a downstream Dockerfile defaults to.
+# The runtime image; github.com/writ-lang/writ-problems builds FROM writ:latest.
 image:
 	docker build -t writ:$(VERSION) -t writ:latest .
 	@echo
 	@echo "built writ:$(VERSION) (also tagged writ:latest)"
 	@echo "  try it:  docker run --rm writ:latest --version"
 
-# The downstream regression image: this working tree, uncommitted changes and
-# all, built and tested, then writ-problems, writ-arch,
-# writ-scheduling-verification, mgtt2writ and writ-vscode run against it. The
-# build is the test, and it fails on the first suite that does. Pin a
-# repository elsewhere with e.g. VSCODE_REF=my-branch; see downstream/Dockerfile.
-# `docker run --rm writ-downstream [SUITE]` reruns the suites without a rebuild.
+# Builds and tests this working tree (uncommitted changes included), then runs
+# every downstream repository's suite against it. Pin one with e.g.
+# VSCODE_REF=my-branch; see downstream/Dockerfile.
 downstream:
 	sh downstream/build.sh
 

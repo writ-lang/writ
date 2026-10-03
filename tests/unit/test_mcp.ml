@@ -1,27 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* MCP tests (rule 6): [Server.handle] is pure — one JSON message in, at most
-   one out — so the whole protocol surface is driven here with no process, no
-   pipe and no client. The [resolve] is injected, so the tool calls read fixture
-   text from an in-memory map exactly as the binary's disk reader would.
-
-   What is pinned, and why each one is a mistake worth catching:
-
-     1. [initialize] answers with a protocol version and a serverInfo — a client
-        that gets neither hangs waiting for a handshake.
-     2. [notifications/initialized] answers NOTHING. Replying to a notification
-        is a protocol error the client is entitled to complain about, and it is
-        the easiest thing in a dispatch to get wrong by falling through.
-     3. [tools/list] names every tool with an inputSchema, and every tool it
-        names is actually callable — a list that advertises a tool the dispatch
-        does not implement is worse than one that omits it.
-     4. A tool that FAILS answers `isError: true` with the engine's own message,
-        NOT a JSON-RPC error. This is the one that decides whether the server is
-        useful: a JSON-RPC error is handled by the client and the model never
-        sees it, so a parse error would reach the model as silence.
-     5. A tool that does not exist IS a JSON-RPC error, because reading it helps
-        nobody — the client had the list. *)
+(* MCP tests: [Server.handle] is pure, so the protocol is driven with no
+   process. A failing tool must answer `isError: true`, not a JSON-RPC error,
+   which the client hides from the model. *)
 
 open Writ_data
 
@@ -56,8 +38,7 @@ let model_src =
 let claims_src =
   "(property reachable \"hi is reachable\" (possible (is b.f hi)))\n"
 
-(* The same world with the move deleted: `reachable` becomes unreachable,
-   which is what a revision check must call LOST. *)
+(* The same world without the move. *)
 let stuck_src =
   "(schema tiny\n\
   \  (type flag (lo hi))\n\
@@ -166,9 +147,7 @@ let () =
          && Json.member "description" t <> None
          && Json.member "inputSchema" t <> None)
        tools);
-  (* The list is a promise. Calling each advertised tool with no arguments must
-     not come back "no such tool" — a missing argument is fine, a missing
-     implementation is not. *)
+  (* No arguments may give a missing-argument error, never "no such tool". *)
   check "tools/list: every tool it advertises is implemented"
     (List.for_all
        (fun t ->
@@ -176,7 +155,6 @@ let () =
          | None -> false
          | Some n ->
              let j = handle (call n []) in
-             (* a protocol error would mean the dispatch does not know it *)
              Option.bind j (Json.member "error") = None)
        tools)
 
@@ -206,7 +184,6 @@ let () =
   let r =
     result (handle (call "writ_check" [ ("model", Json.String "absent.writ") ]))
   in
-  (* The point of the whole design: the model must SEE this. *)
   check "a failing tool answers isError, not a JSON-RPC error" (is_error r);
   check "and carries the engine's own message"
     (contains ~sub:"absent.writ" (content r))
@@ -311,8 +288,7 @@ let () =
   check "revision: in JSON it is the compare object"
     (contains ~sub:"\"revision\":{" (content r3)
     && contains ~sub:"nothing lost" (content r3) = false);
-  (* pinned: the claims path is taken by basename under the pinned directory,
-     and the reply says which file was read *)
+  (* pinned: the claims path is taken by basename under the pinned directory *)
   let r =
     tool ~pinned:(Some "the-humans") "writ_check"
       [

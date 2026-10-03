@@ -1,23 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The help text.
-
-   It is DATA — one record per verb — rather than one string constant, because
-   there are now two renderings of the same knowledge: `writ --help`, the whole
-   reference, and `writ VERB --help`, one verb of it. Two hand-kept copies would
-   be two copies, and the one that drifts is always the one nobody reads to the
-   end. So a verb is described once, and both renderings are assembled from the
-   same list.
-
-   It is also why per-verb help is not a feature of `sql` alone. One verb
-   answering --help while six do not is a CLI that has to be learnt twice; the
-   cost of doing it uniformly, once the text is structured, is a fold.
-
-   This module is IO-free (no print here; writ.ml prints it), so it crosses no
-   layer or io-only gate. [Writ.usage] is DERIVED from the list below, so the
-   one thing left to keep in step is the argument dispatch itself — a verb
-   added here and not there answers --help and nothing else. *)
+(* The help text, as one record per verb, from which both `writ --help` and
+   `writ VERB --help` (and [Writ.usage]) are rendered. IO-free; [Writ] prints.
+   A new verb must also be added to the dispatch in [Writ]. *)
 
 type verb = {
   name : string;
@@ -382,9 +368,7 @@ let exit_status =
       guarantee lost in a comparison; or, with --strict, a declined construct
   2   unreadable input — a missing file, a parse error, or a bad command line|}
 
-(* One verb, for `writ VERB --help`: everything about it and nothing about the
-   others. The body sits at indent 2 here and at 11 in the full reference —
-   which is the whole reason it is stored unindented. *)
+(* `writ VERB --help`. The body is indented 2 here and 11 in the full text. *)
 let for_verb (name : string) : string option =
   match List.find_opt (fun v -> v.name = name) verbs with
   | None -> None
@@ -434,8 +418,7 @@ COMMANDS
 |}
   ^ String.concat "\n\n" (List.map command_entry verbs)
   ^ "\n\nOPTIONS\n"
-  (* grouped by verb, in the COMMANDS block's own column, so the global list
-     says which verb each flag belongs to without anyone writing it down *)
+  (* grouped by verb, in the COMMANDS column *)
   ^ String.concat "\n"
       (List.concat_map
          (fun v ->

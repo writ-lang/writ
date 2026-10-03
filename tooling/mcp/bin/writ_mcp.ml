@@ -1,25 +1,14 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The MCP server as a process: the only module in [mcp/] that touches a file
-   descriptor, and the only one allowed to.
+(* The MCP server process: the only module in [mcp/] that does I/O.
 
-   FRAMING IS NOT THE LSP'S. MCP's stdio transport is newline-delimited JSON —
-   one message per line, and a message may not contain an embedded newline.
-   There is no [Content-Length] header. Getting this wrong is not a subtle bug:
-   the client reads a header that never arrives and the session hangs with no
-   message on either side. [Json.to_string] emits no newlines, so one write per
-   message is one line.
+   MCP's stdio transport is newline-delimited JSON, one message per line, with
+   no [Content-Length] header (unlike LSP). [Json.to_string] emits no newlines.
 
-   NOTHING BUT PROTOCOL LINES IS EVER WRITTEN TO STDOUT. A stray line of
-   debugging is a message the client cannot parse. Diagnostics, if there were
-   any, would go to stderr — which is why every module below this one returns
-   values and this file has no reporting in it.
+   Stdout is the protocol stream: nothing else may be written to it.
 
-   The [resolve] callback is built HERE, over the same [Writ_loadpath] search
-   order (design D3) the `writ` command line and the language server share: a
-   model that passes on the command line must not fail here because a library
-   was looked for somewhere else. *)
+   Loads use the same [Writ_loadpath] search order (D3) as the CLI and LSP. *)
 
 open Writ_loadpath
 
@@ -32,6 +21,36 @@ let read_file path =
       close_in ic;
       Some s
 
+(* Runs writ-cert as `writ check` does (tooling/cli/certifier.ml). Its output
+   goes to a temp file, since stdout is the protocol stream. *)
+let certify (cert : Json.t) : Certify_json.verdict =
+  let checker =
+    match Sys.getenv_opt "WRIT_CERT" with
+    | Some p when p <> "" -> p
+    | _ ->
+        let beside =
+          Filename.concat (Filename.dirname Sys.executable_name) "writ-cert"
+        in
+        if Sys.file_exists beside then beside else "writ-cert"
+  in
+  let file = Filename.temp_file "writ-mcp-" ".cert.json" in
+  let out = Filename.temp_file "writ-cert-" ".txt" in
+  let oc = open_out_bin file in
+  output_string oc (Json.to_string cert);
+  close_out oc;
+  let code =
+    Sys.command
+      (Filename.quote checker ^ " " ^ Filename.quote file ^ " > "
+     ^ Filename.quote out ^ " 2>&1 < /dev/null")
+  in
+  let output =
+    match read_file out with
+    | Some s -> String.split_on_char '\n' s
+    | None -> []
+  in
+  List.iter (fun f -> try Sys.remove f with Sys_error _ -> ()) [ file; out ];
+  Certify_json.verdict_of_run ~code ~output
+
 (* A resolver for one including file: the search order, read from disk. *)
 let resolve_for (base : string) : Writ_syntax.Loader.resolve =
  fun name ->
@@ -42,12 +61,9 @@ let resolve_for (base : string) : Writ_syntax.Loader.resolve =
   in
   first (Load_path.candidates ~base name)
 
-(* One line in, at most one line out. A line that is not JSON gets a JSON-RPC
-   parse error rather than silence: a client that sent something malformed is
-   entitled to be told, and a server that answers nothing looks hung. *)
 (* `writ-mcp [--claims-dir DIR]`. With DIR, every claims file is read from
-   there by its basename, whatever path a tool call names: the questions are
-   the human's, and the agent editing the model cannot also edit them. *)
+   there by basename, whatever path a tool call names, so the agent editing the
+   model cannot also edit its questions. *)
 let pinned =
   match Array.to_list Sys.argv with
   | [ _ ] -> None
@@ -56,6 +72,8 @@ let pinned =
       prerr_endline "usage: writ-mcp [--claims-dir DIR]";
       exit 2
 
+(* One line in, at most one line out; a line that is not JSON gets a JSON-RPC
+   parse error rather than silence. *)
 let respond line =
   match Json_parse.parse line with
   | Error e ->
@@ -72,7 +90,7 @@ let respond line =
                  ] );
            ])
   | Ok msg ->
-      Writ_mcp.Server.handle ~resolve:resolve_for ~pinned
+      Writ_mcp.Server.handle ~resolve:resolve_for ~pinned ~certify
         ~version:Writ_mcp.Version.v msg
 
 let () =

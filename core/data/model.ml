@@ -5,10 +5,8 @@
    transition is one edge of the dynamics functor — a guard (its domain of
    definition) and the effects (the mapping). *)
 
-(* [guard] and [rhs] live in [Guard] now, because [Schema.equation] holds one
-   too and [Schema] is below this module. Re-exported here with their
-   constructors so [Model.Is], [Model.And] and the rest keep meaning what they
-   did — the type moved, the vocabulary did not. *)
+(* Re-exported from [Guard] (which sits below [Schema]) so [Model.Is] and the
+   other constructors resolve here. *)
 type rhs = Guard.rhs = Lit of string | Chain of Value.path
 
 type guard = Guard.t =
@@ -19,17 +17,12 @@ type guard = Guard.t =
   | Defined of Value.path
   | Some_ of string * string * guard
 
-(* [Set] carries the same [rhs] a guard's [Is] does: a literal, or a CHAIN read
-   in the situation the move started from (§10.3). The symmetry is the point —
-   a reader who has learnt [(is a.x b.y)] writes [(set a.x b.y)] and is not
-   refused — and it is what lets a value be MOVED rather than only assigned by
-   name, so a ladder no longer needs one transition per destination. *)
+(* [Set] takes the same [rhs] as [Is]; a chain is read in the situation the
+   move started from (§10.3). *)
 type effect = Set of Value.path * rhs | Vacate of Value.path | Gap of string
 
-(* [origin] is where the move came from, when a tool said: the text of a
-   `; writ:origin …` pragma above its datum (docs/bridges.md). The language
-   gives it no meaning; a report echoes it beside the move, so a witness
-   through a generated model names the source line that produced each step. *)
+(* [origin]: a `; writ:origin …` pragma's text (docs/bridges.md), echoed in
+   reports and otherwise meaningless. *)
 type transition = {
   name : string option;
   when_ : guard;

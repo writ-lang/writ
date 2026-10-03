@@ -5,15 +5,11 @@ open Writ_data
 open Writ_runtime
 
 (* Every answer the tool prints, as one JSON value (docs/json.md is the
-   schema). Pure: values in, a [Json.t] out, and the caller prints it. The
-   prose in [Report] stays the default and is not derived from this — the two
-   are two renderings of the same engine values, which is what keeps the JSON
-   from being a parse of the prose.
+   schema). The prose in [Report] is a separate rendering of the same engine
+   values, so the JSON is never a parse of the prose.
 
-   Two decisions worth knowing. A route carries the situation each move LANDS
-   in ([to]), recovered by [Route.walk], so a witness can be followed with
-   `writ show --at N` without counting; and a vacant cell is [null], never the
-   string "∅", so a consumer never has to know the prose's sigil. *)
+   A route step carries the situation it lands in ([to]), so a witness can be
+   followed with `writ show --at N`; a vacant cell is [null], not "∅". *)
 
 let str s = Json.String s
 let int i = Json.Int i
@@ -174,8 +170,8 @@ let fibers (sp : Space.t) (fs : (Fiber.fiber * Checker.outcome) list) : Json.t =
 
 let ack (tr, eq) = Json.Assoc [ ("move", str tr); ("law", str eq) ]
 
-(* The whole of `writ check`, in the order the prose prints it. [exit] is in
-   the object because a consumer reading a pipe has no exit status to read. *)
+(* The whole of `writ check`, in prose order. [exit] is included for consumers
+   reading a pipe. *)
 let check ~(queries : Claims.query list) ~(sp : Space.t)
     ~(unadmitted : (string * string) list) ~(stale : (string * string) list)
     ~(props : (Claims.property * Checker.outcome) list)
@@ -317,9 +313,8 @@ let derive_rows (t : Derive_table.t) (rel : string) (tuples : int array list) :
           (List.map (fun tup -> strs (Derive_answers.row t rel tup)) tuples) );
     ]
 
-(* A derivation tree, in the same three leaf kinds [Report_derive] prints: a
-   fact (with premises where it has a derivation), a ground guard, and a
-   completed-stratum absence. *)
+(* A derivation tree with [Report_derive]'s three leaf kinds: a fact, a ground
+   guard, and a completed-stratum absence. *)
 let rec why_node (t : Derive_table.t) (id : Rules.fact_id) : Json.t =
   let fact =
     match Derive_answers.fact t id with

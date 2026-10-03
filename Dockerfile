@@ -1,60 +1,20 @@
-# The writ runtime image: `writ`, the standard library, and git.
-#
-# WHAT IT IS FOR, since a Dockerfile in a compiler repository is a fair thing to
-# ask about. It is this repository's distributable — `make image` tags it
-# locally and .github/workflows/image-publish.yml publishes it as
-# ghcr.io/writ-lang/writ on a version tag. github.com/writ-lang/writ-problems
-# builds FROM it, which is how the worked scenarios run with nothing installed
-# on the host but Docker. It is a product, not a test rig.
-#
-# It used to BE a test rig — it copied the examples in and ran them as its
-# entrypoint. They live in their own repository now, so this ships the tool and
-# nothing else, and its smoke check uses a model written inline below rather
-# than a file that could move again.
-#
-# Two stages: stage 1 compiles with dune; stage 2 is a minimal Debian carrying
-# the result. The stdlib lands at ../share/writ/lib relative to the binary, which
-# is where the resolver looks, so `(load "stdlib.writ")` works from any
-# directory.
-#
-# It carries `writ` and `writ-mcp`, and NOT writ-lsp.
-#
-# writ-mcp is here so the Claude plugin can run the server in a container and
-# never put native code on the host — the platform problem that stopped the
-# plugin bundling a binary. It reads models from a mount; see plugins/writ/bin/.
-#
-# writ-lsp stays out because an editor extension spawns its server locally and
-# gains nothing from a container.
-#
-# Stage 1 lists every library each binary links, and that list is still the
-# check that they are a small closed set — it is simply a longer list now than
-# when only the CLI shipped.
+# The writ runtime image: `writ`, `writ-mcp`, the standard library, and git.
+# Published as ghcr.io/writ-lang/writ; writ-problems builds FROM it. writ-mcp is
+# here so the Claude plugin can run it in a container (see plugins/writ/bin/);
+# writ-lsp is not, because editors spawn their server locally.
 
 # ---- stage 1: build ---------------------------------------------------------
 FROM ocaml/opam:debian-12-ocaml-5.2 AS build
 
-# The build directory has to be MADE for the opam user. `WORKDIR` creates a
-# missing directory as root whatever the image's USER is, and this image runs
-# as `opam` — so dune's first act, mkdir _build, failed with EACCES. Copying
-# files in with --chown does not help: the files were fine, the directory
-# holding them was not. It stayed hidden for as long as the layer stayed
-# cached, which is how a broken Dockerfile usually hides.
+# WORKDIR would create /src as root, and dune (running as opam) could not
+# create _build in it.
 USER root
 RUN mkdir -p /src && chown opam:opam /src
 USER opam
 WORKDIR /src
-# Only what the two executables need — the three engine libraries under core/
-# and runtime/, the shared bridges (load path, JSON, SQL), plus the CLI and the
-# MCP server themselves. Every library either binary links must be COPYed or the
-# build stops here, by design: this list is the check that they really are a
-# small closed set of libraries. No tooling/lsp, tests/ (keeps the build lean
-# and free of ocamlformat/test deps). writ has NO external libraries. The stdlib
-# .writ data ships beside the binary.
-#
-# The failure mode this list has, and the reason to read the dune files rather
-# than this comment when adding a verb: a library added to tooling/cli/dune and
-# not added here builds everywhere except in the image, and the image is what
-# ships. `writ_sql` did exactly that.
+# Every library either binary links must be COPYed here. A library added to
+# tooling/cli/dune but not here builds everywhere except in the image, which is
+# what ships — check the dune files when adding one.
 COPY --chown=opam:opam dune-project ./
 COPY --chown=opam:opam core ./core
 COPY --chown=opam:opam runtime ./runtime
@@ -72,13 +32,9 @@ RUN opam install -y dune \
  && cp core/stdlib/* /tmp/out/share/writ/lib/
 
 # ---- stage 1b: the certificate checker --------------------------------------
-# writ-cert (lean/): the checker `writ check` hands every certificate to. It
-# ships IN the image so that a certified answer is what `docker run writ check`
-# gives by default — a checker that has to be installed separately is a
-# checker nobody runs. Built with the toolchain lean/Dockerfile pins, written
-# out instruction for instruction so the two share cached layers; building
-# writ-cert also re-checks every proof it rests on. Only the binary leaves this
-# stage, statically linked like everything else writ ships.
+# writ-cert ships in the image so `docker run writ check` is certified by
+# default. Written to match lean/Dockerfile instruction for instruction, so the
+# two share cached layers.
 FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS lean
 
 ARG ELAN_VERSION=v4.2.4
@@ -114,10 +70,7 @@ RUN LEAN_CC=/w/scripts/static-cc.sh lake build writ-cert \
 # ---- stage 2: runtime -------------------------------------------------------
 FROM debian:12-slim
 
-# git is a RUNTIME dependency of the tool, not of anyone's tests. `writ compare
-# --git R1 R2 MODEL` shells out to read two revisions of a model
-# (tooling/cli/cmd_compare.ml), so an image without git ships a verb that
-# cannot work. Nothing else writ does needs anything.
+# git is a runtime dependency: `writ compare --git` shells out to it.
 RUN apt-get update && apt-get install -y --no-install-recommends git \
  && rm -rf /var/lib/apt/lists/*
 
@@ -125,19 +78,9 @@ COPY --from=build /tmp/out/bin/ /usr/local/bin/
 COPY --from=build /tmp/out/share/writ/lib /usr/local/share/writ/lib
 COPY --from=lean /writ-cert /usr/local/bin/writ-cert
 
-# Prove the image is wired before anyone uses it: a model written HERE, so the
-# check depends on nothing that could be removed from somewhere else. It also
-# exercises the load path — `(load "stdlib.writ")` must resolve from a directory
-# that is not the install prefix — and it does that TWICE, once for a model and
-# once for a .rules file, because the two libraries ship by the same copy and a
-# glob narrowed back to *.writ would drop the second silently.
-#
-# git is checked HERE rather than after a `docker push`, because git missing is
-# a property of the image and not of the registry: `writ compare --git` shells
-# out to it, so an image without it ships a verb that cannot run. Checked at
-# this line it is checked by every build there is — `make image`, the pull
-# request job, and the publish — instead of only by the one workflow that used
-# to run it afterwards.
+# Smoke test on a model written inline. It loads from a directory outside the
+# install prefix, once for a .writ and once for a .rules library, since both
+# ship by the same copy. Checking git here covers every build, not just publish.
 RUN printf '%s\n' \
       '(load "stdlib.writ")' \
       '(schema s (type v (lo hi)) (type box (arrow f (to v))))' \

@@ -1,14 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Rules checking tests (TRC): [Rules_check], extension §2, §4 and §5 — the
-   read-time rejections that are not sort inference (those are TRS).
-
-   [Rules_check.check] is the only constructor of a [Rules.program], so this is
-   the gate everything downstream trusts. Every program here is a string
-   literal, so a case is read where it is asserted; the .rules FILES under
-   tests/unit/fixtures/ — the same ones the run's fitness gates drive through
-   the CLI — are exercised next door, in test_rules_fixtures.ml. *)
+(* Rules checking: [Rules_check]'s read-time rejections (extension §2, §4,
+   §5) other than sort inference. *)
 
 open Writ_data
 open Writ_syntax
@@ -51,8 +45,7 @@ let org =
      (transition speak (when (is nabu.stands quiet)) (do (set nabu.stands \
      vocal)))"
 
-(* The shape of writ-problems' access: a mutable [role] under a [some] binder,
-   which is the formula §8's oracle needs to be able to write. *)
+(* writ-problems' access shape: a mutable [role] under a [some] binder. *)
 let acc =
   model_of
     "(schema acc (type role-t (admin user)) (type account (arrow role (to \
@@ -100,9 +93,8 @@ let () =
 
 (* --- stratification (§5) --------------------------------------------------- *)
 
-(* The blame lands on ONE [(not …)] and names the WHOLE cycle: several negative
-   links may lie on it, and removing any one of them fixes it, so the message
-   must not present the site it points at as the only repair. *)
+(* Blamed at one [(not …)] but naming the whole cycle: removing any negative
+   link fixes it. *)
 let () =
   match
     run org
@@ -120,7 +112,6 @@ let () =
       check "negation cycle does not claim one site is the fix"
         (contains_sub ~sub:"removing any one of them" e.Errors.msg)
 
-(* Recursion WITHOUT negation is the point of the engine, and must survive. *)
 let () =
   accepted "transitive closure is stratified" org
     "(relation subordinate 2)\n\
@@ -136,14 +127,11 @@ let () =
   rejected "an unbound head variable" org
     "(relation r (person person))\n(relation q (person))\n(rule (r X Y) (q X))"
     ~line:3 ~col:12 ~sub:"is in the head but is not bound by the body";
-  (* Written order governs CONJUNCTS too: only the second conjunct would bind
-     [X], and the first already needs it. *)
+  (* Written order governs conjuncts. *)
   rejected "a conjunct that needs what a later conjunct would bind" org
     "(relation p (person person))\n\
      (rule (p X Y) (and (not (is X.reports-to mid)) (is X.reports-to Y)))"
     ~line:2 ~col:29 ~sub:"not bound by any earlier literal";
-  (* Reordered, the same two conjuncts are fine — which is what makes the
-     rejection actionable rather than a wall. *)
   accepted "the same conjuncts, reordered" org
     "(relation p (person person))\n\
      (rule (p X Y) (and (is X.reports-to Y) (not (is X.reports-to mid))))";
@@ -152,10 +140,8 @@ let () =
     "(relation p (Situation))\n(rule (p S) (holds S (is nabu.reports-to mid)))"
     ~line:2 ~col:20 ~sub:"not bound by any earlier literal"
 
-(* [(holds S (is X.a Y))] with X bound IS a binding literal for Y — the thing
-   that makes §2's reversal usable rather than notional. [Y] is put in the HEAD
-   so that only the [holds] literal can possibly bind it, and the same rule with
-   that literal removed is the control. *)
+(* With X bound, [(holds S (is X.a Y))] binds Y (§2's reversal); the same rule
+   without it is the control. *)
 let () =
   accepted "holds binds through its guard" org
     "(relation p (Situation person stance))\n\
@@ -174,7 +160,6 @@ let () =
   | Error e ->
       check "a bare mutable arrow is blamed at the path, 2:17"
         (e.Errors.pos = Some { Errors.file = None; line = 2; col = 17 });
-      (* The fix has to be named, or the message is a dead end. *)
       check "and the message names the fix that exists"
         (contains_sub ~sub:"holds" e.Errors.msg)
 
@@ -192,9 +177,8 @@ let () =
      (rule (p S) (situation S) (holds S (is nabu.stands loud)))"
     ~line:2 ~col:52 ~sub:"not in codomain `stance`"
 
-(* A constant does not seed a sort, but once its column has one it is checked
-   against it: a constant that cannot inhabit its column names a row that can
-   never exist, and the silence would otherwise read as an answer. *)
+(* A constant that cannot inhabit its column names a row that can never
+   exist. *)
 let () =
   rejected "a constant outside its entity column" org
     "(relation p (person))\n(rule (p bogus) (situation S))" ~line:2 ~col:10
@@ -205,11 +189,7 @@ let () =
   accepted "a situation index is a bare non-negative integer" org
     "(relation p (Situation))\n(rule (p 0) (init S))"
 
-(* A BUILT-IN's columns are sorted by §3 itself, per position, with no fixpoint
-   to wait for — so they are the sharpest-sorted positions in the language and
-   the easiest place to hide a typo. One case per built-in, because the sorts
-   are a table and a table is exactly the thing that acquires a hole: the whole
-   family went unchecked while the user-relation cases above passed. *)
+(* Built-in columns are sorted by §3; one case per built-in. *)
 let () =
   rejected "a non-index constant in situation's column" org
     "(relation p (Situation))\n(rule (p S) (situation S) (situation nabu))"
@@ -233,17 +213,12 @@ let () =
      (rule (p S) (situation S) (holds nabu (is nabu.stands quiet)))"
     ~line:2 ~col:34
     ~sub:"is not a situation, which is what column 1 of built-in `holds`";
-  (* The control: the same built-ins with constants that DO inhabit their
-     columns. G is not one of them — it is a non-term position (§3), so the
-     entity name inside it is checked as a guard path, not as a column. *)
+  (* G is a non-term position (§3), checked as a guard path. *)
   accepted "constants that inhabit their built-in columns" org
     "(relation p (Situation))\n\
      (rule (p S) (edge speak 0 S) (holds 0 (is nabu.stands quiet)))"
 
-(* A kernel [some] binder is not a rule variable: it is bound by the
-   quantifier and scoped to its own guard body, so §4's "must already be bound"
-   does not reach it. Without that reading this formula — the one at
-   writ-problems access/access.claims:13 — would be rejected. *)
+(* A kernel [some] binder is scoped to its guard body, outside §4's rule. *)
 let () =
   accepted "a some binder under a negation inside holds" acc
     "(relation quiet-day (Situation))\n\

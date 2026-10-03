@@ -1,15 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The law-as-guard change, end to end: a chain may appear on the right of
-   [is] (§10.2), and an [equation] holds a guard rather than only [(= A B)]
-   (§8.6), which is what lets `=` leave the kernel for the standard library.
-
-   Same shape as test_names.ml, from which the helpers are borrowed: a source
-   string, the real reader / expander / parser, and the exact line:col of a
-   rejection. Its own suite because the 300-line cap leaves no room in
-   test_syntax.ml, and because these cases are one change rather than a
-   scattering. *)
+(* Law as guard: a chain on the right of [is] (§10.2), and a guard as an
+   [equation]'s body (§8.6). *)
 
 open Writ_data
 open Writ_syntax
@@ -49,9 +42,7 @@ let accepts name src =
   | Ok _ -> check name true
   | Error e -> check (name ^ " — rejected: " ^ Errors.to_string e) false
 
-(* Two people and one case wired to both, so a comparison between the two
-   arrows has something to compare. [approver] is mutable so a move can write
-   it; [preparer] is wiring. *)
+(* [approver] is mutable; [preparer] is wiring. *)
 let office body =
   "(schema office\n\
   \   (type person)\n\
@@ -72,24 +63,17 @@ let () =
     (office
        "(transition t (when (is c.approver c.preparer)) (do (set c.stage \
         closed)))");
-  (* The literal reading is what every guard written before this used, and it
-     is decided lexically: [ann] has no dot, so it is still a literal. *)
+  (* Decided lexically: [ann] has no dot, so it is a literal. *)
   accepts "a literal right side still reads as a literal"
     (office
        "(transition t (when (is c.approver ann)) (do (set c.stage closed)))");
-  (* Comparing cells of different types is not a guard that is merely never
-     true — it is an error, or the author gets a move that silently never
-     fires. *)
   rejects "two chains must land in one type"
     (office
        "(transition t (when (is c.approver c.stage)) (do (set c.stage closed)))")
     ~sub:"comparing two chains needs a single target type"
 
-(* Strictness, both sides. §10.2 says a chain "has an answer and it equals V";
-   with a chain on the right that has to hold of the right too, or `is` would
-   quietly acquire `=`'s Kleene reading and the two would stop being distinct.
-   With [approver] vacant, the comparison is FALSE, so the move is not enabled
-   and the space stays at one situation. *)
+(* A chain on the right is strict, unlike `=`: with [approver] vacant the move
+   is not enabled. *)
 let () =
   let src =
     "(schema office\n\
@@ -114,10 +98,7 @@ let () =
 
 (* --- §8.6: an equation holds a guard ------------------------------------- *)
 
-(* The law that motivated the change: separation of duty, unwritable before
-   because the language had no way to say two cells differ. It is a LAW, not a
-   rule, which is the whole point — §15 analyses it for breakage and §16.3 lets
-   the breakage be acknowledged. *)
+(* Separation of duty, as a law: §15 analyses it for breakage. *)
 let () =
   accepts "a law may be any guard, including a difference"
     "(form (differ A B) (not (is A B)))\n\
@@ -130,8 +111,6 @@ let () =
      (instance i office  (person ann bob) (case c (preparer ann) (approver \
      bob)) )\n\
      (use office) (initial i)";
-  (* The stdlib spelling of the kernel word that left: Kleene equality out of
-     strict primitives. The spec's own §4 law, unchanged, must still decode. *)
   accepts "`=` as a form still reads the spec's own law"
     "(form (= A B) (not (and (defined A) (defined B) (not (is A B)))))\n\
      (schema oversight\n\
@@ -147,9 +126,7 @@ let () =
      (investigator watchdog) (prosecutor prosecutions))   )\n\
      (use oversight) (initial day-one)"
 
-(* §8.6 gives a law one subject. Two free roots and there is no single type for
-   the implicit quantification to range over — the reading that makes
-   `case.investigator…` mean "for every case" in the first place. *)
+(* §8.6 gives a law one subject. *)
 let () =
   rejects "a law may not range over two types"
     "(schema office\n\
@@ -170,12 +147,7 @@ let () =
 
 (* --- §10.2: "A literal must lie in the chain's target domain" ------------- *)
 
-(* The rule was stated and never enforced for [is] — only [set] checked its
-   literal. An out-of-domain literal therefore read as a guard that is FALSE
-   everywhere: a move that silently never fires, and a law reported as violated
-   in every situation with no witness. That is the failure mode [check_is]'s own
-   comment calls "the worst of both" for a mistyped chain; the literal side had
-   it too. *)
+(* An out-of-domain literal would make a guard false everywhere. *)
 let () =
   rejects "a guard's literal must be an element of the arrow's codomain"
     (office "(transition t (when (is c.stage ajar)) (do (set c.stage closed)))")
@@ -188,9 +160,7 @@ let () =
     (office
        "(transition t (when (is c.approver ann)) (do (set c.stage closed)))")
 
-(* The same rule inside a law, which has no instance to consult: an enumerated
-   codomain is knowable from the schema alone, so a typo there is an error at
-   the equation. *)
+(* In a law, an enumerated codomain is known from the schema alone. *)
 let () =
   rejects "a law's literal must be an element of the arrow's codomain"
     "(schema office\n\
@@ -200,8 +170,7 @@ let () =
      (instance i office (case c (stage open)) )\n\
      (use office) (initial i)"
     ~sub:"not in codomain";
-  (* An OPEN codomain's members are the instance's, which a schema does not
-     know (§8.2), so an entity literal must still be accepted here. *)
+  (* An open codomain's members come from the instance (§8.2). *)
   accepts "a law may name an entity of an open codomain"
     "(schema office\n\
     \   (type person)\n\
@@ -210,12 +179,8 @@ let () =
      (instance i office (person ann) (case c (approver ann)) )\n\
      (use office) (initial i)"
 
-(* Two literals that are provably not values, whatever the roster holds, and
-   both are the traps §10.2's lexical rule sets: a name with no dot reads as a
-   literal, so a TYPE name written to mean "the subject" and a `some` binder
-   written to mean "that entity" each became a literal matching nothing.
-   §7 puts types and entities in one namespace, so neither can ever be a
-   value — which is what makes these decidable without an instance. *)
+(* A type name or a `some` binder reads as a literal (§10.2) but can never be a
+   value (§7), so both are rejected without an instance. *)
 let () =
   rejects "a type name on the right of `is` is not a value"
     "(schema office\n\
@@ -232,9 +197,6 @@ let () =
      (instance i office (person ann) (case c (approver ann)) )\n\
      (use office) (initial i)"
     ~sub:"is not comparable";
-  (* The last hole: an OPEN codomain and a literal that is neither a type nor a
-     binder — just a misspelt entity. Undecidable at the schema, decided at the
-     model, where the roster is finally in hand. *)
   rejects "a law may not name an entity nobody rosters"
     "(schema office\n\
     \   (type person)\n\
@@ -249,8 +211,7 @@ let () =
         c.stage closed)))")
     ~sub:"is not comparable"
 
-(* `=` is no longer a kernel word, so it must no longer be reserved against
-   form names — otherwise the stdlib form that replaces it cannot be declared. *)
+(* `=` is not a kernel word, so the stdlib form replacing it is declarable. *)
 let () =
   check "`=` is free for a form to define" (not (Forms.is_reserved "="));
   check "`equation` is still reserved" (Forms.is_reserved "equation")

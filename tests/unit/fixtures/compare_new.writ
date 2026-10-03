@@ -1,9 +1,5 @@
-; compare_new.writ — compare_old.writ with the `restore` move REPEALED (the
-; amendment). The schema is unchanged (so `mode-tracks-shadow` is preserved),
-; but a broken machine can no longer climb back to working, so it can never
-; reach `safe`: `break` leads to a situation from which `safe` is unreachable.
-; The OLD guarantee `still-safe` (live) therefore FAILS here, and `writ compare`
-; reports it LOST with the NEW witness route `1. break`, exiting 1.
+; compare_old.writ without `restore`: a broken machine can never reach `safe`,
+; so `writ compare` reports `still-safe` LOST with route `1. break`, exit 1.
 
 (load "stdlib.writ")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
 

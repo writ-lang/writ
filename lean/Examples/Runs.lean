@@ -24,5 +24,5 @@ theorem can_finish : ¬ runs.«can-finish».Holds runs.model := by writ
 theorem can_spin : runs.«can-spin».Holds runs.model := by writ
 theorem never_gone : runs.«never-gone».Holds runs.model := by writ
 
-/-- The compiler instead of the kernel, for spaces the kernel is too slow for. -/
+/-- The compiler instead of the kernel, for large spaces. -/
 theorem settles' : runs.settles.Holds runs.model := by writ (native := true)

@@ -1,24 +1,10 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Reading a .sql file down to statements and tokens.
-
-   The job here is smaller than "lex SQL" and the difference matters: `writ sql`
-   must survive a whole pg_dump, of which it understands a few statements and
-   must SKIP the rest without being derailed. So the lexer's real obligation is
-   to find statement boundaries correctly in text it does not otherwise
-   understand — which means getting quoting exactly right, since a `;` inside a
-   dollar-quoted function body or a string literal is not a boundary and a
-   splitter that thinks it is will cut a file into nonsense and report a
-   cascade of errors that are all one error.
-
-   Everything else is deliberately shallow: a token stream flat enough that the
-   parser can dispatch on the first word and, where it does not recognise it,
-   drop the statement with its line number.
-
-   Line numbers are carried on every token rather than on statements alone,
-   because a decline should point at the COLUMN it declined, not at the top of
-   a forty-column table. *)
+(* Reading a .sql file down to statements and flat tokens. The lexer must find
+   statement boundaries in a whole pg_dump it mostly does not understand, so
+   quoting must be exact: a `;` in a string or dollar-quoted body is not a
+   boundary. Every token carries its line, so a decline can name a column. *)
 
 type token =
   | Word of string  (** unquoted identifier or keyword, folded to lower *)
@@ -31,11 +17,8 @@ type token =
 type tok = { tk : token; line : int }
 type stmt = { sline : int; toks : tok list }
 
-(* A `-- writ: …` trailing comment. The export writes these to record the two
-   facts SQL has no way to state — that an arrow is `fixed`, or that a foreign
-   key is not — and the import reads them back, which is what closes the round
-   trip for a mutable reference. Keyed by LINE, because that is how a reader
-   associates a trailing comment with what it trails. *)
+(* [pragmas]: `-- writ: …` trailing comments by line, which say what SQL
+   cannot (see [Emit_ddl]). *)
 type lexed = { stmts : stmt list; pragmas : (int * string) list }
 
 let is_digit c = c >= '0' && c <= '9'
@@ -49,10 +32,8 @@ let starts_with ~(prefix : string) (s : string) =
   String.length s >= String.length prefix
   && String.sub s 0 (String.length prefix) = prefix
 
-(* A dollar quote opens with `$tag$`, tag being a possibly-empty identifier. It
-   is not enough to see a `$`: `a$b` is a legal identifier character sequence,
-   so the tag must be scanned and the closing `$` found before this is treated
-   as a quote at all. *)
+(* A dollar quote opens with `$tag$`, the tag a possibly-empty identifier; a
+   lone `$` is not one ([a$b] is an identifier). *)
 let dollar_tag (s : string) (i : int) : string option =
   let n = String.length s in
   if i >= n || s.[i] <> '$' then None
@@ -90,8 +71,6 @@ let lex (src : string) : lexed =
       let body = String.trim (String.sub src start (!j - start)) in
       let pragma = "writ:" in
       if starts_with ~prefix:pragma body then begin
-        (* length-derived, not a literal: the prefix has changed once
-           already, and a stale offset here loses the pragma silently *)
         let k = String.length pragma in
         pragmas :=
           (!line, String.trim (String.sub body k (String.length body - k)))
@@ -165,7 +144,7 @@ let lex (src : string) : lexed =
     else
       match dollar_tag src !i with
       | Some tag ->
-          (* skip the whole dollar-quoted body; nothing inside is ours *)
+          (* skip the whole dollar-quoted body *)
           let tl = String.length tag in
           i := !i + tl;
           let fin = ref false in

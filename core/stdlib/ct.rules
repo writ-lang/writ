@@ -1,103 +1,55 @@
 ; ct.rules — the derived state category, given its own vocabulary.
 ;
-; A model's meaning IS a category (kernel Appendix I.1): objects are the
-; reachable situations, morphisms are move sequences, composition is
-; concatenation, identities are "do nothing". `writ check` asks four questions
-; about it — `possible`, `never`, `live` and `inevitable` — and the extension is
-; explicit that those four are the common case rather than the instrument
-; (extension §2). This file is the instrument's vocabulary: the structure of
-; that category, named, so a model can be asked what the four modalities have
-; no spelling for.
+; A model's meaning is a category (kernel Appendix I.1): objects are reachable
+; situations, morphisms are move sequences. The four `writ check` modalities
+; are the common questions (extension §2); this file names the category's
+; structure so a model can be asked the rest.
 ;
-; WHERE IT LIVES. It is a RULES library — it declares relations, never types —
-; so `(load "ct.rules")` belongs in a .rules file and nowhere else. Loading it
-; into a .writ model would be accepted and useless: nothing here is a declaration
-; a model's universe can hold.
+; It is a rules library: load it from a .rules file. It reserves ten relation
+; names: `reach`, `mutual`, `recurrent`, `before`, `phase-before`, `one-way`,
+; `escapes`, `final-phase`, `moves` and `dead-end`.
 ;
-; THE COST, stated as stdlib.writ states its own. Ten relation names: a .rules
-; file that loads this one gives up `reach`, `mutual`, `recurrent`, `before`,
-; `phase-before`, `one-way`, `escapes`, `final-phase`, `moves` and `dead-end`,
-; and may not redeclare any of them — which is exactly what the corpus's
-; existing files do with the first, and why the migration is a deletion.
-;
-; WHAT IS A PAIR AND WHAT IS NOT, which is the one thing to know before writing
-; against this file. `phase` and `phase-step` are BUILT-IN (extension §2): the
-; interrogator quotients the state category by mutual reachability in one linear
-; pass, so everything defined from them is linear too. `reach` and `before` are
-; not, and cannot be made so — their ANSWERS are sets of pairs, quadratic in the
-; situation count however they are computed. Ask a linear question wherever one
-; will do; §7's goal forms are written so that the common ones are.
+; Cost: `phase` and `phase-step` are built in and linear, and so is
+; everything derived from them. `reach` and `before` answer with sets of pairs,
+; quadratic in the situation count. Prefer a linear question; §7's goal forms
+; are.
 
 ; 1. Hom-sets — the free category on the reachable graph
 ;
-; `reach S T` is the hom-set of the state category made a relation: non-empty
-; exactly when some move sequence runs from S to T. The first rule is the
-; identity morphism, the second is composition — the free category, stated as
-; the two clauses that generate it.
+; `reach S T` holds when some move sequence runs from S to T: identity, then
+; composition. No `init` premise is needed, since built-ins range over
+; reachable situations only (§12.3).
 ;
-; No `init` premise is needed and none is wanted: the built-ins range over
-; REACHABLE situations only (§12.3), so the space the engine enumerated is
-; already the space that exists.
-;
-; USE IT LAST. Nothing else in this file needs it any more, and that is
-; deliberate: materialising the closure costs a tuple per ordered pair of
-; situations, which measured at 1 938 situations does not finish in 100 seconds,
-; while the space itself is built in 30 milliseconds. It is kept because the
-; hom-set is what the category IS, and a model small enough to want it whole
-; should be able to ask. Where the question is "can S still get to an F" — which
-; is nearly always the question — §7's `can-reach` answers it by walking
-; backwards from F instead, in one pass over the edges.
+; Use it last: it is quadratic, and nothing else here needs it. To ask "can S
+; reach an F", use §7's `can-reach`, which walks backwards in one pass.
 (relation reach (Situation Situation))
 (rule (reach S S) (situation S))
 (rule (reach S T) (edge E S M) (reach M T))
 
 ; 2. Isomorphism — the maximal subgroupoid
 ;
-; Two situations are isomorphic in the state category when each reaches the
-; other. That relation's classes are what `phase` names: the interrogator
-; computes them directly, and `(phase S P)` answers with P, the least-indexed
-; situation of S's class. The categorical reading is the one worth keeping,
-; because it says what a class MEANS — inside one, nothing has been spent; every
-; arrangement in it is recoverable from every other.
+; Situations that reach each other are isomorphic; `phase` names the classes
+; by their least-indexed member. Within a class nothing has been spent.
 ;
-; `mutual` is that equivalence spelled out as pairs, for the questions that want
-; them. Note the shape of the cost: the first literal generates each situation
-; with its phase, the second generates only the members of THAT phase, so the
-; work is the answer's own size rather than a scan of all pairs.
+; `mutual` lists the equivalence as pairs. The first literal generates each
+; situation's phase and the second only that phase's members, so the cost is
+; the answer's size.
 (relation mutual (Situation Situation))
 (rule (mutual S T) (phase S P) (phase T P))
 
-; `recurrent S` — S lies on a cycle: some move leaves S and comes back, perhaps
-; the long way round. Equivalently S's phase is not a single spent point.
-;
-; WHY IT EARNS ITS PLACE. It is the question `mutual` is usually wanted for, and
-; the one that could not be written before `phase` existed: "S and T are in one
-; class and are not the same situation" needs an inequality on situations, and
-; there is none — the language compares a cell against a value, never one atom
-; against another. Reading it off an edge that stays inside the phase avoids the
-; comparison entirely. It is also the shape of every non-termination question:
-; a model that can run forever without arriving is one with a recurrent
-; situation the goal does not hold in.
+; `recurrent S`: S lies on a cycle. Read off an edge that stays inside the
+; phase, since atoms cannot be compared for inequality. Non-termination
+; questions take this shape: a recurrent situation where the goal fails.
 (relation recurrent (Situation))
 (rule (recurrent S) (edge E S T) (phase S P) (phase T P))
 
 ; 3. The posetal reflection — what a move costs
 ;
-; Quotient the state category by §2 and what is left is a POSET: the same order,
-; every cycle collapsed to a point. That quotient is exactly the `phase-step`
-; graph, and it is acyclic by construction — a step between two phases can never
-; be walked back, or they would have been one phase.
+; Quotienting by §2 leaves a poset, the `phase-step` graph, acyclic by
+; construction. `before` gives the whole trap structure without naming a goal.
 ;
-; WHY IT EARNS ITS PLACE. This is what most models are actually for, and it is
-; the question the modalities cannot put. `live G` failing says a trap exists
-; and prints one route into it; `before` is the whole trap structure, and it is
-; asked WITHOUT naming a goal — which is what makes it answerable of a model
-; nobody has yet written the claims for.
-;
-; `phase-before` is the order on phases; `before` is the same order read back
-; down onto situations. Written in that order on purpose: bind the phase pair
-; first and each situation pair is generated once, where binding the situations
-; first would scan every pair of situations to test each.
+; `phase-before` orders phases; `before` reads it back onto situations. The
+; phase pair is bound first so each situation pair is generated once.
 (relation phase-before (Situation Situation))
 (rule (phase-before P Q) (phase-step P Q))
 (rule (phase-before P R) (phase-step P Q) (phase-before Q R))
@@ -107,28 +59,18 @@
 
 ; 4. One-way doors — irreversibility, per move
 ;
-; §3 in the form an author can act on: a NAMED move, and the situation it leaves
-; for good. §15 reports which moves can break a law; this reports which moves
-; break a return. A model with no one-way rows is fully reversible, and that is
-; worth being able to state rather than believe.
-;
-; A move is one-way exactly when it crosses out of its phase: if the target
-; could come back, the two ends would share a phase. So this needs no closure
-; and no negation — one literal per end, and the crossing test the built-in
-; supplies.
+; A named move and the situation it leaves for good. A move is one-way exactly
+; when it crosses out of its phase. A model with no rows is fully reversible.
 (relation one-way (Edge Situation Situation))
 (rule (one-way E S T) (edge E S T) (phase S P) (phase T Q) (phase-step P Q))
 
 ; 5. Final phases — where a model ends up
 ;
-; A situation in a TERMINAL class of §3's poset. It may still move, perhaps
-; forever, but everything it reaches reaches it back: nothing further is
-; decided. Endgames, absorbed states, the emergency nobody can lift.
+; A situation in a terminal class of §3's poset: it may still move, but
+; everything it reaches reaches it back.
 ;
-; `escapes` is scaffolding rather than vocabulary, and is named instead of
-; hidden because it costs a name either way: a variable inside `not` must be
-; bound elsewhere in the body (range restriction, extension §1), so "there is no
-; phase after this one" has to become a relation before it can be negated.
+; `escapes` exists because a variable inside `not` must be bound elsewhere
+; (range restriction), so "no later phase" must be a relation first.
 (relation escapes (Situation))
 (rule (escapes S) (phase S P) (phase-step P Q))
 (relation final-phase (Situation))
@@ -136,10 +78,8 @@
 
 ; 6. Dead ends
 ;
-; A situation with no move at all — the degenerate final phase, a class of one
-; object carrying nothing but its identity. §15 already reports these, and the
-; reason to have them HERE is that a relation JOINS: "which one-way move leads
-; straight into one" is then a query, instead of two reports read side by side.
+; A situation with no move at all. §15 reports these too; as a relation they
+; can be joined, e.g. with `one-way`.
 (relation moves (Situation))
 (rule (moves S) (edge E S T))
 (relation dead-end (Situation))
@@ -147,43 +87,24 @@
 
 ; 7. Goals — the modalities, as three composable lines
 ;
-; §1–6 ask what a model's shape IS, and need no goal to do it. This section is
-; the other half, and it needs one: a guard arrives as a form slot, so the shape
-; every scenario in the corpus writes by hand becomes one line, with only the
-; guard left to write.
-;
-; Written out, the river crossing's whole question:
+; A guard arrives as a form slot. The river crossing:
 ;
 ;   (satisfies intact     (and (is farmer.at right) (is wolf.at right)
 ;                              (is goat.at right)   (is cabbage.at right)))
 ;   (can-reach  finishable intact)
 ;   (trapped    blunders   finishable)
 ;
-; POLARITY, which is what these are most worth having for, because every file in
-; the corpus carries a hand-written warning about getting it wrong:
+; Polarity:
 ;
 ;   possible F   `satisfies` IS the satisfying set     non-empty ⟺ holds
 ;   never F      `satisfies` of the FORBIDDEN guard    empty     ⟺ holds
 ;   live F       `trapped` is the COUNTEREXAMPLE set   empty     ⟺ holds
 ;
-; A `live` question inverts once and inverts silently: name `can-reach`'s result
-; as the answer and it reads as a satisfying set, so every verdict comes out
-; backwards while the suite stays green. Spending a name on `trapped` is what
-; makes the complement visible — taken by a form that says so, rather than by a
-; rule the reader has to check.
+; `trapped` names the complement so a `live` answer is not misread as a
+; satisfying set. Three forms rather than one because a form cannot invent
+; names for intermediates.
 ;
-; WHY THREE FORMS AND NOT ONE. A form cannot invent a name, so a combined
-; `(live-set X G)` would have to be handed the two intermediates anyway. Three
-; also lets a scenario stop after the first — `possible` needs only `satisfies`
-; — and lets the middle relation carry a name of the model's own, which is what
-; a witness prints.
-;
-; `can-reach` is a BACKWARD walk: the goal set, then anything with a move into
-; what is already in. It used to be written `(rule (C S) (reach S T) (R T))`,
-; which is the same set and asks for the whole hom-set to compute it — the
-; closure is quadratic, this is one pass over the edges, and every `live`
-; cross-check in the corpus goes through here. The rewrite is the reason §1 now
-; says "use it last".
+; `can-reach` walks backward from the goal set, one pass over the edges.
 (form (satisfies R G)
   (relation R 1)
   (rule (R S) (situation S) (holds S G)))
@@ -199,22 +120,10 @@
 
 ; 8. Runs that never arrive — `inevitable`, the other way round
 ;
-; §7 answers `possible`, `never` and `live`. The fourth modality's
-; counterexample set is this section, and having it here is not decoration: it
-; is a SECOND implementation of a question `writ check` already answers, arrived
-; at down a different road — a closure confined to the situations the goal fails
-; in, where the engine partitions the same subgraph and looks for components. A
-; disagreement between them is a bug in one of the two, which is the only kind
-; of test whose oracle its author did not choose.
-;
-; `inevitable G` fails exactly where some whole run avoids G, and a run avoids
-; it in two ways: it circles for ever without arriving, or it stops short. So
-; `escaping` has one rule for each, and `inevitable G` HOLDS iff its answer is
-; EMPTY — the same polarity as `trapped`, and the same trap.
-;
-; Four names to pass rather than §7's three, for §7's reason: a form cannot
-; invent a name, so every intermediate has to be handed one at the call site.
-; Written out, "can the transaction stay undecided for ever":
+; The counterexample set of `inevitable G`, computed independently of the
+; engine, so the two can be cross-checked. A run avoids G by circling for ever
+; or by stopping short; `escaping` has a rule for each. `inevitable G` holds
+; iff it is empty.
 ;
 ;   (satisfies decided (all (p participant)
 ;                        (or (is p.state committed) (is p.state aborted))))
@@ -222,14 +131,8 @@
 ;   (stays     waiting   undecided)
 ;   (escaping  forever   undecided waiting)
 ;
-; WHAT IT DOES NOT COVER. A fairness assumption — `(inevitable G (fair …))` —
-; narrows which runs the question is about, and nothing here reads it. This is
-; the plain modality, over every run there is; cross-checking a fair verdict
-; against these forms would be comparing two different questions.
-;
-; And it is the section to reach for LAST, for §1's reason: `stays` is a closure
-; and its answer is a set of pairs. The engine's own answer to the same question
-; is linear. These forms are here to disagree with it, not to replace it.
+; Fairness clauses are not modelled here: this is the plain modality. `stays`
+; is a quadratic closure; use these forms to check the engine, not replace it.
 (form (off-set O R)
   (relation O 1)
   (rule (O S) (situation S) (not (R S))))
@@ -244,18 +147,7 @@
   (rule (X S) (O S) (edge E S M) (U M S))
   (rule (X S) (O S) (not (moves S))))
 
-; WHAT IS NOT HERE, and why. One limit, and it is mechanical.
-;
-; THE ARROW PROPERTIES OF A SCHEMA. An arrow being injective or surjective, a
-; span being the whole pullback and not merely a sound part of it — these belong
-; to this file by subject, and cannot be written in it. A rule reads an arrow by
-; naming it inside a chain (`X.stands`), and a form substitutes only a path's
-; ROOT segment (`Expander.subst`, and deliberately: it is why `maybe` sugars a
-; whole declaration rather than part of one). So no template can be generic over
-; the arrow, and each such question stays one rule per arrow, written where the
-; arrow is known — the model's own .rules file.
-;
-; What the kernel refuses to a LAW is a second, independent limit worth knowing
-; beside it: §10.2 decides the right of `is` lexically, so two bound variables
-; cannot be compared in a guard at all. That is why injectivity is a rules
-; question and can never be an `equation`.
+; Not here: arrow properties such as injectivity. A form substitutes only a
+; path's root (`Expander.subst`), so no template can be generic over an arrow;
+; write one rule per arrow in the model's own .rules file. Such questions can
+; never be laws: §10.2 cannot compare two bound variables in a guard.

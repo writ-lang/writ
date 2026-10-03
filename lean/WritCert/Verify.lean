@@ -4,19 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Holding writ to its report
 
-Every line `writ check` prints, re-derived from a checked certificate and
-compared with what writ said. A line is
-
-- **certified** — the checker's own certificate passed (so the theorem named
-  beside it applies), and writ's answer agrees with it;
-- **DISAGREES** — the checker certified something writ did not say. This is a
-  bug in writ, or in the export, and is the finding this tool exists for;
-- **uncertified** — no certificate could be found or none passed. The search
-  in `WritCert.Generate` is untrusted, so this is a gap in the checker, not
-  a judgement on writ;
-- **trusted** — writ's answer rests on something outside the kernel
-  semantics (an n/a verdict names structure the schema lacks), and is passed
-  through as writ gave it.
+Re-derives every line `writ check` prints from a checked certificate: each is
+certified, DISAGREES (a bug in writ), uncertified (a gap in the checker), or
+trusted (an n/a verdict, passed through).
 -/
 import WritCert.Import
 import WritCert.Generate
@@ -55,15 +45,13 @@ structure Ctx where
 
 def Ctx.n (c : Ctx) : Nat := c.G.size
 
-/-- writ's route, as (move index, landing) pairs; `none` if it names a move the
-model lacks or a step with no landing. -/
+/-- writ's route as (move index, landing) pairs; `none` if malformed. -/
 def Ctx.route (c : Ctx) (r : Array (String × Option Nat)) : Option (List (Nat × Nat)) :=
   r.toList.mapM fun (mv, to) => do
     let t ← c.moves.findIdx? (· == mv)
     let j ← to
     pure (t, j)
 
-/-- Replay a route from the initial situation: where it ends, if it is one. -/
 def Ctx.replay (c : Ctx) (r : Array (String × Option Nat)) : Option (Nat × Nat) := do
   let rt ← c.route r
   if routeOK c.G 0 rt then some (routeEnd 0 rt, rt.length) else none
@@ -88,8 +76,7 @@ def Ctx.outcome (c : Ctx) (G : Graph) : Outcome → String
     | some j => s!"→ #{j}"
     | none => "→ a situation writ did not list"
 
-/-- The first place the table and the semantics part company, for a useful
-refusal. -/
+/-- The first cell where the table and the semantics disagree. -/
 def graphFault (M : Model) (G : Graph) (c : Ctx) : String := Id.run do
   if G.size == 0 then return "the certificate lists no situations"
   if G.st 0 != M.init then return "situation #0 is not the initial situation"
@@ -141,7 +128,6 @@ def checkProperty (c : Ctx) (p : WProp) : Line :=
         if mine != p.verdict then
           ⟨.disagrees, what, s!"the property {mine}: {describe c cert}"⟩
         else
-          -- the witness
           let sat := c.G.sat c.M F
           let w : Except String String :=
             if p.witness.isEmpty then
@@ -202,10 +188,7 @@ def Result.worst (r : Result) : Status :=
 def verify (C : Certificate) : Result := Id.run do
   let M := C.model
   let T := M.transitions.length
-  -- writ's graph is not in the certificate: the model determines it, and the
-  -- one the checker builds is held to the semantics by `checkGraph` below,
-  -- whoever built it. Its numbering is writ's (the same breadth-first order),
-  -- which is what lets a witness's indices be checked.
+  -- Numbered in writ's breadth-first order, so witness indices can be checked.
   let G ← match explore M with
     | .ok G => pure G
     | .error e => return { writ := C.writ, lines := #[⟨.uncertified, "space", e⟩] }
@@ -237,7 +220,7 @@ def verify (C : Certificate) : Result := Id.run do
     if dead != writDead then
       ⟨.disagrees, "dead ends", s!"writ lists {writDead.length}; there are {dead.length}: {dead.take 5}"⟩
     else ⟨.certified, "dead ends", if dead.isEmpty then "none" else s!"{dead.length}"⟩
-  -- gaps: one per (move, message) site, with the fewest moves to reach it
+  -- gaps: one per (move, message) site, at its fewest moves
   let mut sites : Array (String × String × Nat) := #[]
   for i in [0:n] do
     for t in [0:T] do

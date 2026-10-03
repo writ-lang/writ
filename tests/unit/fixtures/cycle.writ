@@ -1,11 +1,5 @@
-; cycle.writ — the smallest model whose derived category has a CYCLE: two
-; situations, and a move each way.
-;
-; rules_base.writ's four situations form a DAG, and a DAG cannot distinguish a
-; derivation graph that is acyclic by construction from one that merely has not
-; been given the chance to loop. Here it has: `reach` derives every pair, so a
-; fact recorded with any derivation other than its FIRST would name a premise
-; that names it back.
+; The smallest cyclic derived category: two situations, a move each way.
+; `reach` derives every pair, which strains derivation acyclicity.
 
 (schema toggle
   (type flag (lo hi))

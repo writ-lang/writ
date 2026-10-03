@@ -1,12 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_control] — the [writ control] verb, kept beside its sibling verbs rather
-   than inside the dispatch module.
-
-   Emits the model's move list as data: an instance of the standard library's
-   [quiver] schema (kernel §17). [Control.quiver] builds the string; this module
-   does the printing. The instance name is the model's basename + [-control]. *)
+(* [writ control]: the model's move list as an instance of the standard
+   library's [quiver] schema (kernel §17), named after the model's basename. *)
 
 open Writ_runtime
 open Cli_io

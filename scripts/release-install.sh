@@ -3,19 +3,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # install.sh — install `writ` from a portable release tarball.
 #
-# This script ships INSIDE the tarball built by `make release` (as ./install.sh)
-# and is meant to be run from the unpacked directory:
+# Ships inside the `make release` tarball; run it from the unpacked directory:
 #
 #     tar xzf writ-<version>-<os>-<arch>.tar.gz
 #     cd writ-<version>-<os>-<arch>
 #     ./install.sh                 # -> ~/.local
 #     ./install.sh /usr/local      # -> a prefix you name (may need sudo)
 #
-# No opam, no OCaml, no npm on the target machine: the tarball carries a
-# prebuilt binary. It does need the same OS/architecture and a compatible libc
-# as the machine that built it — see the note printed at the end.
-#
-# Uninstall is the inverse and equally plain:
+# To uninstall:
 #     rm -f  <prefix>/bin/writ <prefix>/bin/writ-lsp <prefix>/bin/writ-mcp <prefix>/bin/writ-cert
 #     rm -rf <prefix>/share/writ
 set -eu
@@ -28,15 +23,13 @@ prefix=${1:-${PREFIX:-$HOME/.local}}
   exit 1
 }
 
-# The library directory is REPLACED, not merged into: a file dropped from the
-# standard library must disappear on upgrade, or an old copy lingers on the
-# search path and keeps resolving after it has been removed.
+# Replace the library directory, not merge into it, so a removed file does not
+# linger on the search path.
 rm -rf "$prefix/share/writ/lib"
 mkdir -p "$prefix/bin" "$prefix/share/writ/lib"
 
-# rm first: an already-installed writ is read-only (mode 555), so a plain cp over
-# it fails with EACCES.
-# writ-cert goes beside writ, which is where `writ check` looks for it first.
+# rm first: an installed binary may be read-only, so cp over it fails.
+# writ-cert goes beside writ, where `writ check` looks for it first.
 for exe in writ writ-lsp writ-mcp writ-cert; do
   [ -f "$here/bin/$exe" ] || continue
   rm -f "$prefix/bin/$exe"
@@ -44,10 +37,7 @@ for exe in writ writ-lsp writ-mcp writ-cert; do
   chmod 755 "$prefix/bin/$exe"
 done
 
-# The standard library goes where the resolver looks: <bin>/../share/writ/lib.
-# That is what lets `(load "stdlib.writ")` work from any directory, unset $WRIT_LIB.
-# Copied whole rather than by extension: `ct.rules` is a library too, and the
-# resolver matches a load on the NAME, never on the suffix.
+# Copied whole, not by extension: ct.rules is a library too.
 cp "$here/share/writ/lib/"* "$prefix/share/writ/lib/"
 
 echo "installed:"

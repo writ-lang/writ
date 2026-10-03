@@ -3,13 +3,8 @@
 
 open Writ_data
 
-(* Model / library datums -> Schema / Instance / Model. A library is a bag of
-   declarations (schemas, instances; forms are expanded away before parsing); a
-   model additionally has exactly one [(use SCHEMA)], one [(initial INSTANCE)],
-   and its transitions. Schema and instance decoding live in [Decl]; this module
-   orchestrates and decodes the dynamics. Every guard/effect path is type-checked
-   against the schema (fold F3) with an env mapping each instance entity to its
-   type, plus any [some]-bound variables. *)
+(* Model and library datums -> [Model.t]. [Decl] decodes declarations; this
+   decodes [use], [initial] and transitions, checking paths (fold F3). *)
 
 type decls = {
   schemas : Schema.t list;
@@ -37,8 +32,7 @@ let head_str = function
   | Reader.List (_, _) -> "(…)"
   | Reader.Atom (s, _) -> s
 
-(* The env a transition/formula path is checked in: each roster entity mapped to
-   its type. [some] extends this in [Grammar.check_guard]. *)
+(* Each roster entity mapped to its type; [some] extends it. *)
 let env_of_instance (i : Instance.t) : Grammar.env =
   List.concat_map
     (fun (r : Instance.roster) ->
@@ -82,14 +76,8 @@ let decode_transition ?(origin : Reader.t -> string option = fun _ -> None)
         | Reader.Atom (n, _) :: cs -> (Some n, cs)
         | cs -> (None, cs)
       in
-      (* §10.1: "exactly one `when`, exactly one `do`". [List.find_map] silently
-         took the first of each, so a second clause was *discarded* — a false
-         first guard beside a true second one gave a move that exists nowhere,
-         and a second [do] dropped every effect in it. Both read as a working
-         model, so the author is never told which of the two things they wrote
-         the engine is doing. Collecting them all is what makes the second one
-         nameable, and it is the second we blame: the first is where they
-         probably meant to write it. *)
+      (* §10.1: exactly one [when] and at most one [do]. All occurrences are
+         collected so a second one is blamed rather than silently dropped. *)
       let occurrences k =
         List.filter_map
           (function
@@ -120,16 +108,8 @@ let decode_transition ?(origin : Reader.t -> string option = fun _ -> None)
       Ok { Model.name; when_; effects; origin = origin d }
   | _ -> Reader.err_at d "expected a (transition …)"
 
-(* §10.1: "NAME, if present, fresh." Unlike §8.1 this does *not* cite §7, so the
-   namespace is the transitions' own — a move may share a name with a type or an
-   entity, and only another move collides with it.
-
-   Two moves of one name are not a cosmetic clash. §10.1 makes NAME how a report
-   identifies a move and how §15 acknowledgments name one, so a duplicate makes
-   every such reference ambiguous; and [writ control] emits one [edge] entity per
-   transition, so a duplicated name produces a quiver instance with a duplicated
-   entity — output the front end now refuses to re-read (§7). Blame the second,
-   which is the one the author added. *)
+(* §10.1: transition names are unique among moves (not §7's namespace), since
+   reports and §15 acknowledgments name them. *)
 let check_transition_names (trs : Reader.t list) : (unit, Errors.t) result =
   let rec go seen = function
     | [] -> Ok ()
@@ -145,14 +125,7 @@ let check_transition_names (trs : Reader.t list) : (unit, Errors.t) result =
   in
   go [] trs
 
-(* §9.1: "**Constraints** — NAME fresh; SCHEMA declared." Like §10.1's transition
-   name and unlike §8.1's schema name, this does NOT cite §7, so the namespace is
-   the instances' own; whether §7 should also cover instances is a question for
-   the spec, and nothing here needs it answered. What "fresh" cannot mean is
-   *twice*: [(initial i)] resolves by [List.find_opt], so a second instance named
-   `i` was simply discarded, and a model naming one initial situation quietly got
-   the other author's. Blame the second — the first is the one already referred
-   to. *)
+(* §9.1: instance names are unique; [(initial i)] takes the first match. *)
 let check_instance_names (datums : Reader.t list) : (unit, Errors.t) result =
   let rec go seen = function
     | [] -> Ok ()

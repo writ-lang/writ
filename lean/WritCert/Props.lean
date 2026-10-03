@@ -4,10 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Property certificates
 
-A verdict, and the evidence that makes it checkable by a scan instead of a
-search. Each kind of evidence is a few local conditions on the graph, and each
-comes with the theorem saying what passing them means — against the
-definitions in `WritCert.Semantics`, never against the algorithm writ used:
+Evidence that makes a verdict checkable by a scan, each check proved sound
+against `WritCert.Semantics` (not writ's algorithm):
 
 | verdict                | evidence                                                  |
 |------------------------|-----------------------------------------------------------|
@@ -18,24 +16,14 @@ definitions in `WritCert.Semantics`, never against the algorithm writ used:
 | `inevitable` fails     | a stopped situation, or a fair F-free lasso through one   |
 | `inevitable` holds     | Emerson–Lei rounds, then a rank that strictly falls       |
 
-The last row is the interesting one. writ decides fair `inevitable` by
-repeatedly deleting situations from cycles that offer a fair move and never
-take it, and calls the property held when no cycle survives. A round here
-records one deletion as a rank and a set: the rank never rises along an edge
-inside the region, a deleted situation offers the round's move, and a class of
-equal rank that contains a deletion has no internal edge taking that move. Any
-fair run must therefore leave the deleted situations behind for good — it
-settles into one class, takes the move only finitely often there, so the move
-cannot be on offer infinitely often — and once every round has done that, the
-final rank, falling strictly along every surviving edge, leaves no infinite run
-at all. `inevitable_holds` is that argument, mechanised.
+A fair run must leave each round's deleted situations for good; then the
+final rank leaves no infinite run (`inevitable_holds`).
 -/
 import WritCert.Graph
 
 namespace Writ
 
 namespace Graph
-/-- Whether listed situation `i` satisfies F. -/
 def sat (M : Model) (G : Graph) (F : Guard) (i : Nat) : Bool := evalGuard M (G.st i) [] F
 
 def isTo : Out → Bool
@@ -111,7 +99,7 @@ def lassoOK (fair : List Nat) (cyc moves : Array Nat) : Bool :=
     !(anyBelow L fun p => G.cell (cyc.getD p 0) m != .absent) ||
     anyBelow L fun p => moves.getD p 0 == m
 
-/-- Every situation outside F has a real move: nothing stops short of F. -/
+/-- Nothing stops short of F. -/
 def noStopOK : Bool :=
   allBelow n fun i => G.sat M F i || anyBelow T fun t => Graph.isTo (G.cell i t)
 
@@ -145,7 +133,6 @@ def roundsOK (fair : List Nat) (final : Array Nat) : (Nat → Bool) → List Rou
 
 end checks
 
-/-- Check a certificate for a property. -/
 def checkCert (M : Model) (G : Graph) (p : Property) (c : Cert) : Bool :=
   let F := p.formula
   match p.modality, c with
@@ -305,7 +292,7 @@ theorem lasso_escapes (hG : checkGraph M G = true) {fair : List Nat} {cyc moves 
 
 /-! ### inevitable, holding -/
 
-/-- A run, read on the graph's indices. -/
+/-- A run, on the graph's indices. -/
 structure IdxRun (M : Model) (G : Graph) (F : Guard) (fair : List Nat) (a ts : Nat → Nat) : Prop where
   lt : ∀ k, a k < G.size
   edge : ∀ k, G.cell (a k) (ts k) = .to (a (k + 1))
@@ -391,7 +378,7 @@ theorem round_step (hG : checkGraph M G = true) {fair : List Nat} {a ts : Nat �
       simp only [hd, Bool.not_true, Bool.false_or, Bool.and_eq_true] at h
       rw [hconst k hk, hc] at h
       cases h.2
-  · -- it has one, so it never takes the move again, so the move stops being offered
+  · -- it has one, so the move is never taken again, so it stops being offered
     have hnot : ∀ k, N + K ≤ k → ts k ≠ R.move := by
       intro k hk hm
       rcases (hE k (by omega)).2 hm with h | h
@@ -451,8 +438,7 @@ theorem avoids_end {s u : State} (h : Avoids M F s u) : ¬Sat M F u ∧ Steps M 
   | refl h => exact ⟨h, .refl _⟩
   | cons _ hs _ ih => exact ⟨ih.1, .cons hs ih.2⟩
 
-/-- The run's situations, as the graph indexes them: start at `i0` and follow
-the table along the moves the run takes. -/
+/-- The run's situations as graph indices, following the table from `i0`. -/
 def idxSeq (G : Graph) (i0 : Nat) (ts : Nat → Nat) : Nat → Nat
   | 0 => i0
   | k + 1 =>

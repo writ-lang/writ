@@ -9,8 +9,7 @@ instance vacant transition when do set vacate gap
 and or not is defined some form &rest
 ```
 
-Three file types, and keeping them apart is deliberate: a model, the questions
-asked of it, and derivations over it are three documents.
+Three file types, kept apart:
 
 | | |
 | --- | --- |
@@ -49,35 +48,33 @@ asked of it, and derivations over it are three documents.
   (do (set a.stage done) (vacate a.uses.held-by)))
 ```
 
-`a.uses.held-by` is a **chain**: follow `uses` from `a`, then `held-by`. Chains
-are how everything is said.
+`a.uses.held-by` is a **chain**: follow `uses` from `a`, then `held-by`.
 
 ## The six things that trip people up
 
-**A move that cannot fire is ABSENT, not failed.** `when` states the situations
-the move exists in. There is no error, no exception, no rollback.
+**A move that cannot fire is absent.** `when` states the situations the move
+exists in; there is no error and no rollback.
 
-**`vacant` is the absence of an answer, not a value.** Only a `vacatable` arrow
-may be empty. `set` cannot write `vacant` — that is what `vacate` is for.
+**`vacant` is the absence of an answer.** Only a `vacatable` arrow may be
+empty, and only `vacate` empties it; `set` cannot write `vacant`.
 
 **`is` is strict; an undefined side makes it false.** So `differ` (stdlib) is
 *true* when either side is undefined. If you mean "both filled and different",
-write `(and (defined A) (defined B) (differ A B))`. The kernel will not guess.
+write `(and (defined A) (defined B) (differ A B))`.
 
-**A law is OBSERVED, not enforced.** `(equation name GUARD)` does not stop a
-move; `writ check` reports whether any reachable move breaks it, and where. A
-constraint you want *enforced* goes in a `when`.
+**A law is observed, not enforced.** `writ check` reports which moves break an
+`(equation name GUARD)`, and where. A constraint you want enforced goes in a
+`when`.
 
-**Effects are simultaneous.** Every effect of one move reads the situation the
-move started from, so `(do (set a.x b.y) (set b.y a.x))` is a swap and the order
-of effects cannot be observed.
+**Effects are simultaneous.** Every effect reads the situation the move started
+from, so `(do (set a.x b.y) (set b.y a.x))` is a swap.
 
-**A guard TESTS a cell; it cannot ASK what a cell holds.** The right of `is` is
-a literal or another chain — never a variable to be bound. So a query like
-`(query pick (where (k slot) (c part)) (is k.chosen c))` answers **empty**, in
-silence, rather than reading off each slot's part. To read a mutable cell, use
-the rules engine, where `holds` binds: `(rule (pick K C) (situation S) (holds S
-(is K.chosen C)))`, then `writ derive`. See `references/interrogator.md` §2.
+**A guard tests a cell; it cannot bind what a cell holds.** The right of `is`
+is a literal or another chain, never a variable, so `(query pick (where (k
+slot) (c part)) (is k.chosen c))` silently answers **empty**. To read a mutable
+cell, use the rules engine, where `holds` binds: `(rule (pick K C) (situation
+S) (holds S (is K.chosen C)))`, then `writ derive` (`docs/interrogator.md` §2
+in the writ repository).
 
 ## Guards
 
@@ -97,8 +94,8 @@ the rules engine, where `holds` binds: `(rule (pick K C) (situation S) (holds S
 | `(vacate CHAIN)` | empty it — only if the arrow is `vacatable` |
 | `(gap "MSG")` | the rules are declared silent here; no next situation |
 
-A `set` whose chain has no answer makes the move **absent** — which is how a
-walker stops at the end of a ladder with no guard needed.
+A `set` whose chain has no answer makes the move **absent**, so a walker stops
+at the end of a ladder with no guard.
 
 ## Questions (`.claims`)
 
@@ -118,16 +115,12 @@ walker stops at the end of a ladder with no guard needed.
   (where (m machine)) (defined m.held-by))
 ```
 
-`possible` / `never` / `live` / `inevitable`. **`live` is the trap detector**:
-it asks whether F stays reachable from *every* reachable situation, which is
-what "cannot paint itself into a corner" means. **`inevitable` is the
-termination detector**: it asks whether every run REACHES F, not merely whether
-it still could — so a model that can loop forever without arriving fails it
-while passing `live`. Reach for it wherever parties act independently.
+`live` detects traps and `inevitable` detects non-termination (see the
+modalities in SKILL.md).
 
-**A `property` carries a description string; a `query` does NOT** (§16.2 —
-`(query NAME (where (x TYPE)…) GUARD)`). Writing one is `malformed query`, and
-the whole claims file is rejected.
+**A `property` carries a description string; a `query` does not** (§16.2 —
+`(query NAME (where (x TYPE)…) GUARD)`). Giving a query one is `malformed
+query`, and the whole claims file is rejected.
 
 ## Forms — the only way to abstract
 
@@ -136,9 +129,9 @@ the whole claims file is rejected.
 (form (job-of J E A L) (enters J E) (advances J A) (leaves J L))
 ```
 
-A form is **rename-and-paste**: no recursion, no computation, and it cannot map
-over its `&rest`. At top level it may expand to several datums; *inside* a list
-it must expand to exactly one.
+A form is **rename-and-paste**: no recursion, no computation, no mapping over
+`&rest`. At top level it may expand to several datums; inside a list, to
+exactly one.
 
 **A form cannot introduce a bound variable.** An undeclared symbol in a template
 is read as a form name, so writing `(form (deps-met C) (all (R req) …))`
@@ -151,8 +144,8 @@ no `use`/`initial`/`transition`. Load it by relative path.
 
 ## No arithmetic, and what to do instead
 
-Writ has no numbers, no recursion and no unbounded structures. That is the point:
-it is what makes exhaustive search terminate.
+No numbers, recursion or unbounded structures — that is what makes exhaustive
+search terminate.
 
 - **A quantity** → a small enumerated type (`(type load-t (none some full))`).
 - **Time, or a counter** → a ladder of named entities walked by an arrow:
@@ -169,6 +162,5 @@ it is what makes exhaustive search terminate.
 4. What can happen, and when? → `transition`
 5. What do you want to know? → `.claims`, in a separate file
 
-Keep it **small**. The space is the product of every mutable cell; three jobs and
-three machines is 51 situations, and adding a clock took it to 1314. If a model
-will not finish, ask what the space *holds* before blaming the engine.
+Keep it **small**: the space is the product of every mutable cell. Three jobs on
+three machines is 51 situations; adding a clock makes it 1314.

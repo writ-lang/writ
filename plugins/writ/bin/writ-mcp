@@ -3,28 +3,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Find the writ MCP server and become it.
 #
-# DOCKER IS THE DEFAULT, and that is a deliberate inversion of what you might
-# expect. This plugin exists for people who want writ inside Claude and have no
-# reason to own a writ checkout — for them a container is not a fallback, it is
-# the whole delivery mechanism, and it means nothing native is ever installed.
-# Anyone who does have writ built locally is already served by that repository's
-# own .mcp.json; they can still get it here with WRIT_MCP_NATIVE=1.
-#
-# Order:
-#   1. $WRIT_MCP              — an operator who means one particular build
+# Docker is the default, so nothing native need be installed; a writ checkout
+# has its own .mcp.json. Order:
+#   1. $WRIT_MCP
 #   2. native, if WRIT_MCP_NATIVE=1
-#   3. Docker                — the default
-#   4. native                — Docker absent, but writ is installed
+#   3. Docker
+#   4. native, if Docker is absent
 #
-# Nothing is written to STDOUT: stdout is the protocol stream, and one stray
-# line is a message the client cannot parse. That is why the pull below is
-# redirected — `docker pull` is chatty, and its progress on stdout would
-# corrupt the session before it began. Diagnostics go to stderr, the only place
-# a human learns why the server did not start.
+# Never write to stdout: it is the protocol stream. Diagnostics go to stderr.
 set -eu
 
-# Pinned to the version this plugin ships with, so the tools answering are the
-# ones its skill describes. Override for a different build.
+# Pinned so the tools match what the plugin's skill describes.
 WRIT_IMAGE=${WRIT_IMAGE:-ghcr.io/writ-lang/writ:0.2.0}
 
 native() {
@@ -40,8 +29,7 @@ native() {
 }
 
 docker_run() {
-  # Fetch before exec, so a pull failure is EXPLAINED rather than surfacing as
-  # a server that died. Both streams to stderr: see the note about stdout.
+  # Pull first so a failure is explained; its output goes to stderr.
   if ! docker image inspect "$WRIT_IMAGE" >/dev/null 2>&1; then
     echo "writ: fetching $WRIT_IMAGE (first run only)…" >&2
     if ! docker pull "$WRIT_IMAGE" >&2 2>&1; then
@@ -58,14 +46,9 @@ MSG
       exit 127
     fi
   fi
-  # -i, never -t: this is a pipe, and a TTY would rewrite the bytes.
-  #
-  # THE MOUNT IS THE TRICK. The tools take PATHS, and a host path means nothing
-  # inside a container. Mounting the working directory AT ITS OWN PATH makes
-  # absolute and relative paths alike resolve to the files the caller meant.
-  # Read-only: every exposed tool only reads.
-  #
-  # The limit, and it is real: a model OUTSIDE that directory is invisible.
+  # -i, never -t: a TTY would rewrite the bytes. The working directory is
+  # mounted read-only at its own path so host paths resolve unchanged; a model
+  # outside it is invisible.
   exec docker run --rm -i -v "$PWD:$PWD:ro" -w "$PWD" \
     --entrypoint writ-mcp "$WRIT_IMAGE" "$@"
 }
@@ -89,16 +72,8 @@ writ-mcp is not available: no docker, and no writ installed.
 This plugin runs the server in a container by default, so Docker is the only
 thing it normally needs. Either install Docker, or install writ —
 
-    opam install writ            # or scripts/with-ocaml.sh dune build
-rm -rf "/root/.local/share/writ/lib"
-mkdir -p "/root/.local/bin" "/root/.local/share/writ/lib"
-for exe in writ writ-lsp writ-mcp; do \
-  rm -f "/root/.local/bin/$exe"; \
-  cp -fL "_build/install/default/bin/$exe" "/root/.local/bin/$exe"; \
-  chmod u+w "/root/.local/bin/$exe"; \
-done
-cp -f core/stdlib/* "/root/.local/share/writ/lib/" from a checkout of
-                                # github.com/writ-lang/writ
+    the release tarball   https://github.com/writ-lang/writ/releases  (./install.sh)
+    or, from a checkout   make install-writ
 
 If your writ-mcp lives somewhere unusual, set WRIT_MCP to it.
 MSG

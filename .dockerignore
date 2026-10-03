@@ -1,17 +1,6 @@
-# Keep the build context small and reproducible.
-#
-# TWO Dockerfiles share this context, and the classic builder has no
-# per-Dockerfile ignore file, so this list serves both:
-#
-#   Dockerfile             the runtime image. Its build stage COPYs a
-#                          hand-written list of directories, so what is in the
-#                          context beyond that list never reaches it.
-#   downstream/Dockerfile  the downstream regression image. It builds the WHOLE
-#                          tree and runs `make test`, so the suites (tests/),
-#                          the language server (tooling/lsp) and the toolchain
-#                          wrapper the Makefile calls (scripts/) must be here.
-#
-# What stays out is what neither needs: build output, the docs, git metadata.
+# Shared by Dockerfile and downstream/Dockerfile. The downstream image builds
+# the whole tree and runs `make test`, so tests/, tooling/lsp and scripts/ must
+# stay in the context.
 _build
 lean/.lake
 _opam

@@ -1,6 +1,5 @@
 version = 0.29.0
 profile = default
-# Match the compiler in the switch. ocamlformat defaults to a 5.4 parser, where
-# `effect` is a reserved keyword; under OCaml 5.2 it is an ordinary identifier,
-# and Ast.effect / Model.event.effect are named after the domain vocabulary.
+# Under OCaml 5.2 `effect` is an identifier (Ast.effect); ocamlformat's default
+# 5.4 parser reserves it.
 ocaml-version = 5.2.0

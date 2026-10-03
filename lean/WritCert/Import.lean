@@ -4,14 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Reading a writ certificate
 
-The JSON `writ check --certificate FILE` writes (docs/certificates.md), read into the kernel
-structures with every name interned. Interning is the one transformation, and
-it is injective by construction — one table, one code per distinct string — so
-a guard compares the same names here that it compares in writ.
-
-This file is part of what is trusted: a reader that mistook `"and"` for
-`"or"` would check the wrong model. It is kept to a direct transcription for
-that reason.
+Reads a certificate (docs/certificates.md), interning names injectively.
+Trusted — a misread would check the wrong model — so it is a direct
+transcription.
 -/
 import WritCert.Semantics
 import WritCert.Graph

@@ -1,11 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* `writ graph`: the phase quotient and the raw space as data, a witness lit,
-   and the two text renderers. The fixture is captured_trap: a capture is
-   one-way, so its phase graph has a crossing edge named after the capture,
-   and the trap's witness lights exactly that crossing. Stdlib only; the
-   resolver reads core/stdlib then tests/unit/fixtures. *)
+(* `writ graph` over captured_trap, whose one-way capture is the crossing edge
+   the trap's witness lights. *)
 
 open Writ_data
 open Writ_syntax
@@ -124,7 +121,6 @@ let () =
   check "dot: a final node is double-bordered"
     (contains ~sub:"peripheries=2" dot);
   check "dot: the lit crossing is coloured" (contains ~sub:"penwidth=3" dot);
-  (* The raw picture: one node per situation, edges per move. *)
   let raw = Graph.states sp in
   check "states: one node per situation" (List.length raw.Graph.nodes = n);
   check "states: every node has size 1"

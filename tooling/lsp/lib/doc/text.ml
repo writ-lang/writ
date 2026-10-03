@@ -1,28 +1,16 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* THE coordinate module: the only place LSP positions are constructed, and the
-   only file allowed to name the [character] field (the position gate enforces
-   this). Every conversion between the engine's coordinates and the wire's lives
-   here so the arithmetic exists once.
-
-   Two coordinate systems meet:
-   - The engine ([Errors.pos]): [line] is 1-based, [col] is a 1-based BYTE
-     column. A '\r' is an ordinary column-advancing byte — only '\n' ends a line
-     for the engine, so under CRLF the '\r' is the last byte of the line.
-   - LSP ([position]): [line] is 0-based, [character] counts UTF-16 code units.
-
-   UTF-16 width of a byte, by its lead: 0x00-0x7F -> 1, a 2-byte lead
-   (0xC0-0xDF) -> 1, a 3-byte lead (0xE0-0xEF) -> 1, a 4-byte lead (0xF0-0xF7) ->
-   2 (an astral scalar is a surrogate pair), a continuation byte (0x80-0xBF) ->
-   0. Summing that over a byte prefix gives the UTF-16 column. *)
+(* The coordinate module: the only file that builds LSP positions or names the
+   [character] field (the position gate enforces this). The engine counts
+   1-based lines and 1-based byte columns, with '\r' an ordinary byte; LSP
+   counts 0-based lines and UTF-16 code units. *)
 
 type position = { line : int; character : int }
 type range = { start : position; stop : position }
 
-(* Each line keeps its trailing '\r' (we split only on '\n') so the byte column
-   matches the engine, which never treats '\r' as special. [src] is retained for
-   the offset-based scans ([token_range], [word_at]). *)
+(* Lines are split on '\n' only, keeping any '\r', so byte columns match the
+   engine's. *)
 type t = { src : string; lines : string array }
 
 let of_string src =
@@ -44,7 +32,6 @@ let units_of_lead b =
   else if b < 0xF0 then 1 (* 2- or 3-byte lead *)
   else 2 (* 4-byte lead -> surrogate pair *)
 
-(* UTF-16 width of the first [nbytes] bytes of [line]. *)
 let units_of_prefix line nbytes =
   let nbytes =
     if nbytes < 0 then 0
@@ -59,8 +46,6 @@ let units_of_prefix line nbytes =
 
 let line_at t i = if i >= 0 && i < Array.length t.lines then t.lines.(i) else ""
 
-(* Byte offset of the start of line [i] in [src]: the sum of prior line lengths
-   plus one '\n' each. *)
 let base_offset t i =
   let b = ref 0 in
   for k = 0 to i - 1 do
@@ -73,8 +58,7 @@ let lsp_of_pos t (p : Writ_data.Errors.pos) =
   let line = p.line - 1 in
   { line; character = units_of_prefix (line_at t line) (p.col - 1) }
 
-(* LSP position -> byte offset into [src]. Out-of-range lines and columns clamp
-   to the nearest valid boundary; this never raises. *)
+(* LSP position -> byte offset, clamped. *)
 let offset_of_lsp t (p : position) =
   let nlines = Array.length t.lines in
   let li =
@@ -93,7 +77,7 @@ let offset_of_lsp t (p : position) =
   done;
   base_offset t li + !i
 
-(* Byte offset into [src] -> LSP position (clamping the offset into range). *)
+(* Byte offset -> LSP position, clamped. *)
 let lsp_of_offset t off =
   let off = if off < 0 then 0 else off in
   let nlines = Array.length t.lines in
@@ -116,9 +100,8 @@ let is_delim c =
   c = ' ' || c = '\t' || c = '\n' || c = '\r' || c = '(' || c = ')' || c = ';'
   || c = '"'
 
-(* Re-scan the token whose start is [start], returning its range. A [String]
-   token runs to the closing quote; if the quote never closes (EOF or end of
-   line) the range stops there. Any other token runs to the next delimiter. *)
+(* The range of the token at [start]: a string runs to its closing quote (or
+   the line end), anything else to the next delimiter. *)
 let token_range t start =
   let src = t.src in
   let n = String.length src in
@@ -142,12 +125,8 @@ let token_range t start =
     done;
   { start; stop = lsp_of_offset t !e }
 
-(* The full extent of a parenthesised form: its opening '(' through the matching
-   ')', skipping "strings" and ; comments so a paren inside them does not count.
-   token_range returns a ZERO-WIDTH span on a '(' (a delimiter), which cannot
-   contain a symbol's selectionRange — an LSP invariant a client enforces by
-   rejecting the whole documentSymbol response. A non-'(' start falls back to
-   token_range. *)
+(* A form from '(' to its matching ')', skipping strings and comments; needed
+   because a token range on '(' is zero-width. Other starts use [token_range]. *)
 let form_range t start =
   let src = t.src in
   let n = String.length src in
@@ -183,8 +162,7 @@ let form_range t start =
     { start; stop = lsp_of_offset t !e }
   end
 
-(* The maximal run of non-delimiter bytes around byte offset [off], with its
-   range. At a delimiter this is the empty word. *)
+(* The non-delimiter run around [off], with its range; empty at a delimiter. *)
 let word_at t off =
   let src = t.src in
   let n = String.length src in
@@ -200,8 +178,6 @@ let word_at t off =
   ( String.sub src !s (!e - !s),
     { start = lsp_of_offset t !s; stop = lsp_of_offset t !e } )
 
-(* The whole of line [i], as a range — where a diagnostic with no datum to blame
-   lands (a first-line squiggle rather than a dropped error). *)
 let line_range t i =
   let n = if i >= 0 && i < Array.length t.lines then i else 0 in
   let line = line_at t n in
@@ -210,9 +186,8 @@ let line_range t i =
     stop = { line = n; character = units_of_prefix line (String.length line) };
   }
 
-(* --- the wire crossing. LSP positions carry a [character] field, so every JSON
-   that mentions one is built and read HERE and nowhere else (the position gate).
-   A range's end key is the reserved word "end", hence [stop] renders as "end". *)
+(* --- the wire crossing. A range's [stop] renders as "end", a reserved word in
+   OCaml. *)
 
 let json_of_position (p : position) : Json.t =
   Json.Assoc [ ("line", Json.Int p.line); ("character", Json.Int p.character) ]

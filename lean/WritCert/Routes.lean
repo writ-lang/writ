@@ -4,26 +4,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Routes, distances, and counting
 
-Three smaller claims every writ report makes, each made checkable:
-
-- **a witness is a route** — replayed on the table, it is a sequence of real
-  moves from the initial situation, landing where writ says each step lands;
-- **a witness is shortest** — a distance certificate (each situation one more
-  than its parent, no edge shortening anything) bounds every route from below;
-- **`states: N` counts situations** — a sorting permutation shows the N listed
-  situations are pairwise distinct, so with `reach_iff` there are exactly N
-  reachable ones.
+Checks that a witness is a route, that it is shortest (via a distance
+certificate), and that `states: N` is exact (via a sorting permutation).
 -/
 import WritCert.Props
 
 namespace Writ
 
-/-- Routes over real edges, counted. -/
 inductive StepsN (M : Model) : State → State → Nat → Prop where
   | refl (s : State) : StepsN M s s 0
   | cons {s s' u : State} {t k : Nat} : step M s t = .next s' → StepsN M s' u k → StepsN M s u (k + 1)
 
-/-- Replay a route — (move, landing) pairs — on the table, from `i`. -/
+/-- Replay (move, landing) pairs on the table, from `i`. -/
 def routeOK (G : Graph) : Nat → List (Nat × Nat) → Bool
   | _, [] => true
   | i, (t, j) :: rest => G.cell i t == .to j && routeOK G j rest
@@ -60,9 +52,8 @@ def distOK (M : Model) (G : Graph) (dist : Array Nat) : Bool :=
     | .to j => decide (dist.getD j 0 ≤ dist.getD i 0 + 1)
     | _ => true)
 
-/-- No route is shorter than the distance certificate says: any route of `L`
-moves from a listed situation at distance `d` ends at a listed copy of its
-end at distance at most `d + L`. -/
+/-- A route of `L` moves from distance `d` ends at a listed copy at distance
+at most `d + L`. -/
 theorem dist_lower (hG : checkGraph M G = true) {dist : Array Nat}
     (hd : distOK M G dist = true) {s u : State} {L : Nat} (h : StepsN M s u L) :
     ∀ i, i < G.size → G.st i = s → ∃ j, j < G.size ∧ G.st j = u ∧ dist.getD j 0 ≤ dist.getD i 0 + L := by
@@ -82,8 +73,7 @@ theorem dist_lower (hG : checkGraph M G = true) {dist : Array Nat}
     simp only [decide_eq_true_eq] at this
     exact ⟨j', hj', hst, by omega⟩
 
-/-- A route to listed situation `k` of `dist[k]` moves, all of whose copies sit
-no nearer, is a shortest route to that situation. -/
+/-- If no copy of `k` sits nearer, no route to `k` is shorter than `dist[k]`. -/
 theorem shortest (hG : checkGraph M G = true) {dist : Array Nat}
     (hd : distOK M G dist = true) {k : Nat} (hcopies : ∀ j, j < G.size → G.st j = G.st k →
       dist.getD k 0 ≤ dist.getD j 0) {L : Nat} (hL : StepsN M M.init (G.st k) L) :
@@ -95,8 +85,8 @@ theorem shortest (hG : checkGraph M G = true) {dist : Array Nat}
   have := hcopies j hj hst
   omega
 
-/-- A satisfying situation `k` no farther than any other satisfying one: every
-route to ANY situation satisfying F is at least `dist[k]` moves. -/
+/-- If `k` is the nearest F situation, every route to any F situation takes at
+least `dist[k]` moves. -/
 theorem nearest (hG : checkGraph M G = true) {dist : Array Nat}
     (hd : distOK M G dist = true) {F : Guard} {k : Nat}
     (hmin : ∀ j, j < G.size → G.sat M F j = true → dist.getD k 0 ≤ dist.getD j 0)
@@ -113,7 +103,7 @@ end
 
 /-! ## Distinctness -/
 
-/-- Lexicographic order on situations; a vacant cell sorts first. -/
+/-- Lexicographic order; a vacant cell sorts first. -/
 def cellLt : Cell → Cell → Bool
   | none, some _ => true
   | some a, some b => decide (a < b)
@@ -153,8 +143,8 @@ theorem stLt_trans : ∀ {a b c : State}, stLt a b = true → stLt b c = true �
   | _ :: _, [], _, h, _ => by simp [stLt] at h
   | _, _ :: _, [], _, h => by simp [stLt] at h
 
-/-- `ord` lists the situations in strictly increasing order, and `inv` is its
-inverse — so `ord` is a bijection and no two situations are equal. -/
+/-- `ord` lists the situations strictly increasing and `inv` inverts it, so no
+two situations are equal. -/
 def distinctOK (G : Graph) (ord inv : Array Nat) : Bool :=
   allBelow G.size (fun k => decide (ord.getD k 0 < G.size)) &&
   allBelow (G.size - 1) (fun k => stLt (G.st (ord.getD k 0)) (G.st (ord.getD (k + 1) 0))) &&
@@ -194,8 +184,7 @@ theorem distinct (G : Graph) {ord inv : Array Nat} (h : distinctOK G ord inv = t
       hoi, hoj, hst, stLt_irrefl] at this
     cases this
 
-/-- **`states: N` is right**: the reachable situations are exactly the N
-listed ones, and those are N different situations. -/
+/-- **`states: N` is right**: exactly N distinct reachable situations. -/
 theorem count_exact {M : Model} (hG : checkGraph M G = true) {ord inv : Array Nat}
     (h : distinctOK G ord inv = true) :
     ((List.range G.size).map G.st).Nodup ∧
@@ -209,8 +198,7 @@ theorem count_exact {M : Model} (hG : checkGraph M G = true) {ord inv : Array Na
   · rw [reach_iff hG]
     simp [List.mem_map, List.mem_range, eq_comm]
 
-/-- The sorting permutation, found by sorting. Untrusted, like everything that
-searches. -/
+/-- The sorting permutation (untrusted). -/
 def sortCert (G : Graph) : Array Nat × Array Nat :=
   let ord := (Array.range G.size).qsort fun a b => stLt (G.st a) (G.st b)
   let inv := ord.foldl (init := (Array.replicate G.size 0, 0)) (fun (acc, k) i =>

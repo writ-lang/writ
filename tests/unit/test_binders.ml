@@ -1,13 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Binder REJECTION tests. Split from test_names.ml for the reason that suite
-   was itself split from test_data.ml — the 300-line cap — and they belong
-   together conceptually: this is §7's namespace rule reaching the one
-   construct in the language that binds a name locally.
-
-   Same shape as its parent suite: a source string, the real reader, expander
-   and parser, and the exact line:col the binder is blamed at. *)
+(* Binder rejection tests: §7's namespace rule reaching the one construct that
+   binds a name locally. Same harness as test_names.ml. *)
 
 open Writ_data
 open Writ_syntax
@@ -45,12 +40,8 @@ let rejects_at name src ~line ~col ~sub =
         (e.Errors.pos = Some { Errors.file = None; line; col }
         && contains_sub ~sub e.Errors.msg)
 
-(* §7's "There is no shadowing" was silent about the one construct in the
-   language that binds a name locally. [Eval.eval_path] resolves a chain root
-   through the binding environment BEFORE the roster, so a binder spelled like
-   an entity silently hides it — the same invisible winner-picking gap 1 closed
-   for declarations. Binders stay reusable across DISJOINT scopes; what is
-   forbidden is colliding with a global name. *)
+(* A chain root resolves through bindings before the roster, so a binder
+   spelled like an entity would hide it. *)
 let () =
   rejects_at "a binder may not shadow an entity"
     "(schema m (type v (a b)) (type box (arrow f (to v))))\n\
@@ -67,9 +58,7 @@ let () =
            (transition t (when (some (x box) (is x.f b))) (do (set q.f b)))\n\
            (use m) (initial i)"))
 
-(* The same rule reached from the other side: a .claims file is parsed against
-   an already-built model (§16), so its binders are checked against the model's
-   names rather than a second scan of the universe. *)
+(* A .claims binder is checked against the built model's names (§16). *)
 let decodes_claims model_src claims_src =
   match decodes model_src with
   | Error e -> Error e

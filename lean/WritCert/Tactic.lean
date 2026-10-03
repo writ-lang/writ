@@ -4,26 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # writ inside Lean
 
-Two pieces, so that a writ model can be a Lean object and its properties Lean
-theorems.
-
-**`writ_model NAME from "MODEL.writ" [claims "FILE.claims"]`** runs `writ check --certificate`
-on the model and defines `NAME.model : Writ.Model` and one
-`NAME.«property» : Writ.Property` per question in the claims file.
-**`writ_model NAME certificate "FILE.json"`** does the same from a certificate
-already written, for a build with no writ on the PATH. writ's front end —
-parsing, `load`, forms — is what makes the model; that is the same trust as
-`writ-cert`, and nothing else is taken from writ: the graph and the verdicts
-are not imported.
-
-**`by writ`** proves `p.Holds M` or `¬ p.Holds M`. It explores the space,
-finds a certificate (both untrusted, run at elaboration time), and closes the
-goal with `holds_of_check`/`fails_of_check`, whose two premises —
-`checkGraph M G = true` and `checkCert M G p c = true` — the KERNEL evaluates.
-So the theorem's axioms are the standard three: no `native_decide`, no
-`ofReduceBool`, nothing trusted but Lean. `by writ (native := true)` uses
-`native_decide` instead, for spaces too large for the kernel, and says so in
-`#print axioms`.
+`writ_model NAME from "MODEL.writ" [claims "FILE.claims"]` (or
+`certificate "FILE.json"`) defines `NAME.model` and one `NAME.«property»` per
+claim; only the model is taken from writ. `by writ` proves `p.Holds M` or
+`¬ p.Holds M`: the search is untrusted, and the kernel evaluates `checkGraph`
+and `checkCert` (or `native_decide`, with `(native := true)`).
 -/
 import WritCert.Import
 import WritCert.Generate
@@ -131,7 +116,6 @@ unsafe def evalModelUnsafe (e : Expr) : MetaM Model := evalExpr Model (mkConst `
 unsafe def evalPropertyUnsafe (e : Expr) : MetaM Property := evalExpr Property (mkConst ``Property) e
 @[implemented_by evalPropertyUnsafe] opaque evalProperty (e : Expr) : MetaM Property
 
-/-- Prove a decidable `b = true` goal by kernel evaluation, or by the compiler. -/
 def decideTrue (b : Expr) (native : Bool) : TermElabM Expr := do
   let goal ← mkEq b (mkConst ``Bool.true)
   let stx ← if native then `(by native_decide) else `(by decide +kernel)
@@ -192,7 +176,7 @@ def importCertificate (base : Lean.Name) (text : String) : CommandElabM Unit := 
     else
       logWarning m!"writ_model: `{p.name}` is n/a in this model (it names structure the schema lacks); not defined"
 
-/-- The directory of the file being elaborated: relative paths are read from it. -/
+/-- Relative paths are read from the elaborated file's directory. -/
 def sourceDir : CommandElabM System.FilePath := do
   return (System.FilePath.mk (← getFileName)).parent.getD "."
 
@@ -222,7 +206,7 @@ syntax (name := writModelCert) "writ_model " ident &" certificate " str : comman
   let out ← match ← (IO.Process.output { cmd := writ, args, cwd := dir }).toBaseIO with
     | .ok o => pure o
     | .error e => throwError "writ_model: could not run `{writ}` ({e}); set WRIT, or use `writ_model … certificate`"
-  -- 1 is a finding (a failing property), which is an answer; 2 is a failure
+  -- exit 1 is a failing property, still an answer; 2 is an error
   unless out.exitCode ≤ 1 do
     throwError "writ_model: writ check failed:\n{out.stderr}"
   let text ← match ← (IO.FS.readFile file).toBaseIO with

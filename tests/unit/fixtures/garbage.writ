@@ -1,5 +1,4 @@
-; garbage.writ — unbalanced parens, so the reader cannot parse it.
-; `writ check garbage.writ` exits 2 (unreadable input).
+; Unbalanced parens: `writ check` exits 2.
 
 (schema oops
   (type flag (lo hi)

@@ -3,12 +3,9 @@
 
 open Writ_data
 
-(* Form declarations: [(form PATTERN TEMPLATE…)] collected into a [form_def]
-   with hygiene checks (kernel §0.2, §6). Blank names are the ALL-CAPS words
-   in the pattern; [&rest] names the single splice blank, in last position; the
-   template may mention only reserved words, blanks, and EARLIER forms. That
-   last rule — a template can name neither itself nor a not-yet-declared
-   form — is what makes the one-shot fixpoint (expander.ml) terminate. *)
+(* [(form PATTERN TEMPLATE…)] declarations, with hygiene checks (kernel §0.2,
+   §6). A template may mention only reserved words, blanks and earlier forms,
+   which is what makes expansion terminate. *)
 
 type form_def = {
   name : string;
@@ -20,17 +17,8 @@ type form_def = {
 
 let ( let* ) = Result.bind
 
-(* The 26 reserved words, plus the interrogator's file-format words (so a claims
-   library's forms may head their templates with [property]/[query]/…, and a
-   rules library's with [relation]/[rule]). A form may not be named a reserved
-   word, a blank may not collide with one, and these are exactly the callable
-   heads a template may legally mention.
-
-   Reserving a word has a price, paid once per entry: [allowed_head] below lets
-   a template mention it freely, so a template naming a form that does not exist
-   yet stops being an error the moment that name joins this list. There is no
-   way to charge it per file type — one expander serves all three, and a form's
-   legality must not depend on which file happens to load it. *)
+(* The 26 reserved words plus the claims and rules file words: no form or
+   blank may take one, and templates may use them as heads. *)
 let reserved =
   [
     "use";
@@ -79,21 +67,14 @@ let reserved =
 
 let is_reserved w = List.mem w reserved
 
-(* A blank is an ALL-CAPS atom: at least one A–Z, and no a–z.
-
-   [Rules.is_var] in the OPTIONAL interrogator extension spells the same test
-   for a different concept — a rule variable, not a form blank. The
-   duplication is deliberate: sharing one definition would point the kernel's
-   form expander at an extension a conforming processor need not implement.
-   Change one and the other stays as it is. *)
+(* A blank is an ALL-CAPS atom: at least one A–Z, and no a–z. Deliberately
+   separate from [Rules.is_var] (see there). *)
 let is_blank s =
   s <> ""
   && String.exists (fun c -> c >= 'A' && c <= 'Z') s
   && not (String.exists (fun c -> c >= 'a' && c <= 'z') s)
 
-(* Collect the ALL-CAPS blank atoms of a nested (structural) pattern item,
-   prepending onto [acc]. [&rest] is a top-level-only construct; reject it
-   below the top level. *)
+(* The blanks of a nested pattern item; [&rest] is not allowed there. *)
 let rec nested_blanks acc (it : Reader.t) : (string list, Errors.t) result =
   match it with
   | Reader.Atom ("&rest", p) ->
@@ -107,10 +88,7 @@ and nested_blanks_all acc = function
       let* acc = nested_blanks acc x in
       nested_blanks_all acc xs
 
-(* Read the pattern items after the head into (blanks, rest), enforcing ≤1
-   [&rest] and only in last position. Non-blank literals match literally in the
-   expander and are not recorded as blanks; a nested list matches structurally,
-   contributing the blanks it contains (kernel §6). *)
+(* The pattern items as (blanks, rest); [&rest] at most once, last (§6). *)
 let rec parse_items acc = function
   | [] -> Ok (List.rev acc, None)
   | Reader.Atom ("&rest", p) :: tl -> (
@@ -124,39 +102,13 @@ let rec parse_items acc = function
       let* nested = nested_blanks_all [] items in
       parse_items (nested @ acc) tl
 
-(* [open_heads] relaxes ONE rule below, for one file type, and the reason is
-   that the rule is unanswerable there rather than unwanted.
-
-   A template's heads are checked against what the expander knows: reserved
-   words, the form's own blanks, and forms already declared. In a .writ or
-   .claims file that is the whole vocabulary, so an unknown head IS a typo or a
-   forward reference. In a .rules file it is not: a rule body's heads are
-   RELATIONS, which do not exist until the program is parsed — the extension's
-   built-ins (`situation`, `edge`, `holds`) and every relation the file itself
-   declares. The expander cannot know any of them, so the check there rejects
-   correct programs and catches nothing.
-
-   Nothing is lost by relaxing it, which is the condition for doing so: an
-   unknown head in a rule body is refused by [Rules_check] with its own position
-   and the declaration to add — a better diagnostic than this one, arriving where
-   the knowledge is. The self-recursion rule is NOT relaxed; it needs no
-   vocabulary.
-
-   It is a flag rather than a list of the extension's words on purpose. A list
-   would put the interrogator's vocabulary inside the kernel's expander, which
-   a conforming processor (§14) need not implement — the same coupling
-   [is_blank]'s note above declines — and it would still be wrong, since no
-   list can contain the relations a file has yet to declare. *)
+(* [open_heads] (.rules files) skips the unknown-head check: relation names
+   are unknown here, and [Rules_check] reports them. *)
 let collect ?(open_heads = false) (d : Reader.t) ~(earlier : form_def list) :
     (form_def, Errors.t) result =
-  (* `=>` was the language's only infix token. It carried no information the
-     position does not already give — the pattern is element 2, the templates
-     are the rest — so removing it makes §2.5's "every datum is a parenthesised
-     list headed by a word" true without exception. *)
   match d with
-  (* An un-migrated form would otherwise be READ, not refused: `=>` is now an
-     ordinary atom, so the old spelling parses as a form whose first template
-     is `=>` — a different form, accepted in silence. Name it instead. *)
+  (* The old `(form P => T)` spelling would otherwise parse as a form whose
+     first template is `=>`. *)
   | Reader.List (Reader.Atom ("form", _) :: _ :: Reader.Atom ("=>", ap) :: _, _)
     ->
       Errors.err ~pos:ap
@@ -191,18 +143,13 @@ let collect ?(open_heads = false) (d : Reader.t) ~(earlier : form_def list) :
                 ("blank `" ^ s ^ "` collides with a name in scope")
           | None -> Ok ()
       in
-      (* Reject a template that names its own form (recursion) or a head that
-         is neither reserved, a blank, nor an earlier form (a forward
-         reference). *)
+      (* Reject self-reference and forward references. *)
       let allowed_head h =
         open_heads || is_reserved h || List.mem h all_blanks
         || List.mem h earlier_names
       in
-      (* A nullary form is invoked as a bare atom, so a bare atom equal to the
-         name is a self-invocation. A form with blanks is only ever invoked as a
-         list head, so its name occurring as a bare (non-head) atom is data — a
-         §7 claim-form names itself as the [property]/[query] symbol — and must
-         not be flagged. *)
+      (* Only a nullary form is invoked as a bare atom; for other forms the
+         name as an atom is data (a claim-form names itself, §7). *)
       let nullary = blanks = [] && rest = None in
       let rec scan (t : Reader.t) =
         match t with

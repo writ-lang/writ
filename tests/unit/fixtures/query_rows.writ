@@ -1,7 +1,5 @@
-; query_rows.writ — a model whose INITIAL situation already has a captured
-; bureau, so the sibling query `captured` returns a row at state 0 (no --at
-; needed). `writ query query_rows.writ captured` prints
-; `captured  (at state 0)` and a `b = watchdog` binding row.
+; A bureau is already captured initially, so `writ query query_rows.writ
+; captured` returns a row at state 0.
 
 (schema tiny
   (type indep (independent captured))

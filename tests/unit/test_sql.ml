@@ -1,20 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* `writ sql` unit tests.
-
-   The load-bearing one is the ROUND TRIP, and it is checked the strong way:
-   not by diffing two texts, but by reading each side back through the real
-   front end and comparing the two SCHEMAS. Text equality would be the wrong
-   oracle anyway — the export normalises spellings on purpose (`character
-   varying(255)` comes back as `varchar(255)`), so a text diff would report a
-   difference that is not one, and, worse, would pass if both sides were
-   equally wrong. Comparing the olog compares what the mapping claims to
-   preserve.
-
-   The rest of the file is the boundary: what the DDL says that writ declines,
-   asserted to be declined rather than quietly half-carried. Those tests fail
-   loudly the day someone "improves" the parser into guessing. *)
+(* `writ sql` unit tests. The round trip compares schemas read back through the
+   front end, not text, since the export normalises spellings. The rest pins
+   what DDL says that writ declines. *)
 
 open Writ_data
 open Writ_syntax
@@ -54,8 +43,7 @@ let import ?(name = "t") ?(with_data = false) (sql : string) :
   let text, _ = Emit_writ.file ~name ~source:"t.sql" db in
   (text, db)
 
-(* The schema as a comparable value: every type with its members, every arrow
-   with the two flags that decide what a state IS, every law by name and body. *)
+(* The schema as a comparable value. *)
 let projection (s : Schema.t) =
   let arrows_of (t : Schema.ty) =
     let flat =
@@ -138,13 +126,11 @@ let () =
     (match arrow "orders" "total" with
     | Some a -> not a.vacatable
     | None -> false);
-  (* an opaque domain has exactly ONE member: that is what makes a NOT NULL
-     scalar column cost the state product nothing *)
+  (* so a NOT NULL scalar column costs the state product nothing *)
   check "opaque domain has one member"
     (match ty "numeric-10-2" with
     | Some { flavor = Schema.Enumerated [ _ ]; _ } -> true
     | _ -> false);
-  (* the scalars whose values are worth naming keep them *)
   check "boolean keeps its two members"
     (match ty "bool" with
     | Some { flavor = Schema.Enumerated [ "true"; "false" ]; _ } -> true
@@ -159,8 +145,7 @@ let () =
     (match ty "customers-tier" with
     | Some { flavor = Schema.Enumerated [ "free"; "pro" ]; _ } -> true
     | _ -> false);
-  (* a single-row CHECK becomes a law — the thing `writ check` then reports a
-     move can BREAK *)
+  (* a single-row CHECK becomes a law *)
   check "CHECK -> equation"
     (List.exists
        (fun (e : Schema.equation) -> e.name = "shipped-needs-stamp")
@@ -173,9 +158,8 @@ let declined_for ~(sub : string) (sql : string) =
   List.exists (fun (d : Sql_ast.decline) -> contains ~sub d.why) db.declines
 
 let () =
-  (* UNIQUE is unsayable, not unimplemented: a writ law ranges over ONE entity
-     of its subject type, and a bare `some` binder is not comparable, so "two
-     distinct rows agree" has no spelling at all. *)
+  (* UNIQUE is unsayable: a writ law ranges over one entity, so "two distinct
+     rows agree" has no spelling. *)
   check "UNIQUE column constraint is declined"
     (declined_for ~sub:"UNIQUE"
        "CREATE TABLE t (id text PRIMARY KEY, a text UNIQUE);");
@@ -184,13 +168,11 @@ let () =
        "CREATE TABLE t (id text PRIMARY KEY, a text, UNIQUE (a));");
   check "CREATE UNIQUE INDEX is declined"
     (declined_for ~sub:"UNIQUE" "CREATE UNIQUE INDEX i ON t (a);");
-  (* arithmetic has no reading in a language with no numbers — a SUM couples
-     two quantities and has no quotient; a column against a constant does,
-     and crosses as regions (tested under "regions" below) *)
+  (* no numbers, so no arithmetic; a column against a constant crosses as
+     regions (below) *)
   check "an arithmetic CHECK is declined"
     (declined_for ~sub:"expressible fragment"
        "CREATE TABLE t (id text PRIMARY KEY, n int, m int, CHECK (n + m > 0));");
-  (* comparing an opaque column to a literal names a member that cannot exist *)
   check "a CHECK against an opaque column is declined"
     (declined_for ~sub:"opaque domain"
        "CREATE TABLE t (id text PRIMARY KEY, a text, b text, CONSTRAINT c \
@@ -216,9 +198,7 @@ let () =
   in
   let m, _ = round_trip "junction" sql in
   let s = m.Model.schema in
-  (* the CONSTRAINT is declined; the TABLE is not. Note it does NOT become
-     stdlib's `span`, which fixes the arrow names to left/right and would
-     discard the column names the export needs. *)
+  (* not stdlib's `span`, which would lose the column names *)
   check "junction table keeps both arrows under their own names"
     (match
        (Schema.arrow_in s ~dom:"ab" "a-id", Schema.arrow_in s ~dom:"ab" "b-id")
@@ -250,9 +230,7 @@ ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
   in
   let m, _ = round_trip "pg_dump" sql in
   let s = m.Model.schema in
-  (* the dollar-quoted body holds three semicolons; if the splitter counted
-     them the table would have been cut into fragments and nothing below would
-     hold *)
+  (* the dollar-quoted body holds three semicolons *)
   check "a dollar-quoted body does not split statements"
     (Schema.type_of s "orders" <> None);
   check "the schema qualifier is dropped, not folded into the name"
@@ -278,10 +256,8 @@ ALTER TABLE ONLY public.orders ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
 
 (* --- what only a pragma can carry ---------------------------------------- *)
 
-(* Mutability is the one column fact SQL cannot state: a foreign key the model
-   UPDATEs and one it never touches are the same DDL. Without the pragma the
-   export would be lossy in a way no re-import could detect, so this test is
-   the round trip's real edge. *)
+(* Mutability is the column fact SQL cannot state; only the pragma carries
+   it. *)
 let () =
   let writ =
     "(form (text A) (arrow A (to text)))\n\
@@ -319,8 +295,8 @@ let () =
   check "a colliding member falls back to a spelling nothing else can take"
     (Sql_names.member_for ~taken:[ "ts" ] "timestamp" = "timestamp*")
 
-(* Provenance (docs/bridges.md §5): every law the import writes carries the
-   line of the CHECK it came from, so a violation names the DDL line. *)
+(* Provenance (docs/bridges.md §5): an imported law carries its CHECK's
+   line. *)
 let () =
   let text, _ =
     import
@@ -400,8 +376,6 @@ let () =
   in
   check "regions: no empty piece between adjacent integers"
     (contains ~sub:"(type t-n-range (below-4 exactly-4 exactly-5 above-5))" text);
-  (* a comparison between two columns has no quotient and stays declined;
-     one on a text column is declined by name *)
   check "regions: two columns compared is still declined"
     (declined_for ~sub:"expressible fragment"
        "CREATE TABLE t (id uuid PRIMARY KEY, a int, b int, CHECK (a < b));");

@@ -1,24 +1,10 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* ct.rules (TCT): the standard rules library, driven against the two fixtures
-   whose derived categories are small enough to count by hand.
-
-   The file under test is the SHIPPED one — core/stdlib/ct.rules, not a copy —
-   because a library that drifts from its tests is the failure this is for. Its
-   two fixtures are chosen to be opposites: rules_base.writ's four situations
-   form a DAG, where every edge is one-way and there is one final phase;
-   cycle.writ's two situations are a single cycle, where none is and both are.
-   A relation that quietly answered "everything" or "nothing" would pass one of
-   them and fail the other.
-
-   Every expected number below is enumerated by hand from the fixture, never
-   copied from what the engine printed — test_derive.ml's rule, and for its
-   reason: a test that records the output cannot fail when the output is wrong.
-
-   rules_base.writ: two latches (quiet → vocal, each once), so the situations are
-   (q,q) → {(v,q), (q,v)} → (v,v), four of them and four edges, no way back.
-   cycle.writ: one flag, up and down, so two situations and two edges. *)
+(* The shipped core/stdlib/ct.rules against two hand-countable fixtures:
+   rules_base.writ, a DAG (q,q) → {(v,q), (q,v)} → (v,v), and cycle.writ, one
+   two-situation cycle. A relation answering "everything" or "nothing" fails
+   one of them. *)
 
 open Writ_data
 open Writ_syntax
@@ -65,16 +51,9 @@ let model_file name =
 let space m =
   match Space.build m with Ok sp -> sp | Error e -> failwith ("space: " ^ e)
 
-(* [Rules_check.check] is the only constructor of a [Rules.program], so a
-   library that failed stratification, range restriction or sort inference never
-   reaches [Derive.run] — which makes "it derives at all" one of the assertions
-   here rather than a precondition of them. *)
 let program m src =
-  (* [~open_heads:true] is what [Loader.read_rules] passes, and this harness has
-     to pass it too: §7's forms have rule bodies whose heads are relations, which
-     the expander cannot know. Expanding here rather than parsing the raw datums
-     is also the point — a `(form …)` reaching [Rules_parser] unexpanded is not a
-     rules declaration at all. *)
+  (* As [Loader.read_rules] does: §7's forms have relation heads the expander
+     cannot know. *)
   match Expander.expand ~open_heads:true (read src) with
   | Error e -> failwith ("ct.rules: " ^ Errors.to_string e)
   | Ok ds -> (
@@ -106,17 +85,14 @@ let loop =
   let m = model_file "cycle.writ" in
   Derive.run (space m) (program m ct)
 
-(* The DAG. `reach` is four identities plus the five forward pairs — (q,q) to
-   each of the other three, and each of the two middles to (v,v). Nothing runs
-   backwards, so `mutual` is the identities alone and `before` is the five. *)
+(* The DAG: `reach` is four identities plus five forward pairs; nothing runs
+   backwards, so `mutual` is the identities and `before` the five. *)
 let () =
   check "reach is the identities plus every forward pair" (count dag "reach" = 9);
   check "mutual over a DAG is the identities alone" (count dag "mutual" = 4);
   check "before is reach minus the identities, here" (count dag "before" = 5)
 
-(* Every edge of a DAG is a door with no way back, and there is exactly one
-   terminal class: (v,v), which is also the only situation with no move. The
-   three that can still leave are what `escapes` collects. *)
+(* Every DAG edge is one-way; (v,v) is the one terminal class. *)
 let () =
   check "every edge of a DAG is one-way" (count dag "one-way" = 4);
   check "three of the four situations can still leave their class"
@@ -125,11 +101,7 @@ let () =
   check "three situations have a move" (count dag "moves" = 3);
   check "the sink is the one dead end" (count dag "dead-end" = 1)
 
-(* The two phase-derived relations, on the same fixture. A DAG has no recurrence
-   at all, and its quotient is itself — so the phase order has the same five
-   pairs `before` does, which is the agreement worth asserting: the two are
-   computed by different routes (a closure over the quotient, then read down
-   onto situations) and must not part company. *)
+(* The phase order equals `before` here; the two are computed differently. *)
 let () =
   check "a DAG has no situation on a cycle" (count dag "recurrent" = 0);
   check "the phase order closes the four crossings into five pairs"
@@ -137,11 +109,8 @@ let () =
   check "…which is exactly `before`, every phase being a single situation here"
     (count dag "phase-before" = count dag "before")
 
-(* The cycle, where every answer is the opposite. Both situations reach each
-   other, so the poset has collapsed to a single class: nothing is `before`
-   anything, no edge is one-way, nobody escapes, and both situations are final
-   WITHOUT either being a dead end — which is the distinction §6 exists to make
-   sayable, and the one a "stuck" test that only looked for dead ends misses. *)
+(* The cycle is one class: nothing is before anything or escapes, and both
+   situations are final without being dead ends (§6). *)
 let () =
   check "reach over a two-cycle is every pair" (count loop "reach" = 4);
   check "a cycle is one isomorphism class" (count loop "mutual" = 4);
@@ -150,21 +119,12 @@ let () =
   check "nobody escapes a single class" (count loop "escapes" = 0);
   check "both situations are in the final phase" (count loop "final-phase" = 2);
   check "a final phase need not be a dead end" (count loop "dead-end" = 0);
-  (* The pair the DAG cannot distinguish. `final-phase` holds of both situations
-     here AND of the DAG's sink, so on its own it does not say whether a model
-     has arrived or is going round forever; `recurrent` is what tells the two
-     apart, and it is the relation that had no spelling before `phase` — "S and
-     T are one class and are not the same situation" needs an inequality on
-     situations, and the language has none. *)
+  (* `recurrent` tells going round forever from arriving. *)
   check "both situations of a cycle are on it" (count loop "recurrent" = 2);
   check "one class, so no phase precedes another" (count loop "phase-before" = 0)
 
-(* §7 — the three goal forms, which are the only part of the library a model
-   INVOKES rather than merely loads, so the invocation is appended here. The
-   guard is the DAG's sink, reached from everywhere and left from nowhere:
-   `satisfies` is that one situation, `can-reach` is all four, and `trapped` —
-   the counterexample set a `live` claim would report — is empty, which is the
-   polarity §7's comment warns is the easy one to invert. *)
+(* §7's goal forms, with the DAG's sink as goal: `satisfies` is one situation,
+   `can-reach` all four, `trapped` none. *)
 let goals =
   "\n\
    (satisfies both-vocal (and (is nabu.stands vocal) (is mid.stands vocal)))\n\
@@ -183,16 +143,8 @@ let () =
   check "trapped is empty where the goal is always still reachable"
     (count dag_goals "stuck" = 0)
 
-(* A model where the goal CAN be lost, so `trapped` is non-empty and the forms
-   are shown to tell the two cases apart. Written here rather than taken from a
-   fixture because the fixtures that trap — captured_trap.writ — reach their trap
-   through `(load …)`, and this harness parses without the loader.
-
-   `latch` is irreversible and `goal` needs p still at a. From (a,a): latch to
-   (b,a), goal to (a,b), and from (a,b) latch to (b,b) — four situations. The
-   goal is q at b, so it holds in (a,b) and (b,b); every situation reaches one
-   EXCEPT (b,a), where the latch has been thrown before the goal was taken and
-   no move remains. One trapped situation, and it is the point of the model. *)
+(* A goal that can be lost: after `latch`, (b,a) cannot reach q at b. One
+   trapped situation. *)
 let trap_src =
   "(schema s\n\
   \   (type f (a b))\n\
@@ -223,22 +175,12 @@ let () =
   check "three situations can still reach it" (count trap_goals "can-finish" = 3);
   check "throwing the latch first loses the goal for good"
     (count trap_goals "lost" = 1);
-  (* Every situation either has a move or has not, so the two partition the
-     space — which is what makes this a partition check and not two numbers. *)
   check "can-reach and trapped partition the space"
     (count trap_goals "can-finish" + count trap_goals "lost"
     = count trap_goals "moves" + count trap_goals "dead-end")
 
-(* §8 — the two implementations of `inevitable`, against each other.
-
-   This is the one test in the file whose oracle its author did not choose. The
-   engine partitions the subgraph the goal fails in and looks for components;
-   the library confines a transitive closure to the same subgraph and looks for
-   a situation that returns to itself. Nothing is shared but the space they read
-   — different algorithms, different complexity, different module. Comparing the
-   SETS rather than the verdicts is the point: two implementations can agree on
-   "something escapes" while disagreeing about what, and the disagreement is
-   where the bug would be. *)
+(* §8 — the engine's `inevitable` against the library's: different algorithms,
+   compared as sets, since two can agree something escapes but not on what. *)
 
 let escape_calls goal =
   "\n(satisfies goal " ^ goal
@@ -278,8 +220,6 @@ let cross label src goal =
   check
     (label ^ ": the library and the engine name the same escaping situations")
     (by_library = List.sort compare by_engine);
-  (* And the modality's verdict is that set's emptiness — the polarity §8 warns
-     about, asserted rather than trusted. *)
   let verdict =
     Checker.check sp
       {
@@ -296,10 +236,8 @@ let cross label src goal =
     = (by_library = []));
   List.length by_library
 
-(* Four shapes, chosen so that between them every branch of §8 fires: a DAG
-   where nothing escapes, a loop where nothing does either (the goal is ON the
-   loop, which is the case an implementation that feared cycles would get
-   wrong), a loop that misses the goal, and a one-way door into a dead end. *)
+(* Four shapes covering every branch of §8: a DAG, a loop through the goal, a
+   loop that misses it, a one-way door into a dead end. *)
 
 let detour_src =
   "(schema s\n\

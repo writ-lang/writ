@@ -1,14 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The JSON value type and its serializer. No parser here (that is [Json_parse],
-   split off up front because value + parser together broke the 300-line cap),
-   and no I/O — this is pure values-to-strings so the library gate holds.
-
-   Serialization follows RFC 8259: escape only the quote, the backslash, and the
-   control codes below 0x20 (with the named short escapes where they exist, a
-   \uXXXX escape otherwise). Non-ASCII bytes are emitted raw as UTF-8 — never as
-   \uXXXX, never a slash escape. Integer-valued numbers round-trip through Int. *)
+(* The JSON value type and its RFC 8259 serializer; the parser is
+   [Json_parse]. No I/O. Only the quote, backslash and control codes below
+   0x20 are escaped; non-ASCII bytes go out raw as UTF-8. *)
 
 type t =
   | Null
@@ -19,8 +14,7 @@ type t =
   | List of t list
   | Assoc of (string * t) list
 
-(* Lower-case hex, four digits, for a [\uXXXX] escape. Hand-rolled because the
-   library may not touch [Printf]/[Format] (the no-I/O gate). *)
+(* Hand-rolled: the library may not use [Printf]/[Format] (the no-I/O gate). *)
 let hex4 code =
   let digit n = "0123456789abcdef".[n land 0xf] in
   let b = Bytes.create 4 in
@@ -50,9 +44,7 @@ let escape s =
   Buffer.add_char buf '"';
   Buffer.contents buf
 
-(* [string_of_float] can yield a bare-trailing-dot form ("1.") that is not legal
-   JSON, so pad it. Floats are peripheral (the RPC layer emits [Int]); this only
-   has to be well-formed for the values the parser round-trips. *)
+(* [string_of_float] can yield "1.", which is not legal JSON. *)
 let float_to_string f =
   let s = string_of_float f in
   let n = String.length s in

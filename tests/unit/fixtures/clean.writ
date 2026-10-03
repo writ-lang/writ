@@ -1,5 +1,4 @@
-; clean.writ — a minimal well-formed model: no failing property, no equations.
-; `writ check clean.writ` prints the report and exits 0.
+; A minimal well-formed model: `writ check` exits 0.
 
 (schema tiny
   (type flag (lo hi))

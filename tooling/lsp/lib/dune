@@ -1,9 +1,6 @@
 ; The language server as a pure library: strings in, strings out, no I/O. It
-; links the three engine libraries so diagnostics come from the real parser,
-; never a second one written for the editor; JSON comes from [writ_json], shared
-; with the MCP server, and the JSON-RPC layer is hand-written against the stdlib. Files are grouped into layer folders (wire,
-; doc, feature) for navigation; include_subdirs flattens them into the one
-; [writ_lsp] library, so module names stay unqualified within it.
+; links the engine libraries so diagnostics come from the real parser. The
+; layer folders (wire, doc, feature) are flattened into one library.
 
 (include_subdirs unqualified)
 
@@ -11,10 +8,8 @@
  (name writ_lsp)
  (libraries writ_data writ_syntax writ_runtime writ_json))
 
-; The version `initialize` reports in serverInfo, so an editor can tell whether
-; the server answering it is the writ it thinks it installed. The same rule as
-; tooling/cli/dune and tooling/mcp/lib/dune, leading `v` stripped for the reason
-; tooling/cli/dune gives, and a copy for the reason tooling/mcp/lib/dune gives.
+; The version `initialize` reports in serverInfo; the same rule as
+; tooling/cli/dune (which explains the stripped leading `v`).
 
 (rule
  (targets version.ml)

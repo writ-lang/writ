@@ -3,27 +3,15 @@
 
 open Writ_data
 
-(* The front-end entry: inline [(load …)], expand forms, parse. There is NO IO
-   here — the [resolve] callback is injected by the caller (the CLI, the LSP
-   binary), which keeps the engine libraries (core/, runtime/) IO-free. Loading is idempotent per
-   file and acyclic; a loaded file must be a library (declarations only). There
-   is NO implicit prelude (kernel §0.7): only an explicit [(load …)] pulls
-   anything in, so a name used without loading its library surfaces as an
-   unknown-name error from the parser. *)
+(* The front end: inline [(load …)], expand forms, parse. IO goes through the
+   injected [resolve]. No implicit prelude (kernel §0.7). *)
 
 type resolve = string -> (string, Errors.t) result
 
 let ( let* ) = Result.bind
 
-(* Every file is read under a name, and that name goes onto the positions of its
-   datums — which is the whole reason a diagnostic from a loaded library can still
-   say so after [inline] has spliced it into the loading file's datum list.
-   [?file] exists because the two names differ for the file the caller asked
-   about: [name] is what [resolve] searches for (a basename, see design D3),
-   while the path the caller typed is what it can act on, so the entry points
-   below pass that as the label. A [(load …)] target has no such path — the load
-   datum named it, and the load path is how the reader finds it again — so its
-   own name is both. *)
+(* [name] is what [resolve] looks up (design D3); [?file], the path the
+   caller typed, labels positions if given. *)
 let read_datums (resolve : resolve) ?file (name : string) :
     (Reader.t list, Errors.t) result =
   let* src = resolve name in
@@ -34,8 +22,6 @@ let load_name = function
       Some (f, p)
   | _ -> None
 
-(* A loaded file must be a library: declarations only, never a model's own
-   [use]/[initial]/[transition]. *)
 let ensure_library (datums : Reader.t list) : (unit, Errors.t) result =
   let bad =
     List.find_map
@@ -53,19 +39,14 @@ let ensure_library (datums : Reader.t list) : (unit, Errors.t) result =
         ("a loaded library must contain declarations only, not (" ^ h ^ " …)")
   | None -> Ok ()
 
-(* A [resolve] callback is handed a name, not a datum, so the error it returns
-   for an unreadable target carries no position. The load datum's position IS
-   known here, so fill it in: a positionless error has nowhere to go but line 1
-   (see the editor's fallback), and line 1 is typically a comment — a squiggle
-   on prose while the real fault is the load. An error that already carries a
-   position — anything raised inside the loaded file — keeps its own. *)
+(* [resolve] errors carry no position; blame the load datum instead of letting
+   the editor fall back to line 1. Errors from inside the file keep theirs. *)
 let at_load (p : Errors.pos) = function
   | Error ({ Errors.pos = None; _ } as e) ->
       Error { e with Errors.pos = Some p }
   | r -> r
 
-(* Inline every [(load …)] in place: read the file's datums, verify it is a
-   library, recurse into its own loads (idempotent per file, cycles rejected). *)
+(* Inline every [(load …)] in place, recursively. *)
 let inline (resolve : resolve) (datums : Reader.t list) :
     (Reader.t list, Errors.t) result =
   let loaded = ref [] in
@@ -88,12 +69,8 @@ let inline (resolve : resolve) (datums : Reader.t list) :
   in
   walk [] [] datums
 
-(* Provenance (docs/bridges.md). A `; writ:origin TEXT` comment on the line
-   above a datum attaches TEXT to the move or law that datum declares — and,
-   for a form invocation, to every move it expands into, since the invocation
-   is the line the author wrote. Read from the model's own file; a library's
-   comments are its own. The language never sees any of it: an origin is a
-   note a tool echoes, and deleting every one changes no verdict. *)
+(* `; writ:origin TEXT` on the line above a datum (docs/bridges.md),
+   inherited by everything a form invocation expands into. *)
 let origins_of ~(file : string) (pragmas : (int * string) list) :
     (int * string) list =
   ignore file;
@@ -147,10 +124,8 @@ let read_claims (resolve : resolve) (m : Model.t) (path : string) :
   let* expanded = Expander.expand inlined in
   Claims_parser.parse m.Model.schema m.Model.initial expanded
 
-(* A .rules file is the third file type (extension §1) and reads like the other
-   two: its own [(load …)] libraries inlined, its forms expanded, then parsed.
-   The schema is passed for one narrow purpose — a typed column may name a
-   schema type, and the sort words must not be shadowed by one. *)
+(* A .rules file (extension §1) reads like the other two. The schema is passed
+   so a typed column may name a schema type. *)
 let read_rules (resolve : resolve) (m : Model.t) (path : string) :
     (Rules_parser.t, Errors.t) result =
   let* datums = read_datums resolve ~file:path (Filename.basename path) in

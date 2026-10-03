@@ -1,14 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Hover: the name under the cursor → a short description of what it is. One tree
-   walk, one rendering. Two vocabularies answer: the closed kernel + interrogator
-   words (a static table — they cannot be derived, the parser matches them as
-   string literals) and the form heads the buffer's loaded libraries bring in
-   (derived, through the injected [resolve], by [Completion.form_heads_of]).
-
-   A word in neither is simply [None] — an unrecognised token has nothing to say.
-   NEVER raises. *)
+(* Hover: a short description of the word under the cursor, from a static
+   table of kernel and interrogator words or the form heads of the loaded
+   libraries. Never raises. *)
 
 open Writ_syntax
 
@@ -44,7 +39,7 @@ let reserved_desc =
     ("some", "(some (x TYPE) G) — some roster entity satisfies G");
   ]
 
-(* The interrogator's file-format words (kernel §9) — not the language. *)
+(* The interrogator's file-format words (kernel §9). *)
 let interrogator_desc =
   [
     ( "property",
@@ -83,8 +78,7 @@ let describe_word resolve src w =
       else None
 
 (* The token under the cursor, or [None] on a delimiter, in whitespace, or past
-   the end — positions a client legitimately sends and about which there is
-   nothing to say. *)
+   the end. *)
 let word (t : Text.t) pos =
   let w, r = Text.word_at t (Text.offset_of_lsp t pos) in
   if w = "" then None else Some (w, r)

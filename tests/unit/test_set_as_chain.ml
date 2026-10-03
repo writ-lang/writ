@@ -1,22 +1,11 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* §10.3 widened: [(set CHAIN RHS)] takes a chain on the right, as [(is CHAIN
-   RHS)] already did. The parser half is small; the two SEMANTIC decisions are
-   what this file exists to pin, because both were genuinely open and either
-   could have gone the other way without any test noticing.
-
-   Q1 — WHEN IS THE RIGHT-HAND SIDE READ? In the situation the move STARTED
-   from, which makes a [do] block a simultaneous assignment. The witness is a
-   swap: read sequentially, [(do (set a.x b.x) (set b.x a.x))] leaves both
-   cells holding b's old value, and nothing else in the suite can tell the two
-   readings apart.
-
-   Q2 — WHAT IF THE CHAIN HAS NO ANSWER? The move is NOT ENABLED. Not a no-op,
-   which would still be an edge — a self-loop — and [Space.dead_ends] marks a
-   state as having an out-edge on [e.src] alone, so a no-op would silently stop
-   a stuck situation being reported as stuck. Not a vacated target either, which
-   would write [vacant] through [set] and §8.3 forbids that outright. *)
+(* §10.3: [(set CHAIN RHS)] takes a chain on the right.
+   Q1 — the right side is read in the starting situation: a [do] block is a
+   simultaneous assignment.
+   Q2 — a chain with no answer disables the move; a no-op self-loop would hide
+   a stuck situation from [Space.dead_ends]. *)
 
 open Writ_data
 open Writ_syntax
@@ -39,7 +28,6 @@ let contains_sub ~sub s =
   in
   go 0
 
-(* No I/O: the only [(load …)] any fixture here needs is none. *)
 let resolve _ = Error { Errors.pos = None; msg = "no loads in these fixtures" }
 
 let model_of src =
@@ -59,9 +47,7 @@ let space_of src =
 
 (* --- Q1: a do block is a simultaneous assignment -------------------------- *)
 
-(* Two boxes, a holding p and b holding q, swapped in one move. Read from the
-   STARTING situation this ends {a=q, b=p}; read sequentially it ends
-   {a=q, b=q}, because the second [set] would see what the first wrote. *)
+(* Simultaneous gives {a=q, b=p}; sequential would give {a=q, b=q}. *)
 let swap_src =
   "(schema s (type v (p q)) (type box (arrow x (to v))))\n\
    (instance i s (box a (x p)) (box b (x q)) (v z) )\n\
@@ -85,19 +71,8 @@ let () =
         (cell "b" = Some (Value.Filled "p"))
   | `Gap _ | `Blocked -> check "swap: the move applied" false
 
-(* --- Q1 again, through the LEFT side ---------------------------------------
-
-   The swap above pins that right-hand sides are read at the start. A TARGET is
-   a path too, and it was not: [write_cell] walked it at write time, so an
-   effect that moved a cursor changed where a LATER effect of the same move
-   landed. Order was observable through the left side while every right side
-   was simultaneous — a half-done simultaneity, which is worse than either
-   whole answer because §10.1 promises the order cannot matter.
-
-   Found by a model, not by reading: the queens cursor writes [cur.q.at] and
-   [cur.q] in one move, and swapping those two gave 9 situations instead of
-   2057. Here the same shape in miniature — write through [c.b.x] and move
-   [c.b] — asserted BOTH ways round. *)
+(* --- Q1 again, through the left side ---------------------------------------
+   Targets are resolved at the start too (§10.1: order cannot matter). *)
 let cursor_src order =
   "(schema s (type v (p q))\n\
   \          (type box (arrow x (to v)) (arrow nxt (to box) fixed))\n\
@@ -113,7 +88,6 @@ let () =
   let b = space_of (cursor_src "(set c.b c.b.nxt) (set c.b.x q)") in
   check "the cursor move reaches the same situations either way"
     (Array.length a.Space.states = Array.length b.Space.states);
-  (* Both orders must write b1 — the box the cursor named when the move BEGAN. *)
   let wrote_b1 sp =
     let ctx = sp.Space.ctx in
     Array.exists
@@ -127,11 +101,7 @@ let () =
 
 (* --- Q2: an unanswerable chain disables the move -------------------------- *)
 
-(* A four-rung ladder walked by ONE transition — the whole point of the change:
-   before it, this needed one move per destination. The guard is deliberately
-   trivial ([w.at] is always itself), so the ONLY thing that can stop the walk
-   at the top is the undefined [next], and the only thing that can report the
-   top as stuck is that no edge was drawn. *)
+(* A ladder walked by one transition: only the undefined [next] stops it. *)
 let ladder_src =
   "(schema s (type rung (arrow next (to rung) fixed vacatable))\n\
   \          (type walker (arrow at (to rung))))\n\
@@ -147,8 +117,6 @@ let () =
     (Array.length sp.Space.states = 4);
   check "three moves, not four — the top rung draws no edge"
     (List.length sp.Space.edges = 3);
-  (* The decision that matters: had `Blocked been a no-op, the top would carry
-     a self-loop and would never be reported here. *)
   check "Q2: the top of the ladder IS a dead end"
     (List.length (Space.dead_ends sp) = 1)
 
@@ -183,8 +151,6 @@ let () =
       check "the rejection names both types"
         (contains_sub ~sub:"lands in `w`" e && contains_sub ~sub:"takes `v`" e)
 
-(* A literal right-hand side is untouched by any of this — the widening added a
-   case, it did not replace one. *)
 let () =
   let src =
     "(schema s (type v (p q)) (type box (arrow x (to v))))\n\

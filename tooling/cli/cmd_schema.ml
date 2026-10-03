@@ -1,17 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_schema] — the [writ schema] verb, beside its sibling verbs rather than
-   inside the dispatch module.
-
-   Emits the model's SCHEMA as data: an instance of the standard library's
-   [olog] schema (kernel §17), as [writ control] does for the move list.
-   [Schema_data.olog] builds the string; this module does the printing. The
-   instance name is the model's basename + [-schema].
-
-   No space is built. A schema is static — every arrow of [olog] is `fixed` —
-   so nothing here needs the situation graph, and asking for one would make the
-   export cost of a model with a large space absurd for what it prints. *)
+(* [writ schema]: the model's schema as an instance of the standard library's
+   [olog] schema (kernel §17). A schema is static, so no space is built. *)
 
 open Writ_data
 open Writ_runtime

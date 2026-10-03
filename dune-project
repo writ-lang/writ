@@ -1,20 +1,11 @@
 (lang dune 3.0)
 
-; `writ` is a real opam package: `opam install .` (or `opam pin add writ .`) builds
-; the CLI and the language server and installs them together with the .writ
-; standard library. The stdlib install stanza lives in the root `dune` — it puts
-; core/stdlib/*.writ under <prefix>/share/writ/lib/, which is exactly where the
-; resolver in tooling/cli/cli_io.ml looks (<exe>/../share/writ/lib), so a `(load
-; "stdlib.writ")` resolves from any directory once installed.
-;
-; writ.opam is GENERATED from the (package) stanza below — edit this file, not
-; the .opam, and run `dune build @install` (or any `make build`) to regenerate.
+; writ.opam is generated from the (package) stanza below; edit this file, not
+; the .opam.
 
 (name writ)
 
-; The single source of truth for "which writ is this": opam publishes it,
-; `writ --version` prints it (tooling/cli/dune generates the module from it), and
-; `make release` names the tarball with it. Bump it here and nowhere else.
+; The one version number: opam, `writ --version` and `make release` all read it.
 (version 0.2.0)
 
 (generate_opam_files true)

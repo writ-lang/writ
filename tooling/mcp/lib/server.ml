@@ -1,25 +1,14 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The Model Context Protocol, as a pure function: one JSON message in, at most
-   one JSON message out. Same shape as the language server's [Server.handle],
-   and for the same reason — a protocol you can drive from a unit test without
-   a socket is a protocol you can actually test.
+(* The Model Context Protocol (JSON-RPC 2.0) as a pure function: one message
+   in, at most one out, so it can be unit-tested without a process. A tools-only
+   server: [initialize], [tools/list], [tools/call], [ping], and notifications.
 
-   MCP is JSON-RPC 2.0. The four methods below are the whole of what a tools-
-   only server owes a client: [initialize], the [notifications/initialized]
-   acknowledgement (which expects no reply), [tools/list], and [tools/call].
-   [ping] is answered because clients send it to check the process is alive.
-
-   ONE THING IS EASY TO GET WRONG, and it decides whether this server is useful.
-   A tool that FAILS — a model that will not parse, a relation that is not
-   declared — must come back as a SUCCESSFUL JSON-RPC result carrying
-   [isError: true], not as a JSON-RPC error. A JSON-RPC error is a transport
-   fault: the client handles it and the model never sees it. An [isError]
-   result is content the model reads, which for a parse error is precisely what
-   it needs in order to fix the file. Protocol faults — an unknown method,
-   a call naming no tool — stay JSON-RPC errors, because no amount of reading
-   them helps a model. *)
+   A tool that fails (a parse error, an undeclared relation) returns a
+   successful result with [isError: true], so the agent sees the message and can
+   fix its input; a JSON-RPC error would go only to the client. Protocol faults
+   such as an unknown method or tool stay JSON-RPC errors. *)
 
 let protocol_version = "2024-11-05"
 
@@ -58,8 +47,7 @@ let int_ j k = Option.bind (Json.member k j) Json.to_int_opt
 let bool_ j k =
   match Json.member k j with Some (Json.Bool b) -> Some b | _ -> None
 
-(* An argument list for [derive]: JSON nulls are the unbound positions, so
-   ["a", null] asks for every tuple whose first column is `a`. *)
+(* [derive] arguments: a null is an unbound column. *)
 let args_of j k =
   match Json.member k j with
   | Some (Json.List xs) ->
@@ -202,16 +190,15 @@ let tool_list =
 
 (* ── dispatch ────────────────────────────────────────────────────────────── *)
 
-(* Indices for [writ_show]: a list, or a single integer for a caller that
-   sent one. *)
+(* [writ_show] indices: a list, or a single integer. *)
 let ints_of j k =
   match Json.member k j with
   | Some (Json.List xs) -> List.filter_map Json.to_int_opt xs
   | Some (Json.Int i) -> [ i ]
   | _ -> []
 
-let call ~resolve ?(pinned = None) ?(memory = Tools.remember) name (a : Json.t)
-    =
+let call ?certify ?(version = "") ~resolve ?(pinned = None)
+    ?(memory = Tools.remember) name (a : Json.t) =
   let need k =
     match str a k with Some s -> Ok s | None -> Error ("missing `" ^ k ^ "`")
   in
@@ -220,8 +207,8 @@ let call ~resolve ?(pinned = None) ?(memory = Tools.remember) name (a : Json.t)
   match name with
   | "writ_check" ->
       let* model = need "model" in
-      Tools.check ~json ~pinned ~memory ~resolve ~model ~claims:(str a "claims")
-        ()
+      Tools.check ~json ~pinned ~memory ?certify ~version ~resolve ~model
+        ~claims:(str a "claims") ()
   | "writ_show" ->
       let* model = need "model" in
       Tools.show ~json ~resolve ~model ~at:(ints_of a "at") ()
@@ -241,12 +228,13 @@ let call ~resolve ?(pinned = None) ?(memory = Tools.remember) name (a : Json.t)
         ~args:(args_of a "args")
         ~why:(Option.value (bool_ a "why") ~default:false)
         ()
-  (* Unreachable: [handle] rejects an unknown name before getting here, so
-     this arm exists only to make the match total. *)
+  (* Unreachable: [handle] rejects unknown names first. *)
   | _ -> Error ("no such tool: " ^ name)
 
-let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ~version
-    (msg : Json.t) : Json.t option =
+(* [certify] runs writ-cert and, like [resolve], is injected by the binary
+   because it is I/O. Without it, checks are not certified. *)
+let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ?certify
+    ~version (msg : Json.t) : Json.t option =
   let id = Option.value (Json.member "id" msg) ~default:Json.Null in
   match str msg "method" with
   | Some "initialize" ->
@@ -261,8 +249,7 @@ let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ~version
                    ("name", Json.String "writ"); ("version", Json.String version);
                  ] );
            ])
-  (* Notifications carry no id and expect no reply; answering one is a protocol
-     error the client is entitled to complain about. *)
+  (* Notifications expect no reply. *)
   | Some "notifications/initialized" | Some "notifications/cancelled" -> None
   | Some "ping" -> ok id (Json.Assoc [])
   | Some "tools/list" -> ok id tool_list
@@ -270,9 +257,7 @@ let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ~version
       let params = Option.value (Json.member "params" msg) ~default:Json.Null in
       match str params "name" with
       | None -> error id (-32602) "tools/call needs a `name`"
-      (* An unknown tool is a PROTOCOL fault, not a tool failure: the client
-         was given the list and asked for something not on it, and no amount of
-         a model reading that helps. Tool failures below are the other kind. *)
+      (* An unknown tool is a protocol fault (see the header). *)
       | Some name when not (List.exists (fun (n, _, _) -> n = name) descriptors)
         ->
           error id (-32602) ("no such tool: " ^ name)
@@ -282,7 +267,7 @@ let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ~version
               (Json.member "arguments" params)
               ~default:(Json.Assoc [])
           in
-          match call ~resolve ~pinned ~memory name a with
+          match call ?certify ~version ~resolve ~pinned ~memory name a with
           | Ok s -> ok id (text s)
           (* A tool that failed still answers: see the header. *)
           | Error e -> ok id (text ~is_error:true e)))

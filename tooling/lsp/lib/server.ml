@@ -1,28 +1,12 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Routing and lifecycle: one message in, zero or more messages out.
+(* Routing and lifecycle: [handle] maps one message to the messages to send.
+   The binary injects [resolve], which reads [(load …)] targets off disk.
 
-   [handle] is a FUNCTION, not a loop and not a process. Everything that would
-   make it one — a file descriptor, a channel — lives in the one executable above
-   it, so the whole protocol surface is driven in tests by scripting messages and
-   asserting on the list that comes back.
-
-   Two failure modes are designed against, not hoped about.
-
-   NOTHING HERE RAISES. An uncaught exception kills the process; the editor then
-   restarts the server silently and gives up with no visible error. Every request
-   is wrapped, and an exception becomes a JSON-RPC error response.
-
-   THE URI IS ECHOED, NEVER REBUILT. A file:// URI is percent-encoded, and a path
-   reassembled from pieces will not compare equal to the one the client sent —
-   diagnostics would publish against a document the editor does not believe is
-   open, and nothing would appear.
-
-   The state is the store plus a [resolve] callback INJECTED by the binary: given
-   the open document's URI and a [(load …)] target, it reads that target off
-   disk. The library itself does no I/O — there is no implicit prelude
-   (kernel §0.7): only the loads a buffer actually writes pull anything in. *)
+   Nothing here raises: an exception would kill the process, so each request
+   is wrapped and an exception becomes a JSON-RPC error. The URI is echoed,
+   never rebuilt, or it may not match the client's and diagnostics go nowhere. *)
 
 open Writ_data
 open Writ_syntax
@@ -34,7 +18,7 @@ type state = {
 
 let create ~resolve = { store = Store.create (); resolve }
 
-(* JSON-RPC 2.0 §5.1 — only the codes this server can actually produce. *)
+(* JSON-RPC 2.0 §5.1 error codes. *)
 let method_not_found = -32601
 let invalid_params = -32602
 let internal_error = -32603
@@ -51,9 +35,8 @@ let uri_of params =
 let position_of params =
   Option.bind (Json.member "position" params) Text.position_of_json
 
-(* textDocumentSync is Full, so each element of [contentChanges] is a whole
-   document. When a client batches several, the LAST is what the author is
-   looking at — the earlier ones are states already left behind. *)
+(* textDocumentSync is Full, so each change is a whole document; when a client
+   batches several, the last is current. *)
 let changed_text params =
   match Json.member "contentChanges" params with
   | Some (Json.List (_ :: _ as cs)) ->
@@ -64,10 +47,7 @@ let changed_text params =
 
 let text_of st uri = Option.map (fun d -> d.Store.text) (Store.get st.store uri)
 
-(* The parse resolver for [uri]: the buffer answers for the model file itself
-   (which [Loader.read_model] asks for by basename, so an UNSAVED buffer still
-   parses), and every other [(load …)] target defers to the injected disk
-   reader. This is the seam that keeps the library free of I/O. *)
+(* The buffer answers for its own file, so an unsaved buffer still parses. *)
 let doc_resolve st uri text : Loader.resolve =
  fun name ->
   if String.equal name (Filename.basename uri) then Ok text
@@ -93,8 +73,7 @@ let publish st uri =
       (Diagnostics.of_text t ~resolve:(doc_resolve st uri text) ~path:uri);
   ]
 
-(* Closing a document does not clear its last-published diagnostics; an empty
-   array withdraws them so a closed file leaves nothing in the Problems panel. *)
+(* An empty array withdraws a closed file's diagnostics. *)
 let withdraw uri = [ published uri [] ]
 
 let opened st uri text =
@@ -103,9 +82,7 @@ let opened st uri text =
 
 (* ------------------------------------------------------------ intellisense *)
 
-(* Hover and completion share the decoding of their params and the [null] owed a
-   client whose document is gone. Both run over the current text through the same
-   injected [resolve]; completion offers names while the text does not parse. *)
+(* Hover and completion; [null] when the document is gone. *)
 let point st ~meth ~uri ~pos =
   match text_of st uri with
   | None -> Json.Null
@@ -121,14 +98,8 @@ let point st ~meth ~uri ~pos =
 
 (* ------------------------------------------------------------- dispatch *)
 
-(* [serverInfo] is optional in the protocol and answers a question the client
-   cannot otherwise ask: WHICH writ is this. The editor and the checker being
-   the same code is the whole argument for an OCaml server, and that argument
-   is only true when the two are in step — an extension installed from a .vsix
-   beside a server built from a different checkout is a real and silent way for
-   them not to be. The version is [Version.v], generated from dune-project by
-   the same rule as the CLI's and the MCP server's, so it cannot disagree with
-   what `writ --version` prints or what the MCP server reports. *)
+(* [serverInfo] says which writ is answering; [Version.v] matches
+   `writ --version`. *)
 let initialize_result =
   Json.Assoc
     [
@@ -155,8 +126,7 @@ let initialize_result =
 let dispatch st ~id ~meth ~params =
   match meth with
   | "initialize" -> reply id initialize_result
-  (* [initialized] and [exit] are notifications with nothing to answer; ordering
-     is not enforced, so a didOpen arriving before [initialized] is honoured. *)
+  (* Ordering is not enforced: a didOpen before [initialized] is honoured. *)
   | "initialized" | "exit" -> []
   | "shutdown" -> reply id Json.Null
   | "textDocument/didOpen" -> (
@@ -180,8 +150,7 @@ let dispatch st ~id ~meth ~params =
       match uri_of params with
       | None ->
           fail id ~code:invalid_params "params.textDocument.uri is missing"
-      (* A never-opened document is answered with null, not refused: the client
-         may have closed it between send and receive. *)
+      (* An unknown document gets null: the client may have just closed it. *)
       | Some uri -> (
           match text_of st uri with
           | None -> reply id Json.Null
@@ -193,8 +162,8 @@ let dispatch st ~id ~meth ~params =
           fail id ~code:invalid_params "params.textDocument.uri is missing"
       | _, None -> fail id ~code:invalid_params "params.position is missing"
       | Some uri, Some pos -> reply id (point st ~meth ~uri ~pos))
-  (* An unknown notification is dropped; an unknown request is answered, because
-     a client that gets no answer to a request waits for one forever. *)
+  (* An unknown request must be answered, or the client waits forever; an
+     unknown notification is dropped. *)
   | _ -> fail id ~code:method_not_found ("no such method: " ^ meth)
 
 let handle (st : state) (msg : Json.t) : Json.t list =
@@ -209,15 +178,11 @@ let handle (st : state) (msg : Json.t) : Json.t list =
       with e ->
         fail id ~code:internal_error (meth ^ ": " ^ Printexc.to_string e))
 
-(* After this message the process is expected to be gone; kept here so the loop
-   holds no method names of its own. *)
 let is_exit (msg : Json.t) =
   match Json.member "method" msg with
   | Some (Json.String "exit") -> true
   | _ -> false
 
-(* A body that is not JSON at all is still framed, so the stream stays intact and
-   the server answers rather than stopping. There is no id — it was inside the
-   body that would not parse. *)
+(* The error for a body that is not JSON, which has no id to echo. *)
 let malformed (detail : string) : Json.t =
   Rpc.error ~id:Json.Null ~code:parse_error detail

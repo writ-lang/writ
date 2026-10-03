@@ -1,15 +1,8 @@
-; The MCP server process. It is the only executable that links [writ_mcp], and
-; the only file in the MCP tree allowed to perform I/O — the read/write loop
-; lives here so every module it drives stays a function from values to values.
+; The MCP server process, installed as `writ-mcp`; the only I/O in the MCP tree.
 
-; Installed alongside `writ` as `writ-mcp`, so a machine that only ran
-; `opam install writ` can point an MCP client at it with nothing else to fetch.
-
-; ONE module on purpose. Dune wraps a multi-module executable as
-; [Dune__exe__…], and this exe's main module has the same name as the library
-; it links — so a second module here turns [Writ_mcp.Server] into an alias for
-; the executable itself and the build stops. The generated [Version] therefore
-; lives in the library next door, not beside this file.
+; Keep this a single module: the main module shares its name with the library,
+; so a second module makes [Writ_mcp.Server] resolve to the executable and the
+; build fails. That is why [Version] lives in the library.
 
 (executable
  (name writ_mcp)
@@ -22,4 +15,5 @@
   writ_runtime
   writ_mcp
   writ_json
+  writ_report_json
   writ_loadpath))

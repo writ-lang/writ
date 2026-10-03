@@ -1,13 +1,8 @@
 ; any_model.writ — a Complete Worked Model
 ;
-; A small republic: a government with a bill life-cycle and an emergency
-; regime, one watchdog bureau, one prosecution bureau, one high-level case
-; wired through both. The model's editorial claims live next door in
-; any_model.claims.
-;
-; Versioning is git's job: this file at HEAD is the current constitutional
-; order; amendments are commits (date = commit date, sources in a `Cite:`
-; trailer).
+; A small republic: a government with bills and an emergency regime, a
+; watchdog, a prosecution bureau, and a case wired through both. Claims are in
+; any_model.claims; amendments are git commits.
 
 (load "stdlib.writ")
 (load "politics.lib.writ")
@@ -59,9 +54,7 @@
   (when (phase-gated gov.regime emergency (is gov.support minority)))
   (does (gap "emergency rule with minority support: the text is silent")))
 
-; Support erosion and recovery, one step at a time. Plain enums — no
-; ordering in the kernel; the guard pins the current value, so each successor
-; is a plain `set`.
+; Support erosion and recovery, one step at a time.
 (transition support-erodes-1
   (when (is gov.support supermajority)) (do (set gov.support majority)))
 (transition support-erodes-2

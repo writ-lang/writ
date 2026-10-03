@@ -1,18 +1,14 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_query] — the [writ query] verb: name one of the questions in the model's
-   sibling [.claims] file and run just that one, optionally at a state other
-   than the initial one. Its own module for the same reason as its siblings —
-   the dispatch in [Writ] should read as a list of verbs, not contain them. *)
+(* [writ query]: run one named query from the model's [.claims], at the
+   initial situation or at [--at N]. *)
 
 open Writ_data
 open Writ_runtime
 open Cli_io
 
-(* [--at] indexes the enumerated space, so a value outside it is a bad command
-   line (2), not an empty answer — an out-of-range index means the caller is
-   asking about a situation this model never reaches. *)
+(* An index outside the space is a bad command line (2), not an empty answer. *)
 let state_at (sp : Space.t) (spec : string option) : int * State.t =
   match spec with
   | None -> (0, sp.Space.initial)
@@ -27,11 +23,7 @@ let run ?(json = false) ~(claims : string option) (model : string)
   let resolve = make_resolve model in
   let m = load_model resolve model in
   let sp = build_space model m in
-  (* The questions live beside the model by convention, which is what lets one
-     suite be asked of many models without a flag on every invocation. A model
-     read from a pipe has no "beside" — so the flag is the escape hatch for
-     exactly that case, and saying so beats resolving `<stdin>.claims` and
-     reporting a file nobody named. *)
+  (* A piped model has no sibling [.claims], so it needs [--claims]. *)
   let cpath =
     match claims with
     | Some p -> p

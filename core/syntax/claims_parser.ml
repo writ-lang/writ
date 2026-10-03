@@ -3,18 +3,9 @@
 
 open Writ_data
 
-(* [.claims] datums -> [Claims.t] (core). [(property NAME "text" (MODALITY
-   FORMULA))] with MODALITY ∈ never/possible/live; [(query NAME (where (x
-   TYPE)…) GUARD)]; [(accept TRANSITION EQUATION…)]. Guards are decoded through
-   [Grammar.guard].
-
-   Path type-checking differs by kind. A QUERY guard is checked at parse time
-   (fold F3): a mistyped binding is a genuine author error. A PROPERTY FORMULA is
-   deliberately NOT path-checked here (kernel §8): a formula naming a type/arrow/
-   value the schema lacks is *n/a*, not an author error — only its SHAPE is
-   decoded, and resolution is deferred to [Checker.check], which returns
-   [Not_applicable]. Renamed from [claims] (fold F2) so it does not collide with
-   core's [claims.ml] under [include_subdirs unqualified]. *)
+(* [.claims] datums -> [Claims.t]. Query guards are path-checked here; property
+   formulas only for shape, since one naming something absent is n/a
+   (kernel §8). *)
 
 let ( let* ) = Result.bind
 
@@ -25,11 +16,8 @@ let rec map_r f = function
       let* ys = map_r f xs in
       Ok (y :: ys)
 
-(* The modality words, as data rather than as a match, because a second copy of
-   this list exists for the editor and drifted the first time a word was added
-   to one of them. [Writ_lsp] reads it from here, so there is one list. An
-   [Inevitable] here carries no fairness clause: the clause is parsed after the
-   word is recognised, below. *)
+(* The modality words, as data so [Writ_lsp] can share the list. The fairness
+   clause of [inevitable] is parsed separately. *)
 let modalities =
   [
     ("never", Claims.Never);
@@ -40,9 +28,8 @@ let modalities =
 
 let modality_of w = List.assoc_opt w modalities
 
-(* The optional trailing clause of an [inevitable]: the moves the question
-   assumes are not starved. Named moves, never a guard — a fairness assumption
-   is about the scheduler, and the scheduler picks transitions. *)
+(* [inevitable]'s optional [(fair MOVE…)]: named moves, since fairness is about
+   which transitions the scheduler picks. *)
 let fair_of (d : Reader.t) : (string list, Errors.t) result =
   match d with
   | Reader.List (Reader.Atom ("fair", fp) :: moves, _) ->
@@ -56,11 +43,8 @@ let fair_of (d : Reader.t) : (string list, Errors.t) result =
           moves
   | _ -> Reader.err_at d "expected (fair MOVE…) after an inevitable formula"
 
-(* The optional trailing clause of any property: the queries to answer at the
-   situation the verdict singles out (§16.1). Names only, each kept with its
-   position so that a name no query in the file declares can be blamed where
-   it was written — and that check waits until the whole file is read, since a
-   query may be declared after the property that shows it. *)
+(* A property's optional [(show QUERY…)] (§16.1). Positions are kept so an
+   undeclared name can be blamed once the whole file is read. *)
 let show_of (d : Reader.t) : ((string * Errors.pos) list, Errors.t) result =
   match d with
   | Reader.List (Reader.Atom ("show", sp) :: names, _) ->
@@ -95,9 +79,7 @@ let decode_property (d : Reader.t) :
           match modality_of m with
           | None -> Errors.err ~pos:mp ("unknown modality `" ^ m ^ "`")
           | Some modality ->
-              (* Only [inevitable] takes a fairness clause: the other three are
-                 about which situations exist, and no assumption about the
-                 scheduler changes that. *)
+              (* Only [inevitable] takes a fairness clause. *)
               let* modality =
                 match (modality, rest) with
                 | _, [] -> Ok modality
@@ -108,8 +90,7 @@ let decode_property (d : Reader.t) :
                     Reader.err_at d
                       ("`" ^ m ^ "` takes a formula and nothing else")
               in
-              (* Shape only — path/arrow/value resolution is the checker's, so an
-                 unknown one surfaces as n/a, not a parse error (kernel §8). *)
+              (* Shape only; resolution is the checker's (kernel §8). *)
               let* g = Grammar.guard f in
               let* shows =
                 match tail with [] -> Ok [] | s :: _ -> show_of s
@@ -155,21 +136,15 @@ let decode_accepts (d : Reader.t) : (Claims.accept list, Errors.t) result =
         eqs
   | _ -> Reader.err_at d "malformed accept: (accept TRANSITION EQUATION…)"
 
-(* [inst] is unused: property formulas are no longer path-checked here (their
-   entity env belonged to that check), and query guards carry their own binder
-   env. The parameter stays for the loader's fixed call shape. *)
+(* [inst] is used only for the shadowing check. *)
 let parse (schema : Schema.t) (inst : Instance.t) (datums : Reader.t list) :
     (Claims.t, Errors.t) result =
-  (* §7 has no shadowing, and a [where] or [some] binder here can shadow a name
-     from the model just as one in a transition can — the guards are the same
-     guards (§16.1, §16.2). The model is already built by the time a .claims
-     file is parsed, so the names come off it rather than from a second scan;
-     [Names] states the rule for both. *)
+  (* No shadowing (§7): binders here are checked against the built model's
+     names (§16.1, §16.2). *)
   let* () = Names.check_binders (Names.taken_in schema inst) datums in
   let rec go props queries accepts shows = function
     | [] ->
-        (* Every shown name must be a query of this file. Checked last, so a
-           query may be declared below the property that shows it. *)
+        (* Checked last, so a query may follow the property that shows it. *)
         let declared = List.map (fun (q : Claims.query) -> q.name) queries in
         let* () =
           match

@@ -1,16 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Rules fixture tests (TRF): the .rules files on disk, read through [Loader]
-   and judged by [Rules_check.check].
-
-   The seam this is split at is the input, not the subject. Its sibling
-   test_rules_check.ml builds every program from a string literal in the test
-   itself, so a case is read where it is asserted; everything here instead
-   drives a FILE under tests/unit/fixtures/, which needs the loader, a resolver
-   and a repo-root climb, and which the run's fitness gates then drive again
-   through the CLI. Keeping the two apart keeps each file's preamble honest
-   about what it needs — and keeps both under the 300-line limit. *)
+(* The .rules fixture files, through [Loader] and [Rules_check.check]. *)
 
 open Writ_data
 open Writ_syntax

@@ -4,23 +4,11 @@
 open Writ_data
 open Derive_table
 
-(* Extension §6 — the stratified, semi-naive least fixpoint over the finite
-   universe [Space.t] already enumerated. The tables it fills, and the answers
-   read back out of them, are [Derive_table].
-
-   What arrives here is a [Rules.program] that [Rules_check] has already sorted,
-   stratified and proved range-restricted in its WRITTEN order. The engine does
-   no checking and must not: every diagnostic belongs at a [line:col], the
-   parser is the only constructor of a program, and a second opinion computed
-   down here could only ever disagree with the one the author was shown. So the
-   join takes written order as given, negation takes stratification as given,
-   and a bound situation takes its index as given.
-
-   The cost, honestly (§6, §14): indexed relation joins, but a guard literal
-   with an unbound path root is generate-and-test over that sort's roster, so a
-   body with k of them costs Π|Dᵢ| PER ROUND, and a recursive relation runs for
-   as many rounds as its derivation depth. There is no join planner and no magic
-   set, and this run does not pretend otherwise. *)
+(* Extension §6 — the stratified, semi-naive least fixpoint over [Space.t];
+   the tables are [Derive_table]. [Rules_check] has already sorted, stratified
+   and range-restricted the program, so the engine checks nothing. Cost (§6):
+   joins are indexed, but an unbound guard root enumerates its roster every
+   round, and there is no join planner. *)
 
 (* ── Literals ────────────────────────────────────────────────────────────── *)
 
@@ -29,9 +17,8 @@ let value_of (env : Rules.env) (term : Rules.term) : string option =
   | Rules.Const (c, _) -> Some c
   | Rules.Var (x, _) -> List.assoc_opt x env
 
-(* A positive relation literal, built-in or user: probe on what is already
-   bound, bind what is not. A variable repeated inside one literal binds at its
-   first position and is checked at the rest. *)
+(* A positive relation literal: probe on what is bound, bind the rest. A
+   variable repeated in one literal binds at its first position. *)
 let rel_step t rel (ts : Rules.term list) ~delta (env : Rules.env) kont =
   let st = store t rel in
   let want = Array.make st.arity None in
@@ -67,10 +54,9 @@ let rel_step t rel (ts : Rules.term list) ~delta (env : Rules.env) kont =
             kont env' [ Rules.Premise_fact (Hashtbl.find st.ids tup) ])
       (probe st ~delta want)
 
-(* A negated literal is a membership test, and §5 is what makes it sound: the
-   relation is in a strictly lower stratum, so it was COMPLETE before this
-   stratum began. An absence has no tree, which is why its premise is
-   [Premise_absent] and not a fact id. *)
+(* A negated literal is a membership test, sound because §5 puts the relation
+   in a lower, already complete stratum. An absence has no tree, hence
+   [Premise_absent]. *)
 let neg_step t rel (ts : Rules.term list) (env : Rules.env) kont =
   let st = store t rel in
   let args = Array.make st.arity 0 in
@@ -78,8 +64,7 @@ let neg_step t rel (ts : Rules.term list) (env : Rules.env) kont =
   List.iteri
     (fun i term ->
       match value_of env term with
-      (* §4 proved every argument ground here; an ungroundable one can only fail
-         the literal, never generate. *)
+      (* §4 proved every argument ground; an ungroundable one fails. *)
       | None -> live := false
       | Some s -> (
           match key t st.col.(i) s with
@@ -89,21 +74,17 @@ let neg_step t rel (ts : Rules.term list) (env : Rules.env) kont =
   if !live && probe st ~delta:false (Array.map Option.some args) = [] then
     kont env [ Rules.Premise_absent (rel, args) ]
 
-(* §2: an unbound path root enumerates its SORT's domain. Range restriction
-   already proved that sort is an entity type — a situation is never a path
-   root — so anything else yields no candidates and the literal simply fails. *)
+(* §2: an unbound path root enumerates its sort's domain. Range restriction
+   proved the sort is an entity type; anything else yields nothing. *)
 let root_domain t rid (x : string) : string list =
   match List.assoc_opt (rid, x) t.prog.Rules.vars with
   | Some (Rules.Entity ty) -> Facts.entities t.sp ty
   | Some (Rules.Situation | Rules.Edge) | None -> []
 
-(* A guard literal is COMPILED, not handed whole to [Eval.guard_holds], because
-   [Model.Is] carries a plain string and the kernel evaluator compares it
-   literally: it is a test and can never bind. So a top-level [(is PATH V)] —
-   and a conjunct of a top-level [and], which §4 treats identically — is read
-   functionally off the cell, and every other shape is a closed test lowered
-   into the kernel guard and answered by the kernel. One guard semantics, the
-   kernel's, with binding added only where the cell itself supplies the value. *)
+(* A guard literal is compiled rather than passed to [Eval.guard_holds], whose
+   [Is] can only test. A top-level [(is PATH V)], or a conjunct of a top-level
+   [and], is read off the cell and may bind; every other shape is lowered to a
+   closed kernel guard and answered by the kernel. *)
 let rec guard_step t rid sit (env : Rules.env) (g : Rules.gexp) kont =
   match g with
   | Rules.Is (p, v) ->
@@ -151,9 +132,8 @@ let literal_step t (r : Rules.rule) ~delta (env : Rules.env) (l : Rules.literal)
   match l with
   | Rules.Pos_rel (rel, ts, _) -> rel_step t rel ts ~delta env kont
   | Rules.Neg_rel (rel, ts, _) -> neg_step t rel ts env kont
-  (* A bare guard names no situation, and every step of its paths was proved to
-     be a FIXED arrow at read time: wiring reads the same in every situation, so
-     the initial one answers for all of them. *)
+  (* A bare guard reads only fixed arrows (checked at read time), which are
+     the same in every situation, so the initial one answers. *)
   | Rules.Guard (g, _) -> (
       match Facts.init t.sp with
       | None -> ()
@@ -168,8 +148,7 @@ let literal_step t (r : Rules.rule) ~delta (env : Rules.env) (l : Rules.literal)
       | Rules.Phase (s, p) -> rel_step t "phase" [ s; p ] ~delta env kont
       | Rules.Phase_step (p, q) ->
           rel_step t "phase-step" [ p; q ] ~delta env kont
-      (* G is a datum, never a term: it is not interned, not joined, and not a
-         column. Only S is, and §4 proved it already bound. *)
+      (* G is a datum, not a term or column; §4 proved S bound. *)
       | Rules.Holds (s, g) -> (
           match Option.bind (value_of env s) situation with
           | None -> ()
@@ -195,10 +174,8 @@ let emit t (r : Rules.rule) (env : Rules.env) (prems : Rules.premise list) =
       (insert t r.Rules.head tup
          (Some { Rules.by = r.Rules.id; premises = prems }))
 
-(* Join the body in WRITTEN order — the order §4 simulated when it decided what
-   each literal may assume bound. [drive] is the index of the one literal read
-   from [delta] this round; [-1] is the seeding round, where every literal reads
-   [total]. *)
+(* Join the body in written order, as §4 simulated it. [drive] is the one
+   literal read from [delta] this round; [-1] is the seeding round. *)
 let run_body t (r : Rules.rule) ~(drive : int) =
   let rec go i env prems = function
     | [] -> emit t r env (List.rev prems)
@@ -211,8 +188,8 @@ let run_body t (r : Rules.rule) ~(drive : int) =
 let stratum t rel =
   match List.assoc_opt rel t.prog.Rules.strata with Some k -> k | None -> 0
 
-(* Only a positive literal of the CURRENT stratum can grow during this stratum's
-   rounds, so only it has a delta worth driving from. *)
+(* Only a positive literal of the current stratum can grow, so only it is
+   worth driving from. *)
 let drives t lv (l : Rules.literal) =
   match l with
   | Rules.Pos_rel (q, _, _) -> stratum t q = lv
@@ -231,8 +208,7 @@ let run_stratum t lv =
         else None)
       t.prog.Rules.relations
   in
-  (* [merge st || acc], not [acc || merge st]: every store must be merged, and
-     [||] would short-circuit past the ones after the first that grew. *)
+  (* [merge st || acc], not [acc || merge st]: every store must be merged. *)
   let boundary () =
     List.fold_left (fun acc st -> merge st || acc) false heads
   in
@@ -250,9 +226,8 @@ let run_stratum t lv =
   in
   rounds ()
 
-(* The built-ins are extensional: read off the space, complete before stratum 0,
-   and derived from nothing — so they carry a fact id (a premise needs one) and
-   no derivation entry, which is exactly §7's criterion for a leaf. *)
+(* The built-ins are extensional: complete before stratum 0, with a fact id
+   but no derivation — §7's criterion for a leaf. *)
 let extensional t =
   let sp = t.sp in
   List.iter
@@ -281,22 +256,9 @@ let extensional t =
 
 (* ── Demand ──────────────────────────────────────────────────────────────── *)
 
-(* The relations one question needs: the target, and everything a rule that can
-   contribute to it reads, positively or negatively, transitively. Built-ins are
-   not in it because they are extensional — complete before stratum 0 and free.
-
-   WHY IT EXISTS. A .rules file declares a VOCABULARY, and `writ derive` asks it
-   ONE question; without this, every other relation in the file is computed too
-   and thrown away. That is not a rounding error where a library is involved:
-   `ct.rules` declares `reach`, whose answer is quadratic in the situation
-   count, so merely LOADING the library to ask a linear question cost 17
-   seconds at 1 938 situations against 0.16 for the question itself. Pruning to
-   the cone is what lets the library be rich — a name you did not ask for is
-   free, so §1's hom-sets can stay in the file for the models that want them.
-
-   Sound, not a heuristic: a fact of a relation outside the cone can appear in
-   no derivation of the target, by the same reading of the rules that the
-   fixpoint itself uses. `--why` therefore still finds every premise it needs. *)
+(* The relations one question needs: the target and everything a contributing
+   rule reads, transitively. Lets a library declare expensive relations
+   (ct.rules' [reach]) at no cost to questions that do not use them. *)
 let cone (prog : Rules.program) (target : string) : string list =
   let reads rel =
     List.concat_map
@@ -331,9 +293,8 @@ let restrict (prog : Rules.program) (target : string) : Rules.program =
         prog.Rules.rules;
   }
 
-(* [?only] names the one relation the caller will read, and prunes the program to
-   what can contribute to it. Omitted, every declared relation is computed —
-   which is what the tests want, since they read several from one run. *)
+(* [?only] prunes the program to what can contribute to that relation.
+   Omitted, every declared relation is computed. *)
 let run ?only (sp : Space.t) (prog : Rules.program) : t =
   let prog = match only with None -> prog | Some r -> restrict prog r in
   let t = create sp prog in

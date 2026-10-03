@@ -4,17 +4,13 @@
 open Writ_data
 
 (* Kleene evaluation over a state (kernel §3, §4). A path evaluates to a
-   [Value.cell option]: [None] means undefined (a vacant cell or a step off a
-   vacant/undefined prefix — partiality propagates). A guard holds by the usual
-   connectives, with [some] scanning a roster. Applying effects yields the next
-   state or a gap.
-
-   No IO here (fold F7): strings are never printed from the engine. *)
+   [Value.cell option], [None] when it steps off a vacant cell — partiality
+   propagates. Guards use the usual connectives, [some] scanning a roster.
+   Applying effects yields the next state, a gap, or [`Blocked]. No I/O. *)
 
 type env = (string * string) list
 
-(* The entities of a type: an enumerated type's declared values, or an open
-   type's roster (flattened across any rosters naming it). *)
+(* An enumerated type's values, or an open type's roster entities. *)
 let entities_of_type (ctx : State.ctx) (ty : string) : string list =
   match Schema.type_of ctx.schema ty with
   | Some { flavor = Enumerated vs; _ } -> vs
@@ -24,11 +20,9 @@ let entities_of_type (ctx : State.ctx) (ty : string) : string list =
         ctx.rosters
   | None -> []
 
-(* Walk a literal path over a state. The root is either a bound variable (looked
-   up in [env]) or an entity used directly; each step reads the cell
-   [{arrow; src}] and advances to its fill. A vacant cell (or a missing arrow,
-   read as vacant) makes the whole path undefined. A path with no steps is the
-   root entity itself. *)
+(* Walk a path over a state. The root is a bound variable or an entity; each
+   step follows a cell. A vacant cell makes the path undefined; no steps means
+   the root itself. *)
 let eval_path (ctx : State.ctx) (st : State.t) (env : env) (p : Value.path) :
     Value.cell option =
   let root =
@@ -49,10 +43,8 @@ let rec guard_holds (ctx : State.ctx) (st : State.t) (env : env)
   | Model.And gs -> List.for_all (guard_holds ctx st env) gs
   | Model.Or gs -> List.exists (guard_holds ctx st env) gs
   | Model.Not g -> not (guard_holds ctx st env g)
-  (* Strict on BOTH sides, which is what §10.2 already said of one: "the chain
-     has an answer and it equals V". A chain with no answer on the right makes
-     the comparison false, never vacuously true — that is `=`'s Kleene reading,
-     and keeping the two apart is the point of having both. *)
+  (* Strict on both sides (§10.2): the chain has an answer and it equals V.
+     The Kleene reading belongs to the stdlib's `=`. *)
   | Model.Is (p, r) -> (
       match eval_path ctx st env p with
       | Some (Value.Filled x) -> (
@@ -72,21 +64,10 @@ let rec guard_holds (ctx : State.ctx) (st : State.t) (env : env)
         (fun e -> guard_holds ctx st ((x, e) :: env) g)
         (entities_of_type ctx ty)
 
-(* WHICH cell a path names: walk the one-shorter prefix to an entity, then take
-   the last step as the arrow. Returns the slot in the state vector.
-
-   This is separate from writing it, and that separation is the whole of §10.1's
-   simultaneity. A target is a path too — [(set cur.q.at S)] must walk [cur.q]
-   to find the queen — so if the walk happened at write time it would see what
-   an earlier effect of the same move had already written, and the order of
-   effects would be observable through the LEFT side even with every right side
-   read from the starting situation. That is not a hypothetical: the queens
-   cursor writes [cur.q.at] and [cur.q] in one move, and swapping the two gave
-   9 situations instead of 2057 until this was split out.
-
-   [None] for a rootless path, a step off an undefined prefix, or a target
-   outside the layout (a fixed or unknown cell) — the effect is then a no-op, as
-   §10.3 says: guards are expected to have ensured applicability. *)
+(* Which cell a path names, as a slot in the state vector. Kept apart from
+   writing so targets resolve in the starting situation (§10.1). [None] — a
+   no-op effect (§10.3) — for a rootless path, an undefined prefix, or a cell
+   outside the layout. *)
 let target_index (ctx : State.ctx) (st : State.t) (p : Value.path) : int option
     =
   match List.rev p.steps with
@@ -98,33 +79,13 @@ let target_index (ctx : State.ctx) (st : State.t) (p : Value.path) : int option
           State.index_of ctx { Instance.arrow = last; src }
       | _ -> None)
 
-(* Applying a move, in two phases, which is what §10.3's chain-valued [set]
-   forced and what §10.1 now states outright.
+(* Apply a move in two phases (§10.1, §10.3). Phase 1 resolves both sides of
+   every effect against the starting situation, so a [do] block is a
+   simultaneous assignment ([(do (set a.x b.y) (set b.y a.x))] swaps).
 
-   PHASE 1 resolves every effect against the situation the move STARTED from —
-   BOTH sides. The right-hand side is read there, and so is the target: a
-   target is a path too, and [target_index] must walk it to find the cell. Miss
-   either half and the order of effects becomes observable through the half
-   that was missed. That makes a [do] block a simultaneous assignment: [(do
-   (set a.x b.y) (set b.y a.x))] is a swap, and writing the two effects of the
-   queens cursor in either order gives the same 2057 situations. §10.1 says no
-   situation exists between two effects of one move, and nothing in the
-   language can name that order — so nothing may depend on it.
-
-   Threading the state through the effects one at a time, as this used to, is
-   precisely the sequential reading that breaks all of the above.
-
-   PHASE 1 also decides ENABLEDNESS. A chain with no answer — [(set q.at
-   q.at.next)] at the top of a ladder — makes the move [`Blocked]: not a
-   no-op, and not a vacated target. Vacating would write [vacant] through
-   [set], which §8.3 forbids outright. A no-op would be worse than it looks: it
-   is still an EDGE, from a situation to itself, and [Space.dead_ends] marks a
-   state as having an out-edge on [e.src] alone — so a self-loop would quietly
-   stop a stuck situation being reported as stuck, and dead ends are one of the
-   answers `writ check` exists to give.
-
-   [`Blocked] outranks [`Gap]: a move whose effects cannot be carried out is
-   not available at all, so it contributes no edge of any kind. *)
+   A chain with no answer makes the move [`Blocked] — not a vacate (§8.3
+   forbids that) and not a self-loop, which would hide a dead end. [`Blocked]
+   outranks [`Gap]. *)
 let apply (ctx : State.ctx) (st : State.t) (effects : Model.effect list) :
     [ `Next of State.t | `Gap of string | `Blocked ] =
   let read = function
@@ -134,8 +95,7 @@ let apply (ctx : State.ctx) (st : State.t) (effects : Model.effect list) :
         | Some (Value.Filled v) -> Some v
         | Some Value.Vacant | None -> None)
   in
-  (* Phase 1: both sides of every effect, against the starting situation. A
-     target that names no cell is a no-op (§10.3), so it drops out here. *)
+  (* Phase 1. A target naming no cell is a no-op (§10.3) and drops out. *)
   let rec resolve acc = function
     | [] -> Ok (List.rev acc)
     | Model.Set (p, r) :: rest -> (
@@ -157,28 +117,21 @@ let apply (ctx : State.ctx) (st : State.t) (effects : Model.effect list) :
       match List.find_opt (function `Gap _ -> true | _ -> false) resolved with
       | Some (`Gap msg) -> `Gap msg
       | _ ->
-          (* Phase 2: the writes, into slots already chosen. *)
+          (* Phase 2: the writes. *)
           `Next
             (List.fold_left
                (fun st -> function
                  | `Write (i, cell) -> State.set st i cell | `Gap _ -> st)
                st resolved))
 
-(* A law is a guard, and it ranges over its single free root — the subject
-   §8.6 writes its chains from ("case.investigator… means for every case"). The
-   root name is bound to each entity of that type in turn and the guard must
-   hold at every one.
-
-   Kleene-ness is no longer built in here. It used to be: an equation was two
-   chains and an undefined side made it vacuously true. Now `=` is a stdlib form
-   that spells that reading out of strict primitives, so a law means exactly
-   what its guard says and an author who wants strictness can have it. *)
+(* A law is a guard over its single free root (§8.6): it must hold with the
+   root bound to each entity of that type. Strictness is whatever the guard
+   says; `=` in the stdlib spells out the Kleene reading. *)
 let eq_holds (ctx : State.ctx) (st : State.t) (eq : Schema.equation) : bool =
   match Guard.free_roots eq.Schema.body with
   | [ root ] ->
       List.for_all
         (fun e -> guard_holds ctx st [ (root, e) ] eq.Schema.body)
         (entities_of_type ctx root)
-  (* Rejected at declaration (Decl), so unreachable; a law with no subject
-     vacuously holds rather than crashing the interrogator. *)
+  (* Rejected at declaration, so unreachable; holds rather than crash. *)
   | _ -> true

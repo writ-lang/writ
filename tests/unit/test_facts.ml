@@ -1,12 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The five built-in relations of extension §2, each cross-checked against what
-   [Space.t] independently says — not against this engine's own output, which
-   would only prove it agrees with itself. Split from test_derive.ml by SUBJECT,
-   matching the module split it exercises: [Facts] is the adapter that exposes
-   the derived state category as relations, [Derive] is the fixpoint over them.
-   The two failed for different reasons and are worth reading apart. *)
+(* The built-in relations of extension §2, cross-checked against [Space.t]. *)
 
 open Writ_data
 open Writ_syntax
@@ -47,8 +42,6 @@ let model_file name =
 let space m =
   match Space.build m with Ok sp -> sp | Error e -> failwith ("space: " ^ e)
 
-(* [Rules_check.check] is the only constructor of a [Rules.program], so it is
-   the only way in here too — the engine cannot be handed anything unchecked. *)
 let program_of m src =
   match Rules_parser.parse m.Model.schema (read src) with
   | Error e -> failwith ("rules: " ^ Errors.to_string e)
@@ -78,8 +71,7 @@ let base_sp = space base
 
 let index sp s = State.M.find s sp.Space.index
 
-(* Recomputed from [Space.t] rather than called through [Facts]: a cross-check
-   that calls the thing it checks proves only that it is deterministic. *)
+(* Recomputed from [Space.t], independently of [Facts]. *)
 let space_edges sp =
   List.filter_map
     (fun (e : Space.edge) ->
@@ -126,8 +118,7 @@ let () =
   check "(gap-edge E S) is empty where the model declares no gap"
     (all reach "gap-edge" = [] && space_gaps base_sp = [])
 
-(* A gap edge exists only where a model declares one, so [gap-edge] is
-   cross-checked against the fixture that does: gap.writ's `hi` can only exit. *)
+(* gap.writ declares a gap edge: its `hi` can only exit. *)
 let () =
   let gm = model_file "gap.writ" in
   let gsp = space gm in
@@ -141,8 +132,6 @@ let () =
     (all d "gap-edge" = [ [ "boom"; "1" ] ]
     && all d "exits" = [ [ "boom"; "1" ] ])
 
-(* [(holds S G)] is the kernel evaluator's graph: every situation, every
-   person. *)
 let () =
   let d =
     Derive.run base_sp
@@ -171,12 +160,8 @@ let () =
 
 (* ── The phase built-ins, against the closure they quotient ──────────────── *)
 
-(* Tarjan's partition is checked against the DEFINITION of the thing it computes
-   — two situations share a phase exactly when each reaches the other — and
-   `reach` is derived by the Datalog fixpoint from `edge` alone, knowing nothing
-   about components. Two implementations of one question, which is the only
-   cross-check worth having; comparing the partition with itself would prove
-   only that it is deterministic. *)
+(* Tarjan's partition against its definition: same phase iff mutually
+   reachable, with `reach` derived from `edge` by the fixpoint. *)
 let reach_src =
   "(relation reach 2)\n\
    (rule (reach S S) (situation S))\n\
@@ -205,9 +190,7 @@ let phase_agrees label m sp =
   check
     (label ^ ": two situations share a phase iff each reaches the other")
     !agree;
-  (* The representative is a member of its own phase, and is the least-indexed
-     one — the naming this rests on, and what makes a phase addressable as a
-     situation rather than as an opaque handle. *)
+  (* A phase is named by its least-indexed member. *)
   let named = ref true in
   for i = 0 to n - 1 do
     let p = phase_of i in
@@ -215,8 +198,6 @@ let phase_agrees label m sp =
       named := false
   done;
   check (label ^ ": a phase is named by its least-indexed member") !named;
-  (* The quotient's edges: exactly the edges that cross a phase boundary, and
-     never one that stays inside — which is what makes the quotient acyclic. *)
   let want =
     List.sort_uniq compare
       (List.filter_map
@@ -233,9 +214,7 @@ let phase_agrees label m sp =
     (all d "phase-step" = want);
   d
 
-(* rules_base.writ is a DAG — two latches, each thrown once — so no situation
-   reaches itself the long way and every one is a phase of its own. Counted by
-   hand from the fixture: 0 → {1, 2} → 3. *)
+(* rules_base.writ is a DAG: every situation is its own phase. *)
 let () =
   let d = phase_agrees "rules_base (a DAG)" base base_sp in
   check "a DAG: every situation is its own phase"
@@ -244,9 +223,7 @@ let () =
     (all d "phase-step"
     = [ [ "0"; "1" ]; [ "0"; "2" ]; [ "1"; "3" ]; [ "2"; "3" ] ])
 
-(* cycle.writ is the opposite: one flag up and down, so the two situations are
-   one phase and nothing crosses out of it. A partition that quietly answered
-   "everything is its own class" passes the fixture above and fails this one. *)
+(* cycle.writ's two situations are one phase. *)
 let () =
   let cm = model_file "cycle.writ" in
   let csp = space cm in

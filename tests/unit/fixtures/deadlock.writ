@@ -1,6 +1,5 @@
-; deadlock.writ — a reachable state (hi) with NO enabled move. A deadlock is
-; absorbing (vacuously), and there is no gap: `writ check deadlock.writ` reports
-; `absorbing states: 1` and `reachable gaps: 0`.
+; A reachable state with no move and no gap: `absorbing states: 1`,
+; `reachable gaps: 0`.
 
 (schema tiny
   (type flag (lo hi))

@@ -1,21 +1,12 @@
-; The MCP server as a pure library: JSON in, JSON out, no I/O. It links the
-; three engine libraries for the same reason [writ_lsp] does — an answer from a
-; tool call must be an answer `writ check` would give, and a second
-; implementation would be a second set of bugs.
+; The MCP server as a pure library: JSON in, JSON out, no I/O. It calls the
+; same engine as `writ check`, so the answers agree.
 
 (library
  (name writ_mcp)
  (libraries writ_data writ_syntax writ_runtime writ_json writ_report_json))
 
-; The same generated version the CLI reports, for `initialize`'s serverInfo: a
-; client that asks which writ it is talking to must not get a hand-kept copy.
-; It lives in the library rather than beside the binary — see bin/dune.
-
-; The leading `v` is stripped here too, and tooling/cli/dune says why — a
-; `dune subst` in an opam pin substitutes the tag verbatim. The three rules
-; (the CLI's, this, the LSP's) are the same five lines because the modules are
-; separate by design; a shared library for one string would be a new node in a
-; dependency graph the fitness gates check.
+; The generated version for `initialize`'s serverInfo (here, not in bin — see
+; bin/dune). Same rule as tooling/cli/dune, which explains the `v` stripping.
 
 (rule
  (targets version.ml)

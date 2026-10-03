@@ -4,16 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # A JSON reader, for certificates
 
-`Lean.Data.Json` would do, and it costs 74 MB: importing it links most of the
-Lean elaborator into a binary that is otherwise 4 MB, and that binary ships in
-writ's release tarball. So the checker reads its input with this instead —
-RFC 8259, strict, over bytes, about a page.
-
-It is TRUSTED, as `WritCert.Import` is: a reader that turned one string into
-another would have the checker check a different model. That is the argument
-for small and plain over clever: every case below is one the grammar names.
-Numbers are integers only, because a certificate holds nothing else; a
-fraction or exponent is refused rather than rounded.
+Strict RFC 8259, integers only (`Lean.Data.Json` would link the elaborator
+into the shipped binary). Trusted, like `WritCert.Import`, so kept plain.
 -/
 
 namespace Writ
@@ -97,7 +89,6 @@ def hex4 : P Nat := do
   let a ← hex (← next); let b ← hex (← next); let c ← hex (← next); let d ← hex (← next)
   pure (((a * 16 + b) * 16 + c) * 16 + d)
 
-/-- The UTF-8 encoding of a code point. -/
 def utf8 (cp : Nat) : ByteArray :=
   if cp < 0x80 then ⟨#[cp.toUInt8]⟩
   else if cp < 0x800 then ⟨#[(0xC0 + cp / 64).toUInt8, (0x80 + cp % 64).toUInt8]⟩

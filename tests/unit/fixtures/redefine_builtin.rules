@@ -1,5 +1,3 @@
-; Extension §5: a rule never adds a situation, an edge or a cell, so the derived
-; category's own relations are not the rules file's to define. Redeclaring one
-; is rejected at the name.
+; Extension §5: the derived category's own relations cannot be redeclared.
 
 (relation edge 3)

@@ -3,40 +3,11 @@
 
 open Writ_data
 
-(* Extension §4 — range restriction, by simulating the join.
-
-   Body literals are joined in WRITTEN order, so this pass walks a body in that
-   order carrying the set of variables an earlier literal could have bound, and
-   rejects the first literal that uses one nothing before it could reach — at
-   that variable. Written order also governs the CONJUNCTS of a top-level [and]:
-   [(and (not (is X.a b)) (is X.c Y))] is rejected at [X], because only the
-   second conjunct would have bound it. One rule for literals and conjuncts
-   alike, so the rejection is predictable and the fix is to reorder.
-
-   What binds, per §2's compilation of a guard literal:
-
-   - a positive relation literal, and every built-in except [holds], binds all
-     its variables;
-   - a top-level [(is PATH V)] is FUNCTIONAL — it binds V from the cell, and
-     binds its root by enumerating that sort's roster;
-   - everything else — [defined], [not], [or], [some], a negated relation — is a
-     closed test: it binds nothing and every rule variable in it must already be
-     bound.
-
-   [(holds S G)] composes with all of it. S must be ALREADY bound, because
-   [holds] never generates situations and a body that let it would silently ask
-   the guard of every situation in the space. G is a datum, not a term, so it
-   neither binds nor needs binding as a column — but G's CONTENTS bind exactly
-   what a bare guard in that position binds, which is what makes §2's reversal
-   usable rather than notional.
-
-   A [some] binder needs no carve-out in the code, and that is worth saying
-   because the reading it implements is not obvious: "must already be bound"
-   applies to RULE variables, and a binder's variable is bound by construction.
-   It never reaches here as a [Var] because it is lower case (an ALL-CAPS one is
-   rejected at the binder, since it would shadow, and Writ has no shadowing). So
-   [(holds S (not (some (a account) (is a.role admin))))] is a closed test with
-   no free rule variables at all — accepted, as the oracle needs. *)
+(* Extension §4: range restriction, simulating the join in written order (of
+   literals, and of a top-level [and]'s conjuncts). Positive relations and
+   built-ins bind their variables; a top-level [(is PATH V)] binds V and
+   enumerates its root; anything else is a closed test. In [(holds S G)], S
+   must already be bound and G binds as a bare guard would. *)
 
 let ( let* ) = Result.bind
 let iter_r f xs = Rules_terms.iter_r f xs
@@ -60,10 +31,8 @@ let bind bound (t : Rules.term) =
 let closed bound (g : Rules.gexp) =
   iter_r (need bound) (Rules_terms.guard_terms g)
 
-(* A path root is enumerable only when its sort names a roster to enumerate. In
-   practice the sort pass has already given it one and the path pass has already
-   proved it is an entity type, so the fallback is unreachable defence — but it
-   is the honest reading of §4's "only if the root's sort is known". *)
+(* A path root is enumerable only when its sort is an entity type (§4). Earlier
+   passes guarantee that, so the fallback is defensive. *)
 let bind_root sorts rid bound (p : Rules.gpath) =
   match p.Rules.root with
   | Rules.Const _ -> Ok ()
@@ -102,10 +71,8 @@ let literal sorts rid bound (l : Rules.literal) =
       | Rules.Gap_edge (e, s) ->
           List.iter (bind bound) [ e; s ];
           Ok ()
-      (* Both phase relations are extensional and complete before stratum 0, so
-         either position may GENERATE: [(phase S P)] with neither bound
-         enumerates the whole map, which is what lets a rule read a situation's
-         phase and a phase's members with one literal. *)
+      (* Phase relations are complete before stratum 0, so either position
+         may generate. *)
       | Rules.Phase (s, p) ->
           List.iter (bind bound) [ s; p ];
           Ok ()

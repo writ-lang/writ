@@ -1,10 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Provenance pragmas (docs/bridges.md). A `; writ:origin TEXT` comment above
-   a datum attaches TEXT to what the datum declares; the report echoes it in
-   brackets beside the move or law. The language never sees it: the model
-   builds the same with every pragma deleted. Stdlib only. *)
+(* Provenance pragmas (docs/bridges.md): a `; writ:origin TEXT` comment is
+   echoed beside the move or law it precedes, and changes nothing else. *)
 
 open Writ_data
 open Writ_syntax
@@ -52,8 +50,7 @@ let resolve : Loader.resolve =
   | None -> Error { Errors.pos = None; msg = "cannot resolve " ^ name }
 
 let () =
-  (* The reader keeps the pragmas it saw, by line, and drops every other
-     comment as it always did. *)
+  (* The reader keeps pragmas by line and drops other comments. *)
   let text =
     Option.get
       (read (Filename.concat (repo_root ()) "tests/unit/fixtures/origin.writ"))

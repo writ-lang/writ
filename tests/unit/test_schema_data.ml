@@ -1,11 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [writ schema] unit tests, the sibling of test_control.ml one level up: where
-   that asserts a model's DYNAMICS survive the trip out to data and back, this
-   asserts its MAP does. Same discipline — the §7 fresh-name rule, and an
-   emitted library that re-parses through the front end rather than merely
-   balancing its parentheses. *)
+(* [writ schema] unit tests: a model's map survives the trip out to data and
+   back. *)
 
 open Writ_data
 open Writ_syntax
@@ -33,9 +30,7 @@ let arrow name dom cod : Schema.arrow =
 
 let ty name arrows : Schema.ty = { name; flavor = Schema.Open; arrows }
 
-(* Reading alone only proves the parentheses balance. §7 is what catches the
-   failure this export can actually have: two arrows collapsing onto one hom
-   entity name, which reads fine and is then refused by the front end. *)
+(* §7 catches two arrows collapsing onto one hom entity name. *)
 let reparses_with_fresh_names s =
   match Reader.read_string s with
   | Error _ -> false
@@ -75,20 +70,16 @@ let () =
     (contains ~sub:"(ob indep-status bureau case)" out);
   check "an arrow's hom entity is named dom-arrow"
     (contains ~sub:"bureau-independence" out);
-  (* Entity-major: an arrow's endpoints sit beside its name in one clause,
-     rather than in two parallel lists the reader must join by name. *)
+  (* Entity-major: an arrow's endpoints sit beside its name in one clause. *)
   check "dom and cod carry the arrow's endpoints"
     (contains ~sub:"(hom bureau-independence (dom bureau) (cod indep-status))"
        out);
   check "a law appears by name" (contains ~sub:"(eqn same-agency)" out);
-  (* Its BODY does not: since §8.6 a law holds a guard, and the checks this
-     export exists to collapse read only dom and cod. *)
   check "a law's body is not encoded" (not (contains ~sub:"Chain" out));
   check "the emitted library re-parses through §7"
     (reparses_with_fresh_names out)
 
-(* §7: arrow names are scoped to their dom, so two types may each own a
-   `status`, and the emitter must not let the two collapse onto one entity. *)
+(* Two types may each own a `status` (§7); the emitter must keep them apart. *)
 let () =
   let a = arrow "status" "bureau" "flag" and b = arrow "status" "case" "flag" in
   let s : Schema.t =
@@ -105,8 +96,8 @@ let () =
   check "same-named arrows still re-parse through §7"
     (reparses_with_fresh_names out)
 
-(* And the collision the natural spelling invites: a TYPE already called
-   `bureau-status` must not be shadowed by the arrow `bureau.status`. *)
+(* A type already called `bureau-status` must not be shadowed by the arrow
+   `bureau.status`. *)
 let () =
   let a = arrow "status" "bureau" "flag" in
   let s : Schema.t =
@@ -123,9 +114,7 @@ let () =
   check "the freshened export re-parses through §7"
     (reparses_with_fresh_names out)
 
-(* THE ROUND TRIP THAT MATTERS: olog describing itself, emitted rather than
-   hand-written. The encoding CLOSES — a schema can describe the schema of
-   schemas — and this is that claim as a test rather than an assertion. *)
+(* olog describes itself: the schema of schemas is a schema. *)
 let () =
   let dom = arrow "dom" "hom" "ob" and cod = arrow "cod" "hom" "ob" in
   let olog : Schema.t =

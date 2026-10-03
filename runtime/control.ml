@@ -3,23 +3,14 @@
 
 open Writ_data
 
-(* [writ control] — render a model's move list as a re-parseable instance of the
-   standard library's [quiver] schema (kernel §17, design D6): one [edge] entity
-   per transition, every [src]/[tgt] a self-loop on a single [node] (§12.3).
-   Re-parsing the emitted string against the [quiver] schema validates it.
+(* [writ control] — a model's move list as a re-parseable instance of the
+   stdlib's [quiver] schema (kernel §17, design D6): one [edge] entity per
+   transition, each a self-loop on a single [node] (§12.3). A pure string
+   builder; the CLI prints it. *)
 
-   Engine layer: this is a pure string builder — no I/O and no front end. The
-   printing lives in [tooling/cli/cmd_control.ml]; here we only consume the core
-   [Model]. *)
-
-(* Edge-entity names, one per transition in order: a named transition keeps its
-   name; an UNNAMED transition at 1-based position [i] becomes [move-<i>].
-
-   §7 — entities share one namespace, so the synthesised names must not collide
-   with any explicit transition name or with each other. We append [_] to a
-   [move-<i>] candidate until it is fresh w.r.t. every explicit name and every
-   name already assigned, so a real transition literally named [move-1] never
-   shadows a synthesised one. *)
+(* One edge name per transition: its own name, or [move-<i>] (1-based) if it
+   has none. Entities share one namespace (§7), so a synthesised name gets [_]
+   appended until it collides with no explicit or already assigned name. *)
 let edge_names (m : Model.t) : string list =
   let explicit =
     List.filter_map (fun (t : Model.transition) -> t.name) m.Model.transitions
@@ -41,8 +32,7 @@ let edge_names (m : Model.t) : string list =
   in
   go 1 [] m.Model.transitions
 
-(* The single node's name, made fresh w.r.t. every edge name the same way (a
-   transition literally named [n0] must not break the round-trip). *)
+(* The node's name, made fresh against the edge names the same way. *)
 let node_name (edges : string list) : string =
   let rec fresh cand =
     if List.mem cand edges then fresh (cand ^ "_") else cand
@@ -54,13 +44,11 @@ let quiver (name : string) (m : Model.t) : string =
   let node = node_name edges in
   let buf = Buffer.create 256 in
   let add = Buffer.add_string buf in
-  (* The leading [(load "stdlib.writ")] makes the output a self-contained
-     library, so [quiver] resolves when the string is re-parsed. *)
+  (* The [load] makes the output self-contained, so [quiver] resolves on
+     re-parse. *)
   add "(load \"stdlib.writ\")\n\n";
   add ("(instance " ^ name ^ "-control quiver\n");
   add ("  (node " ^ node ^ ")\n");
-  (* One clause per edge, endpoints beside the name — the same entity-major
-     shape a hand-written instance now takes. *)
   add
     (String.concat "\n"
        (List.map

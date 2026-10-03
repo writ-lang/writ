@@ -3,24 +3,15 @@
 
 open Writ_data
 
-(* The s-expression datum and its hand-written reader.
+(* The s-expression datum and its hand-written reader (ADR-13). Every datum
+   carries its position so later stages can blame it at a line and column. *)
 
-   ADR-13 makes s-expressions the canonical model format, read directly by the
-   engine with no parser library. Positions live on the datum rather than in a
-   separate reader module because the parser downstream reports arity and shape
-   errors against them, and a datum that has lost its position cannot be blamed
-   at a line and column. *)
-
-(* An alias, not a second record: [Errors.t] carries this position, and a
-   diagnostic may exist without one. *)
 type pos = Errors.pos = { file : string option; line : int; col : int }
 type t = Atom of string * pos | List of t list * pos
 
 let pos_of = function Atom (_, p) -> p | List (_, p) -> p
 
-(* The shape every decoder error takes: a positioned failure at a datum's own
-   source position. Lives here so the front end says [Reader.err_at d msg]
-   rather than spelling out the position plumbing at each of its call sites. *)
+(* A failure positioned at datum [d]. *)
 let err_at (d : t) (msg : string) : ('a, Errors.t) result =
   Errors.err ~pos:(pos_of d) msg
 
@@ -32,22 +23,16 @@ type cursor = {
   mutable off : int;
   mutable line : int;
   mutable col : int;
-  (* [; writ:TEXT] comments, by line. A comment is nothing to the language —
-     the reader drops it — but a TOOL may read one: `; writ:origin FILE:LINE`
-     above a datum is how a generated model says where the next move or law
-     came from (docs/bridges.md). Collected here because this is the only
-     place that sees comments at all. *)
+  (* [; writ:TEXT] comments, by line, for tools such as `writ:origin`
+     (docs/bridges.md). The language ignores them. *)
   mutable pragmas : (int * string) list;
 }
 
 (* Raised inside the reader, converted to a [result] at the boundary. *)
 exception Bad of pos * string
 
-(* The ONE place in the engine that builds a position — which is why the file
-   name is stamped here rather than bolted on by whoever reports the error. Every
-   position the front end blames a datum at comes through [at], so every one of
-   them knows its own file for free, and keeps knowing it after [Loader] has
-   inlined the datum into another file's list. *)
+(* The one place that builds a position, so every position carries its file,
+   even after [Loader] inlines the datum elsewhere. *)
 let at c = { file = c.file; line = c.line; col = c.col }
 let eof c = c.off >= String.length c.src
 let peek c = if eof c then None else Some c.src.[c.off]
@@ -161,11 +146,7 @@ let rec read_datum c =
   | Some '"' -> read_quoted c
   | Some _ -> read_bare c
 
-(* [?file] is the name the text came from — a name, never a path this reader
-   opens: reading text is what it does, finding it is the caller's job. Omitting
-   it is not a degraded mode, it is the honest answer for text that has no file
-   (a query typed on the command line, an unnamed buffer), and reading that way
-   behaves exactly as it always did. *)
+(* [?file] labels positions; it is never opened. Omit it for unnamed text. *)
 let read_string_with_pragmas ?file s =
   let c = { file; src = s; off = 0; line = 1; col = 1; pragmas = [] } in
   let rec go acc =
@@ -177,8 +158,7 @@ let read_string_with_pragmas ?file s =
 
 let read_string ?file s = Result.map fst (read_string_with_pragmas ?file s)
 
-(* Split a dotted atom [E.a1.…an] into its literal words. The parser uses this
-   to turn a path atom into a [Value.path]. *)
+(* Split a dotted atom [E.a1.…an] into its words. *)
 let split_dots (s : string) : string list = String.split_on_char '.' s
 
 (* --------------------------------------------------------------- printer *)

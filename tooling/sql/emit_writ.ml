@@ -1,25 +1,14 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Sql_ast.db] -> a .writ file, as text.
-
-   Text rather than datums, and the reason is not convenience: the output is a
-   model a person now OWNS. They will add transitions to it, write claims
-   against it, and read it to find out what their database actually says — so
-   it has to be commented, grouped, and spelled the way a person would spell
-   it. A datum tree pretty-printed by the parser would be none of those.
-
-   The shape of the file is fixed:
+(* [Sql_ast.db] -> a .writ file, as commented text a person will edit:
 
      the vocabulary   forms, one per domain actually used
      the schema       domains, then tables, then the laws that survived
      the instance     the seed rows, or an empty roster to fill in
 
-   The vocabulary is generated rather than shipped. A stock `psql.lib.writ`
-   could not hold a form for every `varchar(n)` anyone might declare, and a
-   library that covered only the common widths would push the rest into a
-   second mechanism. Generating exactly the forms this database needs keeps one
-   mechanism and leaves the stdlib the only .writ the tool ships. *)
+   The vocabulary is generated, since no shipped library could cover every
+   `varchar(n)`. *)
 
 open Sql_ast
 
@@ -37,10 +26,8 @@ type usage = {
   refs_mutable_null : bool;
 }
 
-(* The primary key dissolves into the entity's identity — an entity IS the
-   thing the key names, so a column repeating it is a column saying nothing.
-   Unless it is ALSO a foreign key, in which case dropping it would drop an
-   arrow, and the arrow is the part that means something. *)
+(* A primary key dissolves into the entity's identity, unless it is also a
+   foreign key, whose arrow must be kept. *)
 let dissolved (t : table) (c : column) = t.pk = [ c.cname ] && c.refs = None
 let carried (t : table) = List.filter (fun c -> not (dissolved t c)) t.columns
 
@@ -122,8 +109,8 @@ let emit_forms (b : Buffer.t) (u : usage) =
 let rec guard (subject : string) (c : check) : string =
   let path col = subject ^ "." ^ col in
   match c with
-  (* Unreachable: [Sql_parse.cut_regions] rewrites every comparison into a
-     membership test or declines it before a model is emitted. *)
+  (* Unreachable: [Sql_parse.cut_regions] rewrites or declines every
+     comparison. *)
   | C_cmp (col, _, _) ->
       invalid_arg ("a comparison on " ^ col ^ " survived the region cut")
   | C_and cs -> "(and " ^ String.concat " " (List.map (guard subject) cs) ^ ")"
@@ -158,11 +145,8 @@ let column_datum (c : column) : string =
   | None ->
       let n = Sql_names.domain_name c.domain in
       if c.fixed then
-        (* A non-reference column that is never written is rare — it only
-           arises on the way back from a model somebody wrote by hand — and it
-           would need a second sigil to sugar. So it stays spelled out in the
-           kernel, which is also the reading of the `-- writ: fixed` pragma that
-           carried it: wiring, not state. *)
+        (* A fixed non-reference column (from a `-- writ: fixed` pragma) is
+           rare, so it is spelled out in the kernel rather than given a form. *)
         "(arrow " ^ c.cname ^ " (to " ^ n ^ ") fixed"
         ^ (if c.nullable then " vacatable" else "")
         ^ ")"
@@ -187,8 +171,7 @@ let emit_schema (b : Buffer.t) ~(source : string) (name : string) (db : db)
           let m = try List.assoc n u.members with Not_found -> n ^ "*" in
           buf_add b ("  (type " ^ n ^ " (" ^ m ^ "))\n"))
     u.domains;
-  (* only the enums a column actually lands in: a declared type no arrow
-     reaches is a name taken out of the global space for nothing *)
+  (* only the enums some column uses *)
   let used = List.map Sql_names.domain_name u.domains in
   List.iter
     (fun e ->
@@ -225,9 +208,8 @@ let emit_schema (b : Buffer.t) ~(source : string) (name : string) (db : db)
       \  ;; A CHECK is a claim the world is measured against, not a filter on\n\
       \  ;; it: `writ check` reports not only where a law is broken but WHICH\n\
       \  ;; move can break it.\n";
-    (* Each law carries where it was written, as a provenance pragma the
-       loader reads (docs/bridges.md): a violation then names the CHECK's
-       line in the DDL, not only the law's name in this file. *)
+    (* A provenance pragma (docs/bridges.md) makes a violation name the
+       CHECK's DDL line. *)
     List.iter
       (fun (t, (n, c)) ->
         let line =
@@ -257,8 +239,8 @@ let value_for (db : db) (u : usage) (c : column) (v : string option) : string =
               else if String.lowercase_ascii raw = "f" then "false"
               else Sql_names.ident_to_pol raw
           | Sql_names.Enum ename -> (
-              (* a region domain classifies a seed row's number into the
-                 piece it falls in; any other enum takes the literal *)
+              (* a region domain classifies the number; other enums take the
+                 literal *)
               match
                 (List.assoc_opt ename db.regions, float_of_string_opt raw)
               with
@@ -311,10 +293,9 @@ let emit_instance (b : Buffer.t) (name : string) (db : db) (u : usage) =
 
 (* ---- the file ----------------------------------------------------------- *)
 
-(* Two names in one global space (kernel §7) is a redeclaration, and the one
-   way this mapping can produce one is a table named after a SQL type. Reported
-   rather than repaired: renaming the domain would break the export, since the
-   codomain's name IS the column's type on the way back. *)
+(* A table named after a SQL type redeclares a name in the global space
+   (kernel §7). Reported, not repaired: the domain's name is the column's type
+   on export. *)
 let name_clashes (db : db) (u : usage) : decline list =
   let domain_names =
     List.map Sql_names.domain_name u.domains

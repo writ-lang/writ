@@ -1,16 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* .rules front-end tests (TRP): [Rules_parser] and [Loader.read_rules].
-
-   The parser decodes and rejects shapes; it infers nothing. So these tests read
-   datums and look at the values that come back, and — for the rejections —
-   check that the diagnostic carries a [line:col], because "an error at the
-   variable" is the whole reason the positioned guard mirror exists.
-
-   The fixtures are read from disk rather than inlined: extension §1's example
-   is a file the run's gates also use, and a private copy would not rot with
-   it. *)
+(* .rules front-end tests: [Rules_parser] and [Loader.read_rules]. *)
 
 open Writ_data
 open Writ_syntax
@@ -58,8 +49,7 @@ let ok name src =
       check (name ^ ": " ^ Errors.to_string e) false;
       exit 1
 
-(* Every rejection must be locatable: a message with no position has nowhere to
-   put a squiggle, and lands on line 1 — usually a comment. *)
+(* Every rejection must carry a position, or it lands on line 1. *)
 let rejected name ~sub ?schema src =
   let s = match schema with Some s -> s | None -> org in
   match Rules_parser.parse s (read_all src) with
@@ -91,8 +81,7 @@ let resolve : Loader.resolve =
       close_in ic;
       Ok s
 
-(* Extension §1's own example, verbatim in the fixture, read the way the CLI
-   will read it: loads inlined, forms expanded, then parsed. *)
+(* Extension §1's own example. *)
 let () =
   let m =
     match Loader.read_model resolve "rules_base.writ" with
@@ -156,8 +145,7 @@ let () =
   | _ ->
       check "relation: (relation N (person person)) is two entity columns" false
 
-(* The sort words are capitalised; a lowercase [edge] is the stdlib quiver's
-   schema type, and the two must not be confused. *)
+(* Sort words are capitalised; lowercase [edge] is the stdlib quiver's type. *)
 let () =
   match
     (ok "sort words" "(relation r (Situation Edge edge))")
@@ -182,8 +170,7 @@ let () =
   rejected "relation: a malformed declaration" ~sub:"malformed relation"
     "(relation subordinate)"
 
-(* A schema type spelled exactly like a sort word: the sort word wins, so the
-   type would be silently unreachable. Rejected at the declaration. *)
+(* A schema type spelled like a sort word would be unreachable. *)
 let () =
   let odd = schema_of "(schema odd (type Situation (a b)))" in
   rejected "relation: a schema type named Situation" ~sub:"rename the type"
@@ -209,16 +196,14 @@ let () =
     "(rule (p S) (phase S))";
   rejected "built-in: phase-step takes two" ~sub:"(phase-step P Q)"
     "(rule (p P) (phase-step P Q R))";
-  (* The quotient is the interrogator's to compute, like every other reading of
-     the derived category — extension §5 again, at the two newest names. *)
+  (* The quotient is the interrogator's to compute (extension §5). *)
   rejected "relation: phase cannot be redeclared" ~sub:"built-in"
     "(relation phase 2)";
   rejected "rule: phase-step cannot be a head" ~sub:"cannot define"
     "(rule (phase-step P Q) (p P))"
 
 let () =
-  (* G is a datum, never a term: a variable there would otherwise reach the
-     fixpoint as a joinable column. *)
+  (* G is a datum, never a term. *)
   rejected "holds: a variable in the G position" ~sub:"guard datum"
     "(rule (p S) (situation S) (holds S G))";
   (* a stepless path would be an accidental equality primitive *)
@@ -228,7 +213,6 @@ let () =
   rejected "guard: an ALL-CAPS some binder" ~sub:"no shadowing"
     "(rule (p X) (holds S (some (A person) (is A.stands quiet))))"
 
-(* Both built-ins and negation, decoded into the shapes the engine reads. *)
 let () =
   let t =
     ok "mixed body"
@@ -254,8 +238,7 @@ let () =
       | _ -> check "body: (holds S G) carries a guard datum" false)
   | _ -> check "body: three literals" false
 
-(* [(not (is …))] is a negated GUARD; [(not (R …))] a negated relation. The
-   inner head is what tells them apart. *)
+(* The inner head tells a negated guard from a negated relation. *)
 let () =
   let t = ok "negated guard" "(rule (p X) (not (is X.stands quiet)))" in
   match t.Rules_parser.rules with
@@ -264,9 +247,8 @@ let () =
   | _ -> check "body: (not (is …)) is a negated guard" false
 
 (* --- positions survive decoding ---------------------------------------------
-   The point of the positioned mirror: every part of a guard can be blamed where
-   it was written. The source below puts the guard on line 2, the path atom at
-   column 7 and the value at column 20. *)
+   Every part of a guard can be blamed where it was written: guard on line 2,
+   path atom at column 7, value at column 20. *)
 
 let () =
   let src = "(rule (p X)\n  (is X.reports-to Y))" in

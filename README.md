@@ -7,25 +7,20 @@
 A model is one page. What it *means* is every situation those rules can
 produce — that page writ large, which is where the language gets its name.
 
-In practice: **a model checker for finite business and governance systems** —
-approval workflows, entitlements and access, schema migrations, deployment
-runbooks, configuration spaces, protocols — whose negative answer is a
-**census, not a search that gave up**. "No reachable situation breaks this
-rule" is checked over every situation there is, because the schema fixes how
-many there are; and every "yes" comes with the route that proves it.
+writ is a model checker for finite business and governance systems: approval
+workflows, entitlements, schema migrations, runbooks, configuration spaces,
+protocols. A model is a state machine written down — a **schema** (the kinds of
+thing that exist, the typed arrows between them, and laws they must obey), an
+**instance** (one starting configuration) and **transitions** (guarded moves).
+`writ` enumerates every reachable situation and answers questions by
+exhaustion. Because the schema fixes how many situations there are, "no
+reachable situation breaks this rule" is a census, not a search that gave up;
+and every "yes" comes with the route that proves it.
 
-A writ model is a state machine written down: a **schema** (the kinds of things
-that exist and the typed arrows between them, plus the laws certain arrow-chains
-must obey), an **instance** (one starting configuration), and **transitions**
-(guarded moves). `writ` enumerates every reachable situation — a finite space —
-and answers the questions you put to it *by exhaustion*, with a concrete route as
-evidence.
-
-The whole language is **twenty-six words**; everything else — ordering,
-quantifiers, equality, entire domain vocabularies — is a library of **forms**
-over those words. Questions live *apart* from models, in `.claims` files, so one
-question suite can be asked of many models, and comparing two versions of a model
-is a tool operation.
+The language is twenty-six words; everything else — ordering, quantifiers,
+equality, domain vocabularies — is a library of **forms** over them. Questions
+live apart from models, in `.claims` files, so one suite can be asked of many
+models and two versions of a model can be compared.
 
 ## A taste
 
@@ -64,21 +59,19 @@ fails  no-blunders
   witness:  1. cross-empty-LR   → #1   farmer.at: left → right
 ```
 
-`writ` proves the crossing is possible **and prints one** (a holding `possible`
-shows its solution) — the real safe crossing, right down to bringing the goat
-*back* on move 4. Every step says where it lands (`#3` is a situation `writ
-show --at 3` will render) and what it changed, in the model's own words. It
-also finds the blunder: one careless crossing strands a predator with its
-prey, and from there the crossing can never succeed.
+A holding `possible` prints its solution — here the real crossing, goat
+brought *back* on move 4. Each step says where it lands (`writ show --at 3`
+renders `#3`) and what it changed. The failing `live` is the blunder: one
+careless crossing strands a predator with its prey, and from there the crossing
+can never succeed.
 
-**Want to write one?** [The tour](docs/tour.md) goes from a three-line model to
-the whole language in ten runnable steps, and ends in a one-page cheat sheet.
-The rest of this page is why the language is shaped the way it is.
+To write one, start with [the tour](docs/tour.md): ten runnable steps from a
+three-line model to the whole language, ending in a one-page cheat sheet.
 
 ## What it is for
 
 The same six shapes of question — a trap, a law violation, a vacancy, a
-silence, a comparison, an embedding — asked of different furniture.
+silence, a comparison, an embedding — asked of different domains.
 [Appendix G](docs/kernel-spec.md#appendix-g--problems-tractable-with-writ)
 lists the questions per domain; the worked models live in
 [writ-problems](https://github.com/writ-lang/writ-problems):
@@ -96,265 +89,95 @@ lists the questions per domain; the worked models live in
 | games and puzzles | is it solvable, and is there a first-move blunder? | `river/`, `island/`, `queens/` |
 | safety interlocks, clinical protocols, succession, incident runbooks | see Appendix G | — |
 
-What does not fit, and the test for telling in advance, is
-[docs/tractability.md](docs/tractability.md): a fixed cast; quantities
-compared against constants, never against each other; moves that set a slot to
-a name; an answer set small enough to want.
+Whether a domain fits is a test, stated in
+[docs/tractability.md](docs/tractability.md): a fixed cast; quantities compared
+against constants, never against each other; moves that set a slot to a name;
+an answer set small enough to want.
 
 ## Language design
 
-Four decisions shape the language, and all four answer to one demand: **a model
-must denote a finite object the tool can hold entire** — one that can be built,
-walked, exported and diffed. Each is worked through in
-[kernel-spec §2](docs/kernel-spec.md#2-language-design); in brief:
+Every design decision serves one demand: a model must denote a finite object
+the tool can hold entire.
+[Kernel-spec §2](docs/kernel-spec.md#2-language-design) works each through; in
+brief:
 
-**The state machine is generated, not written.** Nothing you write is a state,
-and nothing you write is an edge. The *schema* decides what a state **is**: an
-arrow marked `fixed` is wiring, set once and never varying, and a state is one
-filling of all the other arrows at once — so the state set is the product of
-their targets, settled before a single move exists. The *instance* says which
-state is initial. A *transition* is a guard and a change, **not** an edge: it
-contributes one from every state its guard admits, so one datum can mean
-thousands of edges, or none. The machine is the initial state closed under
-them. The river: 54 arrangements on paper, twelve transitions, 76 edges over
-the 36 reachable — and the file names none of those numbers. "Written down"
-means *presented*, not enumerated.
+- **The state machine is generated.** The schema fixes what a state is (one
+  filling of every non-`fixed` arrow); a transition is a guard and a change
+  that contributes an edge from every state its guard admits. The river's
+  twelve transitions yield 76 edges over 36 reachable situations.
+- **Arrows are partial.** A `vacatable` arrow may have no answer, so "the
+  office is empty" needs no invented `nobody`, and "the bench must always be
+  staffable" is `(live (defined docket.judge))`. `gap` marks where the rules
+  run out instead of inventing a successor.
+- **The language stops short of computation.** No numbers, recursion or
+  unbounded chains, so every model terminates by its grammar — which is what
+  lets a negative answer mean *none exists* rather than *none found within the
+  bound*. Counting becomes naming (two signatures are two slots); calculating
+  becomes writing down (a payment carries `band → large`, not `amount →
+  12,400`).
+- **The notation is s-expressions**, because a model is a finitely presented
+  category and nesting *is* ownership. A new vocabulary is new heads, not new
+  grammar; `form` renames and pastes but cannot compute, so every error points
+  at a line you wrote.
 
-**The arrows are partial.** An olog's arrows must answer, for every thing; a
-writ arrow may be `vacatable` and answer nothing. The alternative is to totalise — add a member meaning *none* — and the
-river prices it: give `bank` a third member `eaten` and `bank` has stopped
-meaning a bank, since the *farmer*'s arrow points at the same type and
-`farmer.at = eaten` becomes representable; the space grows 54 → 81, the 27 new
-arrangements meaning nothing and needing guards to exclude; and in an
-institutional model the same move drops a `nobody` into the box marked *a
-person*, where it answers `nobody.employer`. Keeping the arrow partial buys
-three things a total map cannot state:
-
-- **Absence you can ask about.** A chain through an empty slot has no answer
-  from that step on, so with the bench unstaffed `(is docket.judge.employer
-  watchdog)` and `(is docket.judge.employer prosecutions)` are *both* false —
-  the signature of an empty slot, not a contradiction — while `(defined …)`
-  tells the cases apart. "The bench must always be staffable" is then a
-  property the tool decides: `(live (defined docket.judge))`.
-- **Moves that are undefined, not merely unused.** A guard is a move's *domain
-  of definition*; a transition is a partial map of the state space, not a total
-  one with a side condition attached.
-- **Rules that admit where they run out.** `gap` ends the model rather than
-  inventing a successor, so the native who says "I am a knave" is reported as a
-  hole with the shortest route in.
-
-Vacancy, non-applicability and silence are the ordinary case in these domains —
-an office is empty, a clause does not apply, a statute says nothing. A total map
-misreports all three.
-
-**The language stops short of computation.** No numbers, no recursion, no
-iteration, no unbounded chains; every list is finite, so termination is a
-property of the grammar rather than something a model can lose. What that buys
-is the **negative** answer. By Rice's theorem every non-trivial semantic
-question about a Turing-complete language is undecidable, leaving a tool two
-options: ask the author to supply the proof, or search and report what it found
-— and the second cannot tell *no counterexample exists* from *none found within
-the bound*. "One lawful move destroys accountability forever" is worth nothing
-from a tool that might merely have looked less far. Here `never` is a census and
-every verdict carries a route. The cost: no arithmetic, no unbounded
-populations, no "for every *n*" — a domain that cannot be honestly reduced to
-finitely many named distinctions is one this tool should not be pointed at.
-
-At first almost every domain looks like it needs arithmetic: payments have
-amounts, a timetable has hours, a shelf has a height. But numbers tend to
-arrive in a model in only two ways — as *how many of something there are*, and
-as *how one thing compares with another* — and each has a substitution that
-gets rid of it. **Counting becomes naming. Calculating becomes writing down.**
-Those two are what give the language its range. Take a payment waiting on
-sign-off:
-
-- **Counting becomes naming.** "A payment needs two signatures" is
-  not the number two — it is two slots, either of which may be empty:
-
-  ```
-  payment 4471    first-sign  → nobody
-                  second-sign → nobody
-  ```
-
-  *Fully signed* is both slots answering: a question about things, with
-  nothing to add up.
-
-- **Calculating becomes writing down.** "Is this over the limit?"
-  is arithmetic. What the rules turn on is only which side of the limit the
-  payment falls on, so that is what the model carries:
-
-  ```
-  payment 4471    band → large            not:   amount → 12,400
-  ```
-
-  Any calculation with finitely many answers can be written down instead of
-  performed. In Writ, what you write it down as is arrows.
-
-**The notation is s-expressions** because the object written down is a finitely
-presented category: labelled nodes, each with a head naming its kind, a body
-naming its parts, and containment where one thing belongs to another. `(arrow
-independence (to indep-status))` inside `(type bureau …)` does not *encode*
-ownership — the nesting **is** the ownership. Hence the kernel can stay at
-twenty-six words, a new vocabulary being new heads rather than new grammar;
-hence the extension mechanism can be *weaker* than a macro system and therefore
-safe — `form` renames and pastes, it cannot compute, so every error still points
-at a line you wrote; and hence a model can be **data** for another model, with
-`writ control` and `writ schema` emitting its moves and its map as ordinary
-instances. That the fit is good is checkable rather than tasteful: `=` moved
-from kernel word to library form without the grammar changing by a line; no
-construct ever needed an operator or a precedence rule, guards included; the
-notation states its own structure; and every worked model's properties are read
-twice — once in branching time, once relationally — by two engines that agree.
-
-**Where the bound comes from** is the distinguishing claim, and it is worth
-stating against the neighbours
+The bound is what sets writ apart
 ([Appendix H](docs/kernel-spec.md#appendix-h--design-notes-neighbouring-languages)
-has the full table):
+has the full comparison):
 
 | | the space searched | "no counterexample" means |
 | --- | --- | --- |
 | Alloy, TLC, bounded SMT | a scope or depth the **user** chose | none within that scope — a hedge that never goes away |
 | writ | every situation the **schema** admits | none exists — a census |
 
-The price of the second row is the whole of §2.4: no arithmetic, no unbounded
-populations, no "for every *n*". What it buys is that `never` means what it
-says.
-
-Whether a *particular* domain fits is a test, not a feeling:
-[docs/tractability.md](docs/tractability.md) states it in four conditions — a
-fixed cast; thresholds, not comparisons; settling, not computing; an answer
-set you would read — and says precisely where the line falls (a quantity
-compared against a constant is fine at any range; one compared against
-another varying quantity is not).
-
-## What an answer costs
-
-Enumerating *every* situation invites one question ahead of all others: how big
-does that get?
-
-**The river's 36 is a product**, counted above: every cell a move can write,
-multiplied out to 54 arrangements on paper, of which 36 are reachable.
-
-Products grow fast, and that is the standing worry about exhaustive search. But
-it is a worry about one *kind* of model, and there is another kind where the
-product never forms at all.
-
-**The other kind: a move commits a choice, and nothing revisits it.** Suppose
-three slots to be filled in a fixed order, and suppose the guards leave 2
-candidates for the first slot, 3 for the second, 2 for the third. Count the
-situations by hand:
-
-| once you have chosen | situations |
-| --- | --- |
-| nothing yet | 1 |
-| the first slot | 2 |
-| the first two | 2 × 3 = 6 |
-| all three | 2 × 3 × 2 = 12 |
-
-**21 situations in total, of which 12 are finished designs.** Nothing else is
-reachable: there is no situation with the second slot filled and the first
-empty, because the order forbids one. Every situation is a *prefix* of some
-design.
-
-**That generalises.** Write `aᵢ` for how many candidates survive the guards at
-step `i`:
-
-```
-situations = Σ(k=0..n) Π(i≤k) aᵢ            designs = Π(i≤n) aᵢ
-```
-
-The sum's last term **is** the design count, and every earlier term is the one
-after it divided by a step's candidate count. So where each step admits two or
-more, all the earlier terms together cannot even double the last:
-
-> **situations < 2 × designs** — and never more than `(n+1) ×`, even where some
-> step is forced to a single candidate.
-
-**Which inverts the worry.** Adding to the catalogue is free: a part the guards
-reject costs one transition and *no situations at all*. Tightening a constraint
-makes the search **smaller**. The price is set by how many answers there are —
-not by how much vocabulary was on offer.
-
-The practical reading: **a model is too big precisely when its answer set is too
-big to have wanted.** A brief admitting a million designs was never a question
-enumeration could answer; it was a brief needing more constraints.
-
-Measured rather than argued, in the worked models next door: nineteen components
-filling seven stages enumerate 96 designs in 184 situations; forbid one more
-coupling and it is 144 in 232; demand one more property of a stage and it is 48
-in 94 — each the formula's exact prediction.
-
-**And the river is the other kind** — which is the contrast worth keeping. The
-farmer can row back, so a crossing can be undone and made again, and no move
-settles anything for good. There the product of the cells is real, and 36 is
-what it costs.
-
-`writ check` says which kind a model is, under its size line — `regime:
-committing — no move can be undone`, or `regime: reversible — 36 of 36
-situations lie on cycles` — measured from the space rather than guessed from
-the syntax, so the author knows at once whether adding vocabulary is free.
+**What an answer costs.** The river's 36 is a product of its cells, real
+because the farmer can row back. Where every move commits a choice nothing
+revisits, each situation is a prefix of a finished design, so situations stay
+under twice the number of designs and a tighter constraint makes the search
+smaller: a model is too big exactly when its answer set is too big to want.
+`writ check` reports which regime a model is in (`regime: committing — no move
+can be undone` or `regime: reversible — 36 of 36 situations lie on cycles`);
+[docs/tractability.md](docs/tractability.md) §6 has the arithmetic.
 
 ## The CLI
 
 | Command | Does |
 |---|---|
 | `writ check MODEL [--claims F]` | build the model; report size, gaps, dead ends and laws; check the `.claims` properties and queries |
-| `writ query MODEL NAME [--at STATE] [--claims F]` | run one named query and print the satisfying bindings; questions come from the sibling `.claims` unless `--claims` names another |
+| `writ query MODEL NAME [--at STATE] [--claims F]` | run one named query and print the satisfying bindings |
 | `writ compare OLD NEW [--map M]` | report each equation and property **preserved / LOST / gained** across two models |
 | `writ compare --git R1 R2 MODEL` | …across two git revisions of one file |
-| `writ control MODEL` | emit the move list as an instance of the standard library's `quiver` schema |
-| `writ schema MODEL` | emit the model's schema as an instance of the standard library's `olog` schema |
-| `writ sql SCHEMA.sql` | read a relational schema as an olog — tables become types, foreign keys arrows, NULL `vacatable`, enums enumerated types, single-row `CHECK`s laws |
-| `writ sql MODEL.writ` | …and back: emit the model's schema as `CREATE TABLE` |
-| `writ derive MODEL RULES.rules R` | answer a `.rules` relation over the model's enumerated universe — every row |
-| `writ derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
-| `writ derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
-| `writ show MODEL [--at STATE]…` | print what a situation is — its cells, the fewest moves to it, and every move out |
-| `writ graph MODEL [--witness P] [--states] [--d2\|--dot\|--json]` | draw the state space: the **phase** quotient by default — one node per class of mutually reachable situations, edges the one-way moves between them, gaps as dashed exits — with a property's witness lit; `--states` draws every situation, under a cap |
-| `… --json` | on `check`, `query`, `compare`, `show` and `derive`: the same answer as one JSON object, witnesses carrying the situation each move lands in ([docs/json.md](docs/json.md)) |
-| `writ help VERB` · `writ VERB --help` | one verb's reference — usage, options, examples, exit status |
-| `writ --help` · `writ --version` | the full reference · the version this binary was built from |
+| `writ control MODEL` | emit the move list as an instance of the stdlib's `quiver` schema |
+| `writ schema MODEL` | emit the model's schema as an instance of the stdlib's `olog` schema |
+| `writ sql SCHEMA.sql` · `writ sql MODEL.writ` | read a relational schema as a model, or emit a model's schema as `CREATE TABLE` |
+| `writ derive MODEL RULES.rules R` | every row of a `.rules` relation over the model's situations |
+| `writ derive MODEL RULES.rules "(R A…)"` | …only matching rows; ALL-CAPS is a free variable, any position bindable |
+| `writ derive MODEL RULES.rules --why "(R A…)"` | one fact's derivation tree |
+| `writ show MODEL [--at STATE]…` | a situation's cells, the fewest moves to it, and every move out |
+| `writ graph MODEL [--witness P] [--states] [--d2\|--dot\|--json]` | draw the state space — by default one node per class of mutually reachable situations — with a property's witness lit; `--states` draws every situation, under a cap |
+| `… --json` | on `check`, `query`, `compare`, `show` and `derive`: the answer as one JSON object ([docs/json.md](docs/json.md)) |
+| `writ help VERB` · `writ VERB --help` | one verb's reference |
+| `writ --help` · `writ --version` | the full reference · the version |
 
-Exit status is the interface: **0** clean · **1** a finding (a failed property; a
-violated, unadmitted, or stale law; a lost-in-compare guarantee) · **2**
-unreadable input.
+Exit status: **0** clean · **1** a finding (a failed property; a violated,
+unadmitted or stale law; a guarantee lost in `compare`) · **2** unreadable
+input. Any verb that takes a model reads it from stdin with `--stdin`.
 
 ### Relational schemas
 
-**One verb, both directions — the direction is the extension.** Output goes to
-stdout, like `writ schema` and `writ control`, so the ordinary use is a redirect:
+`writ sql` reads a database schema (DDL or `pg_dump`) as a model, or writes a
+model's schema back as `CREATE TABLE`; the file extension picks the direction:
 
 ```console
 $ writ sql shop.sql > shop.writ        # a database, read as a model
 $ writ check shop.writ                 # ask it something
 $ writ sql shop.writ > back.sql        # and write it out again as CREATE TABLE
+$ writ sql shop.sql | writ check --stdin   # or pipe it straight in
 ```
 
-| | |
-|---|---|
-| `writ sql SCHEMA.sql` | read the DDL; print a model on stdout, the declines on stderr |
-| `writ sql MODEL.writ` | print `CREATE TABLE` for the model's schema |
-| `--with-data` | also read `INSERT`s, as the initial instance — **seed rows**, not a table dump |
-| `--strict` | exit 1 if anything was declined (the shape a CI check wants) |
-| `writ sql --help` | this, in the terminal |
-
-Nothing is installed or loaded: the emitted model is **kernel-only** — no
-`(load …)`, no prelude, nothing from the standard library.
-
-Any verb that takes a model will read one from stdin instead, with `--stdin`:
-
-```sh
-writ sql schema.sql | writ check --stdin
-```
-
-The model is read once, so `--stdin` names one model per invocation. Errors in
-a piped model report against `<stdin>`, and a `(load "lib.writ")` inside one
-resolves against the current directory first.
-
-**The payoff is what a database cannot do.** A `CHECK` becomes an `equation`,
-and a law is a claim the world is measured against rather than a filter on it —
-so once you write the migration's `UPDATE` as a move, `writ check` answers a
-question the database never could:
+Tables become types, foreign keys arrows, `NULL` `vacatable`, enums enumerated
+types, and a single-row `CHECK` an `equation` — a law observed, not enforced —
+so once a migration's `UPDATE` is written as a move, `writ check` names the
+operation that can break it, before it ships:
 
 ```console
 $ writ check shop.writ
@@ -362,92 +185,25 @@ equation orders-shipped
   can be broken by: ship   (acknowledge in claims)
 ```
 
-A database tells you a constraint was violated *at runtime*. `writ` tells you
-**which operation can violate it**, by exhaustion, before it ships.
-
-**Why it is a reading rather than a translation.** A relational schema *is* a
-finitely presented category, so the olog was already in the DDL, spelled in a
-notation that cannot be interrogated:
-
-| SQL | Writ |
-|---|---|
-| table | `(type T …)` |
-| foreign key, `NOT NULL` / `NULL` | `(fk c T)` / `(fk? c T)` |
-| `PRIMARY KEY` | nothing — an entity **is** its identity |
-| `boolean`, enum, `CHECK … IN` | an enumerated type, members intact |
-| `varchar`, `int`, `timestamptz` | an arrow into a **one-member** domain |
-| single-row `CHECK` | `(equation …)` |
-
-The SQL vocabulary arrives as **forms over the 26 words**, generated for the
-database at hand rather than shipped, so a column is two tokens:
-
-```lisp
-(varchar-255 email)                  ; email varchar(255) NOT NULL
-(timestamptz? shipped-at)            ; shipped_at timestamptz
-(fk buyer-id customers)              ; a key never UPDATEd — wiring, so not state at all
-(bool active)                        ; the one scalar whose values are worth naming
-```
-
-A domain type and its column form **share one name**, which is what makes two
-tokens possible: a form with slots only expands in list-head position, so the
-same word inside `(to …)` stays data.
-
-What crosses is decided by one line: **writ carries a column's value iff the
-column has finitely many values worth naming.** A `varchar` becomes an arrow
-into a one-member type, which is *free* — a total arrow into a one-member type
-has exactly one filling, so a `NOT NULL` scalar column costs the state space
-nothing. Nullability costs a factor of two, which is the one distinction writ
-can decide about a `varchar`: whether it is there.
-
-**What is declined is said out loud**, by line and reason, on stderr — never
-dropped in silence, because a schema imported quietly would let "writ proved
-this safe" be a claim about a schema nobody has. `UNIQUE` is the interesting
-one: it is **unsayable**, not unimplemented, because a writ law ranges over one
-entity of its subject type and a bare `some` binder is not comparable, so "two
-distinct rows agree" has no spelling. A `CHECK` comparing a numeric column
-against **constants** is not refused: the constants cut the column into the
-regions on which every check is constant — `qty < 500` makes `orders-qty-range` an
-enumerated domain `(below-500 exactly-500 above-500)` and the law a
-membership test — which loses nothing, since nothing in the schema could tell
-two values in one region apart ([docs/tractability.md](docs/tractability.md)
-§3). A `CHECK` comparing two **columns** has no such quotient and is refused,
-for the reason the whole language has no numbers: inventing them would cost
-the negative answer.
-
-pg_dump is the input that matters, so casts, `= ANY (ARRAY[…])`, `ALTER TABLE …
-ADD CONSTRAINT` and dollar-quoted function bodies all read correctly.
-
-Every law the import writes carries a **provenance pragma** — `; writ:origin
-shop.sql:14` on the line above it — which `writ check` echoes beside the law,
-so a violation names the `CHECK`'s line in the DDL. The pragma is a comment
-and the language ignores it; [docs/bridges.md](docs/bridges.md) is the
-contract for writing a bridge of your own, including this one.
-
-Round-tripping is defined on the **model**, not the text — the export
-normalises spellings on purpose — and the two facts SQL cannot state (whether a
-key is ever `UPDATE`d, whether a plain column is wiring) travel as `-- writ:`
-pragmas the import reads back.
+What cannot cross (`UNIQUE`, a `CHECK` comparing two columns) is declined on
+stderr by line and reason; `--strict` makes a decline exit 1, and `--with-data`
+reads `INSERT`s as seed rows. Each imported law carries a `; writ:origin
+shop.sql:14` pragma, so a violation names its DDL line. `writ sql --help` has
+the full mapping; [docs/bridges.md](docs/bridges.md) is the contract for
+writing a bridge of your own.
 
 ## Install
 
-`writ` is a real opam package (`writ.opam`, generated from `dune-project`), and it
-also installs without opam at all. Every route lands the same layout — `bin/`
-holding `writ`, `writ-lsp` and `writ-mcp`, plus the `.writ` standard library at
-`share/writ/lib`, which is where the resolver looks.
+Every route installs `writ`, `writ-lsp` and `writ-mcp` under `bin/` and the
+standard library under `share/writ/lib`. The tarball and the image also carry
+`writ-cert`, the Lean checker that re-derives every `writ check` answer
+([docs/certificates.md](docs/certificates.md)); without it a report ends `not
+certified`. Source builds skip it unless you run `make writ-cert-bin` (docker)
+before `make install-writ`.
 
-The tarball and the image also carry **`writ-cert`**, the certificate checker
-every `writ check` hands its answer to ([docs/certificates.md](docs/certificates.md)):
-with it the report ends `certified`; without it, `not certified`. It is written
-in Lean, so routes that build from source (opam, `make install-writ`) do not
-build it — `make writ-cert-bin` does, in docker, and `make install-writ` then
-installs it too.
-
-### A released tarball
-
-Nothing to build, and no toolchain to install. Every version tag publishes a
-[release](https://github.com/writ-lang/writ/releases) carrying one tarball per
-architecture — `linux-x86_64` and `linux-aarch64` — each **statically linked**,
-so it runs on any Linux of that architecture whatever its libc:
+**A released tarball** — static binaries for `linux-x86_64` and
+`linux-aarch64` on the [releases page](https://github.com/writ-lang/writ/releases),
+no toolchain needed:
 
 ```sh
 v=writ-<version>-linux-$(uname -m)      # the version from the releases page
@@ -457,15 +213,7 @@ sha256sum -c $v.tar.gz.sha256
 tar xzf $v.tar.gz && cd $v && ./install.sh     # -> ~/.local
 ```
 
-The same tarball `make release` builds locally — the release job builds it,
-unpacks it, installs it into an empty prefix and runs all four binaries out of
-it — down to a `writ check` that must come back `certified` — before attaching
-it, so what is published is what was exercised.
-
-### With opam
-
-**It is not in opam-repository**, so there is nothing to `opam install writ`.
-Pin it — this needs no checkout, opam does the cloning:
+**With opam** — writ is not in opam-repository, so pin it:
 
 ```sh
 opam pin add writ git+https://github.com/writ-lang/writ.git
@@ -473,7 +221,8 @@ eval $(opam env)          # if this is the first thing in the switch
 writ --version
 ```
 
-From a checkout, any of these:
+or, from a checkout (opam builds git HEAD, so commit first or pass
+`--working-dir`):
 
 ```sh
 opam install .            # build and install into the current switch
@@ -481,16 +230,10 @@ opam pin add writ .        # …and keep it pinned to this directory
 make opam-install         # the same thing, through the Makefile
 ```
 
-Two things to know. opam builds from your **git HEAD**, so uncommitted work is
-invisible to it — commit first, or pass `--working-dir`. And a pin follows the
-branch it was taken from; `opam upgrade writ` re-reads it. Remove with `opam
-remove writ` (or `make opam-uninstall`), and drop the pin with `opam pin remove
-writ`.
+Remove with `opam remove writ` (or `make opam-uninstall`) and `opam pin remove
+writ`. The only dependencies are `ocaml >= 4.14` and `dune >= 3.0`.
 
-The package depends on `ocaml >= 4.14` and `dune >= 3.0` and **nothing else** —
-the engine is OCaml stdlib only, JSON, JSON-RPC and the MCP protocol included.
-
-### Without opam
+**Without opam** — needs OCaml and dune; `make uninstall-writ` undoes it:
 
 ```sh
 make install-writ      # from this checkout -> ~/.local  (plain cp; no opam)
@@ -498,19 +241,11 @@ make install-writ PREFIX=/usr/local          # …or a prefix you name
 make release          # a portable tarball -> dist/writ-<version>-linux-x86_64.tar.gz
 ```
 
-`make install-writ` needs OCaml and dune to build, but no opam package
-machinery, and installs all three binaries — the editor client looks for
-`writ-lsp` on `PATH`, and an MCP client is pointed at `writ-mcp` by name, so
-installing only `writ` leaves both with nothing to talk to. Undo it with `make
-uninstall-writ`.
-
 ### Portable tarball
 
-For a machine with no OCaml, no opam and no network: `make release` produces
-one tarball holding **statically linked** binaries, the stdlib and an
-`install.sh` — the same artifact each release publishes, so this is for building
-one from a commit that is not a release. No libc version floor — the same
-tarball is verified to run on Debian 12 (glibc) and Alpine (musl):
+`make release` builds the same static tarball a release publishes, for any
+commit. It runs on any Linux of its architecture (verified on Debian 12 and
+Alpine):
 
 ```sh
 sha256sum -c writ-<version>-linux-x86_64.tar.gz.sha256   # built beside the tarball
@@ -519,26 +254,22 @@ cd writ-<version>-linux-x86_64 && ./install.sh          # -> ~/.local
                                  ./install.sh /usr/local   # -> a prefix you name
 ```
 
-Building the tarball needs a static libc (`libc.a`) on the *build* host, and
-docker for `writ-cert` (built in the Lean box, `lean/Dockerfile`); where there is
-no static libc — macOS — use `make release STATIC=0 CERT=0` and accept a binary
-that only travels between similar machines and certifies nothing. `make release` prints what the binary
-actually requires, so the portability claim is checked, not assumed.
+Building it needs a static libc and docker. On macOS use `make release
+STATIC=0 CERT=0`: a binary that only travels between similar machines and
+certifies nothing.
 
-Nothing external is needed to *use* `writ`. The bundled stdlib lets `(load
-"stdlib.writ")` resolve from any directory (the resolver searches the including
-file's dir, `$WRIT_LIB`, the copy beside the binary, then `./core/stdlib`); set
-`WRIT_TRACE_LOADS=1` to print which file each load actually resolved to.
+`(load "stdlib.writ")` resolves from any directory — the resolver searches the
+including file's directory, `$WRIT_LIB`, the copy beside the binary, then
+`./core/stdlib`. `WRIT_TRACE_LOADS=1` prints which file each load resolved to.
 
 ## Three repositories
 
-| | |
-|---|---|
-| **writ** (this one) | the language, the engine, the CLI, `writ-lsp`, `writ-mcp`, `writ-cert` (lean/), the standard library |
-| **[writ-problems](https://github.com/writ-lang/writ-problems)** | worked models — puzzles, scheduling, institutional scenarios — and a runner that checks the answers |
-| **[writ-vscode](https://github.com/writ-lang/writ-vscode)** | the VS Code client |
-
-The other two need an installed `writ`, not a checkout of this one.
+This one holds the language, the engine, the CLI, both servers, `writ-cert`
+(`lean/`) and the standard library.
+[writ-problems](https://github.com/writ-lang/writ-problems) holds the worked
+models and a runner that checks their answers;
+[writ-vscode](https://github.com/writ-lang/writ-vscode) is the VS Code client.
+Both need an installed `writ`, not a checkout of this one.
 
 ### The examples
 
@@ -548,111 +279,74 @@ git clone https://github.com/writ-lang/writ-problems && cd writ-problems
 ./run-tests.sh                         # 222 checks over every scenario
 ```
 
-Or with nothing installed on the host but Docker — `make image` here tags
-`writ:latest`, which is what writ-problems builds from:
+or with only Docker (`make image` tags `writ:latest`, which writ-problems
+builds from):
 
 ```sh
 make image                             # in this checkout, once
 cd ../writ-problems && docker compose up
 ```
 
-The spec's Prologue puzzles (river, knights & knaves) and its §3 institutional
-scenarios, plus eight queens and a blocking job shop asked twice — can every job
-finish, and which schedule is shortest — and `arch`, which turns the tool
-around and *designs* rather than checks: a bank of components, a brief, and
-every architecture the constraints permit, enumerated. Every scenario also
-carries a `.rules` file re-asking its `.claims` properties as derivations, and a
-**cross-check** scenario runs both instruments over all thirty-one: `writ
-check`'s CTL reading against `writ derive`'s rules encoding. Two independent implementations of one
-question, so a disagreement is a bug in one of them rather than a number to
-adjust — the only test whose oracle its author did not choose.
+Every scenario also re-asks its properties as `.rules` derivations, and a
+cross-check compares `writ check`'s CTL reading with `writ derive`'s over all
+of them: two independent implementations of one question.
 
 ### Editor support
 
-Syntax highlighting, live diagnostics from the real engine, completion, hover
-and an outline — all served by `writ-lsp`, the same code the CLI runs.
+Highlighting, live diagnostics, completion, hover and an outline, served by
+`writ-lsp`; the client finds it on `PATH`:
 
 ```sh
 make install-writ      # puts writ-lsp on PATH
 git clone https://github.com/writ-lang/writ-vscode && cd writ-vscode && ./install.sh
 ```
 
-The client finds the server on `PATH` with nothing to configure.
-
 ### From an AI assistant
 
-`writ-mcp` is an MCP server over the same engine, exposing `writ_check`,
-`writ_show`, `writ_compare`, `writ_query` and `writ_derive` — so an assistant
-can model a problem and get an answer with a **witness route** rather than a
-plausible guess, read back the situation a witness names, and price its own
-edit before calling it done. Every tool takes `json: true`.
-
-Two things make it a verifier an assistant cannot argue with. Start it with
-`writ-mcp --claims-dir DIR` and every claims file is read from DIR by its
-basename, whatever path a call names: the model is the assistant's, the
-questions are yours. And the server remembers the last model checked against
-each claims file, so every `writ_check` ends with a `revision:` block naming
-the guarantees this model **LOST** against the previous one — an edit that
-makes one property pass by losing another, or by making its question `n/a`,
-is reported in the same reply.
+`writ-mcp` is an MCP server exposing `writ_check`, `writ_show`,
+`writ_compare`, `writ_query` and `writ_derive` (each takes `json: true`), so
+an assistant answers with a witness route instead of a guess.
 
 ```jsonc
 // .mcp.json — this repository ships one already
 { "mcpServers": { "writ": { "command": "writ-mcp" } } }
 ```
 
-**Or install it as a plugin**, which brings the skill and the server together:
+`writ-mcp --claims-dir DIR` reads every claims file from DIR by basename,
+whatever path a call names: the model is the assistant's, the questions are
+yours. Each `writ_check` ends with a `revision:` block naming the guarantees
+lost since the last model checked against the same claims, including a
+property made `n/a`.
+
+The Claude plugin in [`plugins/writ/`](plugins/writ/) registers the server and
+a skill that knows when writ is the right tool:
 
 ```
 /plugin marketplace add writ-lang/writ
 /plugin install writ@writ
 ```
 
-A *skill* is prose — it cannot install anything. A **plugin** can: it carries
-skills and an `.mcp.json` in one manifest, so installing it registers the tools
-and teaches the model when to reach for them in a single step. The plugin lives
-in [`plugins/writ/`](plugins/writ/).
-
-**It runs in Docker by default**, so installing the plugin installs nothing
-native. The image is pinned to the plugin's version, pulled once on first use,
-and the tools answer from it exactly as they would from a local build.
-
-It does not bundle a binary: `writ-mcp` is native code, so shipping one would
-mean a build per platform kept in step with a version the plugin cannot see,
-and a stale one would answer with an old engine. A container has neither
-problem.
-
-The container mounts your working directory **at its own path**, read-only, so
-absolute and relative paths both resolve. The limit is that mount: a model
-*outside* the directory Claude started in is invisible to it. If you have writ
-installed and would rather use it, `WRIT_MCP_NATIVE=1`; `$WRIT_MCP` names one
-particular build; `$WRIT_IMAGE` names a different image.
-
-A failing call answers with the parser's own `file:line:col` message rather than
-dying, which is usually enough for the caller to fix the file and retry. A Claude
-skill that knows when Writ is the right tool — and when it is the wrong one —
-ships in
-[`plugins/writ/skills/writ/`](plugins/writ/skills/writ/), carried by the plugin.
+It runs `writ-mcp` in Docker, from an image pinned to the plugin's version,
+with your working directory mounted read-only at its own path — so a model
+outside that directory is invisible. `WRIT_MCP_NATIVE=1` uses an installed
+writ instead; `$WRIT_MCP` names a particular build and `$WRIT_IMAGE` another
+image.
 
 ## Documentation
 
-- **Start here:** [`docs/tour.md`](docs/tour.md) — ten steps from a three-line
-  model to one using every idea in the language, each step runnable and each
-  output the real one, ending in a **one-page cheat sheet**: the 26 words
-  grouped, the grammar, the claims vocabulary, and the things that catch
-  everyone once.
-- **The language** (normative): [`docs/kernel-spec.md`](docs/kernel-spec.md) —
-  the twenty-six words, the meaning of a model, the standard tool interface,
-  and worked examples in its appendices.
-- **The standard library:** [`core/stdlib/stdlib.writ`](core/stdlib/stdlib.writ) —
-  25 lines of code, and the only `.writ` the tool ships. A **domain** library (a
-  vocabulary for one subject, e.g.
-  [`tests/models/politics.lib.writ`](tests/models/politics.lib.writ)) is ordinary
-  user code and lives beside the models that load it.
-- **The relational extension:** [`docs/interrogator.md`](docs/interrogator.md) —
-  partly built. The `.rules` file, the built-in relations that expose the
-  derived state category, and `writ derive` (§0–§2, §4, §5) ship; `writ solve`,
-  the search for structure-preserving maps (§3), does not.
+- [`docs/tour.md`](docs/tour.md) — **start here**: ten runnable steps and a
+  one-page cheat sheet.
+- [`docs/kernel-spec.md`](docs/kernel-spec.md) — the language, normative.
+- [`core/stdlib/stdlib.writ`](core/stdlib/stdlib.writ) — the standard library,
+  the only `.writ` the tool ships. Domain libraries (e.g.
+  [`tests/models/politics.lib.writ`](tests/models/politics.lib.writ)) live
+  beside the models that load them.
+- [`docs/interrogator.md`](docs/interrogator.md) — the relational extension:
+  `.rules` and `writ derive` (§0–§2, §4, §5) ship; `writ solve` (§3) does not.
+- [`docs/tractability.md`](docs/tractability.md),
+  [`docs/json.md`](docs/json.md), [`docs/certificates.md`](docs/certificates.md),
+  [`docs/bridges.md`](docs/bridges.md) — what fits, the JSON output, the
+  certificate checker, and how to write a bridge.
 
 ## Building from source
 
@@ -663,49 +357,23 @@ make lint    # ocamlformat check + warnings-as-errors typecheck
 make dev     # build + test, then refresh the installed binaries
 ```
 
-`make build` does not install, which is right — a build should not touch your
-`$PREFIX` — and is also how the `writ` on your PATH becomes a different program
-from the one you just tested. `make dev` is the edit loop: build, test,
-install. It leaves `lint` out on purpose, since `dune build` already compiles
-with warnings-as-errors and a formatting check that fails on every
-half-finished edit is a check you start skipping.
+`make build` does not install, so `make dev` is the edit loop. (A symlinked
+dev install does not work: the stdlib is found relative to the resolved
+binary, which lies inside `_build`.)
 
-(A symlinked dev install would need no remembering, and does not work here:
-dune's `_build/install/default/bin/writ` is itself a symlink into
-`_build/default/tooling/cli/writ.exe`, `Sys.executable_name` resolves through
-it, and the stdlib search is relative to the binary — so `../share/writ/lib`
-lands inside `_build`.)
-
-OCaml + dune, **stdlib only** — no external libraries (JSON, JSON-RPC and the
-MCP protocol are hand-written). The layering is enforced by dune's own
-dependency graph. Three **engine** libraries, each a strict layer:
-
-| | |
-|---|---|
-| `writ_data` (`core/data/`) | the data model — a leaf, no dependencies |
-| `writ_syntax` (`core/syntax/`) | the front end — depends on `writ_data` |
-| `writ_runtime` (`runtime/`) | the interrogator — depends on `writ_data` **only**, so it is structurally incapable of reaching the front end |
-
-Around them: `writ_loadpath` (the `(load …)` search order, shared so the CLI and
-both servers can never disagree about where a library lives), `writ_json`, and a
-pure library per server — `writ_lsp` and `writ_mcp`, each a function from messages
-to messages.
-
-All of those are IO-free. IO lives in exactly three executables — `tooling/cli/`,
-`tooling/lsp/bin/` and `tooling/mcp/bin/` — a rule the dependency graph cannot
-express, so two fitness gates check it instead — one over the engine
-libraries, one over the servers and the shared JSON. The toolchain is resolved by
-`scripts/with-ocaml.sh` (dune on `PATH`, else a central `writ` opam switch).
+OCaml and dune, standard library only; JSON, JSON-RPC and MCP are
+hand-written. Dune enforces three engine layers: `writ_data` (`core/data/`,
+the data model, a leaf); `writ_syntax` (`core/syntax/`, the front end, on
+`writ_data`); and `writ_runtime` (`runtime/`, the interrogator, on `writ_data`
+only, so it cannot reach the front end). Around them sit `writ_loadpath`, `writ_json`, and the server libraries
+`writ_lsp` and `writ_mcp`. All are IO-free; IO lives only in `tooling/cli/`,
+`tooling/lsp/bin/` and `tooling/mcp/bin/`, which two fitness gates check.
+`scripts/with-ocaml.sh` resolves the toolchain.
 
 ## Cutting a release
 
-**The version is not in the tag.** It is `(version …)` in `dune-project`, and
-that one line is what opam publishes, what `writ --version` prints (dune
-generates the module from it), what names the tarball, and what tags the
-container image. The git tag only fires the workflows. So a release is two acts,
-and doing the second without the first is the mistake worth naming: tag `v0.3.0`
-while `dune-project` still says `0.2.0`, and every published file says `0.2.0`
-under a release called v0.3.0.
+The version lives only in `(version …)` in `dune-project`; the git tag just
+triggers the workflows, so bump the version first:
 
 ```sh
 # 1. bump the one line, and regenerate the opam file it feeds
@@ -721,54 +389,28 @@ git tag -a v0.3.0 -m "what this release is for, in one line"
 git push origin main v0.3.0
 ```
 
-The tag then runs two workflows. `release.yml` re-checks the tag against
-`dune-project`, builds the tarball on an `x86_64` and an `aarch64` runner,
-installs each one into an empty prefix and uses it, and attaches both plus their
-checksums to a GitHub release whose body opens with the tag's own annotation.
-`image-publish.yml` builds and pushes `ghcr.io/writ-lang/writ` for both
-architectures and joins them under one manifest. Both refuse a tag that
-disagrees with `dune-project`; `scripts/check-release-tag.sh` holds that rule,
-and `scripts/test-check-release-tag.sh` checks the rule itself.
-
-The three routes under [Install](#install) are the whole distribution, and the
-tag is what makes the opam one work at all: `opam pin add writ
-git+https://github.com/writ-lang/writ#v0.3.0` publishes nothing anywhere, so the
-tag *is* the package.
-
-Every pull request runs `ci.yml` (build, suites, `ocamlformat`, and a check that
-`writ.opam` still matches `dune-project`), plus the same tarball build the
-release uses and the same image build the publish uses — each shared as one
-called workflow rather than copied, so what is verified on the way in is what
-ships on the way out.
+`release.yml` builds the tarball on `x86_64` and `aarch64`, installs and runs
+each (down to a `certified` check), and attaches them to a GitHub release.
+`image-publish.yml` pushes `ghcr.io/writ-lang/writ` for both architectures.
+Both refuse a tag that disagrees with `dune-project`. Every pull request runs
+`ci.yml` plus the same tarball and image builds.
 
 ## Status
 
-Built: the full language (schema / instance / transitions / equations / forms),
-the interrogator (state-space enumeration, the four modalities with witnesses,
-queries, equation observation), the tool interface `writ check` / `query` /
-`compare` (+ `--git`) / `control` / `schema` / `derive` — the last being the
-relational extension's rules engine over the enumerated universe — and two
-servers, `writ-lsp` and `writ-mcp`.
-
-Deferred: the §16.4 schema dictionaries (`functor` / `check … via`), §17 fiber
-reporting, and the extension's own `writ solve` (its §3), which searches for
-functors and simulations rather than deriving facts.
+Built: the full language, the interrogator, `writ check` (with §17 fibers and
+certificates) / `query` / `compare` / `control` / `schema` / `sql` / `derive` /
+`show` / `graph`, the two servers, and writ-cert. Deferred: the §16.4 schema
+dictionaries (`functor` / `check … via`) and `writ solve`.
 
 ## License
 
 Copyright (C) 2026 Alex Kunich. **GNU Affero General Public License, version 3
-or later** ([LICENSE](LICENSE)) — free to run, study, modify and redistribute
-for any purpose, including commercially. The condition is reciprocity: a
-modified version you distribute **or offer to users over a network** must carry
-the same license and make its source available to those users (AGPL §13, which
-is what distinguishes the AGPL from the plain GPL). No warranty.
+or later** ([LICENSE](LICENSE)). A modified version you distribute **or offer
+to users over a network** must carry the same license and make its source
+available (AGPL §13). No warranty.
 
-A model you write in Writ is your own work, not a derivative of `writ` — the
-license covers the tool, not the `.writ` files it reads. That is not just an
-opinion in a README: [`LICENSE.exception`](LICENSE.exception) grants it as an
-additional permission under AGPL §7, covering your models, everything the tool
-emits, and the bundled standard library. The kernel's syscall note is the same
-construct for the same reason.
+Your models are your own work, not derivatives of `writ`:
+[`LICENSE.exception`](LICENSE.exception) grants this under AGPL §7, covering
+your models, everything the tool emits, and the bundled standard library.
 
-Patches are welcome — [`CONTRIBUTING.md`](CONTRIBUTING.md) explains the one-click
-contributor agreement, which leaves you owning your work.
+Patches are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).

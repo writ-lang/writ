@@ -1,15 +1,6 @@
-; A .rules file that loads the standard library and still means what it says.
-;
-; The whole point is the word `relation`. Forms expand in every file type, so a
-; stdlib that declared `(form (relation R A B) …)` would rewrite the two lines
-; below into type declarations and the rules vocabulary would quietly stop
-; existing the moment an author loaded the library. The span construction is
-; named `span` for exactly that reason (extension §10), and this file is what
-; notices if it is ever renamed back.
-;
-; The declarations that stdlib.writ brings in — the `quiver` and `olog` schemas
-; — are skipped here rather than rejected: a loaded library carries
-; declarations, and a .rules file asks questions.
+; Loads the standard library and still means `relation`: forms expand in every
+; file type, so stdlib must not define a `relation` form (it is `span`,
+; extension §10). The stdlib's schemas are skipped, not rejected.
 
 (load "stdlib.writ")
 

@@ -3,10 +3,8 @@
 
 open Writ_data
 
-(* Schema and instance decoding, split out of parser.ml so each file stays under
-   the 300-line cap (design fold F8). Syntax layer: uses core + Grammar, never
-   the engine. Every path is type-checked through [Schema.check_path] (fold F3),
-   with the offending datum's [line:col] re-attached on failure. *)
+(* Schema and instance decoding (split from parser.ml, design fold F8). The
+   whole-schema checks are in [Decl_checks]. *)
 
 let ( let* ) = Result.bind
 
@@ -23,10 +21,8 @@ let rec iter_r f = function
       let* () = f x in
       iter_r f xs
 
-(* [(arrow NAME (to COD) FLAGS…)] — the dom is the enclosing type, always: an
-   arrow is declared in the body of the type that owns it. The positions the §8.3 checks need travel beside the arrow as a
-   [Decl_checks.arrow_at], exactly as [decode_equation] already does for a
-   path. *)
+(* [(arrow NAME (to COD) FLAGS…)], declared in the body of its dom type. The
+   positions §8.3's checks need travel beside it as a [Decl_checks.arrow_at]. *)
 let decode_arrow ~(dom : string) (d : Reader.t) :
     (Schema.arrow * Decl_checks.arrow_at, Errors.t) result =
   match d with
@@ -35,10 +31,7 @@ let decode_arrow ~(dom : string) (d : Reader.t) :
       let dom = ref dom and cod = ref None in
       let cod_at = ref None and dom_at = ref None in
       let fixed = ref false and vacatable = ref false in
-      (* §8.3: "FLAG is `fixed` or `vacatable`, each at most once." A repeat is
-         not harmless idempotence — a flag written twice is an author who thinks
-         they wrote two different things, and the second is the one we can point
-         at. *)
+      (* §8.3: each flag at most once; the repeat is blamed. *)
       let once flag seen p =
         if !seen then
           Errors.err ~pos:p
@@ -107,11 +100,7 @@ let decode_type (d : Reader.t) :
                       Errors.err ~pos:p "an enumerated value must be an atom")
                 vals
             in
-            (* §8.2: "VALUEs distinct." A repeated value costs the type nothing
-               visible — the second is simply never reachable, since every
-               lookup and every domain enumeration stops at the first — so the
-               author's `(a a)` reads as a two-value type and behaves as a
-               one-value type, silently. *)
+            (* §8.2: values are distinct; a repeat would silently vanish. *)
             let rec distinct seen = function
               | [] -> Ok ()
               | (v, p) :: rest ->
@@ -132,14 +121,9 @@ let decode_type (d : Reader.t) :
         | other :: _ -> Reader.err_at other "malformed type body")
   | _ -> Reader.err_at d "expected a (type …) declaration"
 
-(* [(equation NAME GUARD)] (§8.6). The body is the guard language of §10.2, so
-   a law can now say anything a [when] can — difference, disjunction, [some] —
-   which is what let `=` leave the kernel and become a stdlib form.
-
-   Its chains are written from the TYPE, not an entity, and the law ranges over
-   that type: "case.investigator… means for every case". Both rules about that
-   subject — that there is exactly one, and that it is a declared type — are
-   [Decl_checks.check_equation]'s, so they read together. *)
+(* [(equation NAME GUARD)] (§8.6): a §10.2 guard whose chains are rooted at a
+   type, ranging over every entity of it. [Decl_checks.check_equation] checks
+   the subject. *)
 let decode_equation ?(origin : Reader.t -> string option = fun _ -> None)
     (d : Reader.t) : (Schema.equation * Errors.pos, Errors.t) result =
   match d with
@@ -176,10 +160,7 @@ let decode_schema ?(origin : Reader.t -> string option = fun _ -> None)
             | Reader.List (Reader.Atom ("type", _) :: _, _) ->
                 let* ty, ars = decode_type c in
                 go (ty :: types) (List.rev_append ars arrows) eqs rest
-            (* An arrow belongs to the type that owns it, and is declared in
-               that type's body. The schema-top alternative had no expressive
-               power the body form lacks — it could not even reach a type from
-               another loaded schema — and no shipped model used it. *)
+            (* Arrows are declared in their owning type's body. *)
             | Reader.List (Reader.Atom ("arrow", _) :: _, _) ->
                 Reader.err_at c
                   "an arrow is declared inside the (type …) that owns it, not \
@@ -192,17 +173,14 @@ let decode_schema ?(origin : Reader.t -> string option = fun _ -> None)
       go [] [] [] clauses
   | _ -> Reader.err_at d "expected a (schema …) declaration"
 
-(* [(instance N SCHEMA (TYPE e… (ARROW V)…)…)]. The schema tells a
-   roster clause (head is a type) from a valuation clause (head is an arrow). *)
+(* [(instance N SCHEMA (TYPE e… (ARROW V)…)…)]. The schema tells a roster
+   clause (head is a type) from a valuation clause (head is an arrow). *)
 let decode_instance (schemas : Schema.t list) (d : Reader.t) :
     (Instance.t, Errors.t) result =
   match d with
   | Reader.List
       (Reader.Atom ("instance", _) :: Reader.Atom (name, np) :: clauses, _) ->
-      (* The schema is named positionally — (instance NAME SCHEMA CLAUSE…) —
-         since the name and the schema are atoms while every clause is a list.
-         The older (of SCHEMA) spelling is still read, and goes away with the
-         corpus migration. *)
+      (* The schema is the first atom after the name; clauses are lists. *)
       let sname =
         match clauses with Reader.Atom (sn, _) :: _ -> Some sn | _ -> None
       in
@@ -221,12 +199,8 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
             Errors.err ~pos:np
               ("instance refers to unknown schema `" ^ sname ^ "`")
       in
-      (* The pair's position travels with the cell so a SECOND answer for one
-         cell can be blamed where it is written. §8.3: "Each entity's arrow has
-         **one** answer — or none, if the arrow is vacatable." Two answers is not
-         a merge, it is a contradiction, and [State.build_ctx]'s lookup simply
-         took the first — so the model built and the second line the author wrote
-         did nothing, silently. *)
+      (* §8.3: each entity's arrow has at most one answer. Positions travel
+         with cells so a second answer is blamed, not silently ignored. *)
       let cell_of (arrow : string) (pair : Reader.t) =
         match pair with
         | Reader.List ([ Reader.Atom (e, _); Reader.Atom ("vacant", _) ], p) ->
@@ -264,10 +238,8 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
             | Reader.List (Reader.Atom (h, hp) :: tl, _) -> (
                 match Schema.type_of schema h with
                 | Some _ ->
-                    (* Entity-major clause: (TYPE ENTITY… SLOT…). Atoms are
-                       entities, lists are slots, and atoms come first — the
-                       same atoms-versus-lists rule the rest of the grammar
-                       uses. A bare roster is this with no slots. *)
+                    (* (TYPE ENTITY… SLOT…): atoms are entities, then lists
+                       are slots. A bare roster has no slots. *)
                     let rec split ents = function
                       | Reader.Atom (e, _) :: more -> split (e :: ents) more
                       | more -> (List.rev ents, more)
@@ -285,9 +257,7 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
                            ^ "` must come before this clause's slots")
                       | _ -> Ok ()
                     in
-                    (* A slot needs exactly one entity to belong to: a
-                       broadcast over several would be silent, so it is an
-                       error the author can see. *)
+                    (* Slots belong to exactly one entity; no broadcast. *)
                     let* () =
                       match (slots, entities) with
                       | [], _ | _, [ _ ] -> Ok ()
@@ -331,9 +301,8 @@ let decode_instance (schemas : Schema.t list) (d : Reader.t) :
                         schema.Schema.arrows
                     then
                       let* pairs = map_r (cell_of h) tl in
-                      (* Added one at a time so a repeat is caught inside a
-                         single clause — `(f (p a) (p b))` — as well as across
-                         two. *)
+                      (* One at a time, so a repeat within one clause is
+                         caught too. *)
                       let rec add valu = function
                         | [] -> Ok valu
                         | ((c, v, _) as pair) :: rest ->
