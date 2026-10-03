@@ -15,24 +15,42 @@ open Writ_data
    cheap to recover: one edge scan per step, on a route a few moves long. *)
 
 (* The index after each move of [route], in order. A route that cannot be
-   replayed — a name no edge at that situation carries — stops where it fails,
-   so the answer is a prefix rather than a lie. *)
+   replayed — a name no move at that situation answers to — stops where it
+   fails, so the answer is a prefix rather than a lie.
+
+   Each step RE-FIRES the named move rather than looking its edge up. The two
+   are the same answer — [Space.build] records exactly the moves that fire —
+   but a lookup scanned every edge of the space per step, and a report routes
+   to every dead end: 10 188 of them over 564 880 edges made `writ check
+   --json` take five minutes on a space the prose report answers in forty
+   seconds. Re-firing costs one guard and one move. *)
 let walk (sp : Space.t) (route : string list) : int list =
+  let ctx = sp.Space.ctx in
+  let labelled =
+    List.mapi
+      (fun i (tr : Model.transition) ->
+        ( (match tr.Model.name with
+          | Some n -> n
+          | None -> "#" ^ string_of_int i),
+          tr ))
+      sp.Space.transitions
+  in
   let step cur mv =
-    List.find_map
-      (fun (e : Space.edge) ->
-        match e.Space.dst with
-        | `To d when Space.same e.Space.src cur && String.equal e.Space.via mv
-          ->
-            Some d
-        | _ -> None)
-      sp.Space.edges
+    match List.assoc_opt mv labelled with
+    | Some tr when Eval.guard_holds ctx cur [] tr.Model.when_ -> (
+        match Eval.apply ctx cur tr.Model.effects with
+        | `Next d -> Some d
+        | `Gap _ | `Blocked -> None)
+    | _ -> None
   in
   let rec go cur acc = function
     | [] -> List.rev acc
     | mv :: rest -> (
         match step cur mv with
-        | Some d -> go d (State.M.find d sp.Space.index :: acc) rest
+        | Some d -> (
+            match State.M.find_opt d sp.Space.index with
+            | Some i -> go d (i :: acc) rest
+            | None -> List.rev acc)
         | None -> List.rev acc)
   in
   go sp.Space.initial [] route
