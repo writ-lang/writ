@@ -20,7 +20,26 @@ type limits = { max : int; timeout : float option }
 
 let default_limits = { max = Space.cap; timeout = None }
 
-let load resolve path =
+(* A path argument that names no readable file: said as such, with the path
+   it resolved to, rather than as a (load …) that failed. *)
+let absolute p =
+  if Filename.is_relative p then Filename.concat (Sys.getcwd ()) p else p
+
+let exists ~arg resolve path =
+  match (resolve path) (Filename.basename path) with
+  | Ok _ -> Ok ()
+  | Error _ ->
+      Error
+        (Fault.bad ~code:"E_FILE_NOT_FOUND" Fault.Args
+           {
+             Errors.pos = None;
+             msg =
+               arg ^ ": " ^ path ^ " not found (resolved to " ^ absolute path
+               ^ ")";
+           })
+
+let load ?(arg = "model") resolve path =
+  let* () = exists ~arg resolve path in
   Loader.read_model (resolve path) path
   |> Result.map_error (fun e -> Fault.bad Fault.Model e)
 
@@ -35,12 +54,14 @@ let build ?(limits = default_limits) ?(undecided = []) path m =
   | Error (`Model e) -> Error (model_fault path e)
   | Error (`Cutoff cutoff) -> Error (Fault.Limit { cutoff; undecided })
 
-let read_claims resolve m path =
+let read_claims ?(arg = "claims") resolve m path =
+  let* () = exists ~arg resolve path in
   Loader.read_claims (resolve path) m path
   |> Result.map_error (fun e -> Fault.bad Fault.Claims e)
 
 (* The rules as read (for their declarations) and as checked (to run). *)
 let read_rules resolve m path =
+  let* () = exists ~arg:"rules" resolve path in
   Result.bind
     (Loader.read_rules (resolve path) m path)
     (fun t -> Result.map (fun prog -> (t, prog)) (Rules_check.check m t))
@@ -446,8 +467,8 @@ let show ?(json = false) ?limits ~resolve ~model ~at () =
    OLD's claims put to both models: guarantees kept, lost and gained. *)
 let compare ?(json = false) ?(pinned = None) ?limits ?claims ~resolve ~old_model
     ~new_model () =
-  let* old_m = load resolve old_model in
-  let* new_m = load resolve new_model in
+  let* old_m = load ~arg:"old_model" resolve old_model in
+  let* new_m = load ~arg:"new_model" resolve new_model in
   (* The old model's claims: the ones named, else its sibling, else none. A
      named file that does not read is an error; a missing sibling is not. *)
   let* cl =
@@ -625,29 +646,135 @@ let modality_name = function
 let arity (r : Rules.relation) =
   match r.Rules.cols with Rules.Arity n -> n | Rules.Sorts l -> List.length l
 
+(* ── every error in a file, not just the first ─────────────────────────────
+   The front ends stop at their first error. A name or type error inside one
+   top-level datum (a transition, a property, a rule) says nothing about the
+   next, so the datum is blanked out — line numbers kept — and the file read
+   again, up to [max_errors] times. A parse error, or one in a datum others
+   depend on (schema, instance, form, relation), ends the search. *)
+
+let max_errors = 20
+
+let structural =
+  [ "schema"; "instance"; "use"; "initial"; "load"; "form"; "relation" ]
+
+(* The text with the top-level datum containing [p] replaced by spaces, or
+   [None] when that datum is structural or the text does not read. *)
+let blank_datum ~file text (p : Errors.pos) =
+  match Reader.read_string ~file text with
+  | Error _ -> None
+  | Ok ds -> (
+      let start d = Reader.pos_of d in
+      let before (a : Errors.pos) (b : Errors.pos) =
+        a.Errors.line < b.Errors.line
+        || (a.Errors.line = b.Errors.line && a.Errors.col <= b.Errors.col)
+      in
+      let rec find = function
+        | d :: (next :: _ as rest) ->
+            if before (start d) p && not (before (start next) p) then
+              Some (d, Some (start next))
+            else find rest
+        | [ d ] -> if before (start d) p then Some (d, None) else None
+        | [] -> None
+      in
+      match find ds with
+      | Some (Reader.List (Reader.Atom (h, _) :: _, _), _)
+        when List.mem h structural ->
+          None
+      | Some (d, next) ->
+          let lines = String.split_on_char '\n' text in
+          let offset (q : Errors.pos) =
+            let rec go k acc = function
+              | l :: rest when k < q.Errors.line ->
+                  go (k + 1) (acc + String.length l + 1) rest
+              | _ -> acc + q.Errors.col - 1
+            in
+            go 1 0 lines
+          in
+          let a = offset (start d) in
+          let b =
+            match next with Some q -> offset q | None -> String.length text
+          in
+          Some
+            (String.mapi
+               (fun i c -> if i >= a && i < b && c <> '\n' then ' ' else c)
+               text)
+      | None -> None)
+
+(* Run [read] against [path], blanking each failing datum and reading again:
+   every error found, and the value of the last read, once it came out clean
+   (a file with its broken datums left out). *)
+let collect_all ~resolve ~path
+    (read : (string -> Loader.resolve) -> ('a, Fault.failure) result) :
+    'a option * Fault.t list =
+  let name = Filename.basename path in
+  let over text base =
+    let r = resolve base in
+    fun n -> if n = name then Ok text else r n
+  in
+  let rec go text acc k =
+    let res =
+      match text with Some t -> read (over t) | None -> read resolve
+    in
+    match res with
+    | Ok v -> (Some v, List.rev acc)
+    | Error (Fault.Bad [ f ]) -> (
+        let acc =
+          if List.exists (fun (g : Fault.t) -> g.Fault.err = f.Fault.err) acc
+          then acc
+          else f :: acc
+        in
+        let src =
+          match text with
+          | Some t -> Some t
+          | None -> Result.to_option ((resolve path) name)
+        in
+        match (f.Fault.err.Errors.pos, src) with
+        | Some p, Some t when p.Errors.file = Some path && k < max_errors -> (
+            match blank_datum ~file:path t p with
+            | Some t' when t' <> t -> go (Some t') acc (k + 1)
+            | _ -> (None, List.rev acc))
+        | _ -> (None, List.rev acc))
+    | Error (Fault.Bad fs) -> (None, List.rev acc @ fs)
+    | Error (Fault.Limit _) -> (None, List.rev acc)
+  in
+  go None [] 0
+
+let collect ~resolve ~path read =
+  match collect_all ~resolve ~path read with
+  | Some v, [] -> Ok v
+  | _, errs -> Error (Fault.Bad errs)
+
 let validate ?(json = false) ?(pinned = None) ~resolve ~model ~claims ~rules ()
     =
-  let* m = load resolve model in
+  let* m = collect ~resolve ~path:model (fun r -> load r model) in
   let* ctx, _ =
     State.build_ctx m.Model.schema m.Model.initial
     |> Result.map_error (model_fault model)
   in
   let claims = Option.map (pin ~pinned) claims in
-  let cl = Option.map (read_claims resolve m) claims in
+  let cl =
+    Option.map
+      (fun c -> collect_all ~resolve ~path:c (fun r -> read_claims r m c))
+      claims
+  in
   let rl =
-    Option.map (fun r -> Result.map fst (read_rules resolve m r)) rules
+    Option.map
+      (fun rp ->
+        collect_all ~resolve ~path:rp (fun r ->
+            Result.map fst (read_rules r m rp)))
+      rules
   in
-  let errs =
-    List.concat_map
-      (function Some (Error (Fault.Bad fs)) -> fs | _ -> [])
-      [ Option.map (Result.map ignore) cl; Option.map (Result.map ignore) rl ]
-  in
+  let errors_of = function Some (_, fs) -> fs | None -> [] in
+  let errs = errors_of cl @ errors_of rl in
+  (* The claims that did read, with any broken property left out. *)
+  let cl = Option.map fst cl and rl = Option.map fst rl in
   (* Claims are typed against the model, but a name the model lacks parses
      and only answers n/a: almost always a typo in new claims, so here it is
      an error with the name meant. *)
   let errs =
     match (cl, claims) with
-    | Some (Ok cl), Some cpath ->
+    | Some (Some cl), Some cpath ->
         let text =
           match resolve cpath (Filename.basename cpath) with
           | Ok t -> t
@@ -677,9 +804,23 @@ let validate ?(json = false) ?(pinned = None) ~resolve ~model ~claims ~rules ()
             cl.Claims.props
     | _ -> errs
   in
+  (* In file order: claims before rules, each by position. *)
+  let at (f : Fault.t) =
+    match f.Fault.err.Errors.pos with
+    | Some p -> (p.Errors.line, p.Errors.col)
+    | None -> (max_int, 0)
+  in
+  let errs =
+    List.stable_sort
+      (fun (a : Fault.t) (b : Fault.t) ->
+        Stdlib.compare
+          (a.Fault.source = Fault.Rules, at a)
+          (b.Fault.source = Fault.Rules, at b))
+      errs
+  in
   if errs <> [] then Error (Fault.Bad errs)
   else
-    let cl = Option.map Result.get_ok cl and rl = Option.map Result.get_ok rl in
+    let cl = Option.map Option.get cl and rl = Option.map Option.get rl in
     let schema = m.Model.schema and inst = m.Model.initial in
     let lay = ctx.State.layout in
     let cells = Array.length lay.State.cells in

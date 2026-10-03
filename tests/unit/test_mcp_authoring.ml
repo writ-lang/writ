@@ -764,6 +764,149 @@ let () =
   check "dead ends: a long route is shortened"
     (contains ~sub:"… 19 more moves …" out)
 
+(* ── issues from live testing (mcp_advanced.md, second round) ─────────── *)
+
+let count ~sub t =
+  let n = String.length sub and l = String.length t in
+  let rec go i c =
+    if i + n > l then c
+    else go (i + 1) (if String.sub t i n = sub then c + 1 else c)
+  in
+  go 0 0
+
+let () =
+  (* 1. a missing path is E_FILE_NOT_FOUND in arguments, not a (load …) *)
+  let err, out =
+    tool "writ_check" [ ("model", s "probe-does-not-exist.writ") ]
+  in
+  check "missing model: E_FILE_NOT_FOUND in arguments"
+    (err && contains ~sub:"error E_FILE_NOT_FOUND in arguments" out);
+  check "missing model: names the argument and the resolved path"
+    (contains ~sub:"model: probe-does-not-exist.writ not found (resolved to /"
+       out);
+  check "missing model: no stdlib hint" (not (contains ~sub:"stdlib" out));
+  let err, out =
+    tool "writ_check" [ ("model_source", s base); ("claims", s "nope.claims") ]
+  in
+  check "missing claims: E_FILE_NOT_FOUND names claims"
+    (err && contains ~sub:"claims: nope.claims not found" out);
+  let err, out =
+    tool "writ_derive"
+      [
+        ("model_source", s base); ("rules", s "nope.rules"); ("relation", s "r");
+      ]
+  in
+  check "missing rules: E_FILE_NOT_FOUND names rules"
+    (err && contains ~sub:"rules: nope.rules not found" out);
+  let _, out =
+    tool "writ_validate"
+      [
+        ( "model_source",
+          s (Writ_mcp.Diagnose.replace base [ ("stdlib.writ", "stdlb.writ") ])
+        );
+      ]
+  in
+  check "a bad (load …) is still E_LOAD" (contains ~sub:"error E_LOAD" out);
+  (* 2. dead ends lead with their index and end with their cells *)
+  let _, out = tool "writ_check" [ ("model_source", s base) ] in
+  check "dead end: index, route and cells"
+    (contains ~sub:"  #2  reached by: begin, finish   (a.stage=done)" out);
+  let idx =
+    List.filter_map
+      (fun l ->
+        let l = String.trim l in
+        if String.length l > 1 && l.[0] = '#' && contains ~sub:"reached by" l
+        then
+          int_of_string_opt
+            (List.hd
+               (String.split_on_char ' ' (String.sub l 1 (String.length l - 1))))
+        else None)
+      (lines out)
+  in
+  check "dead end: its index resolves through writ_show"
+    (idx <> []
+    && List.for_all
+         (fun i ->
+           let e, o =
+             tool "writ_show"
+               [ ("model_source", s base); ("at", Json.List [ Json.Int i ]) ]
+           in
+           (not e) && contains ~sub:"a dead end" o)
+         idx);
+  (* 3. every independent error, not just the first *)
+  (* typos in three different top-level datums; a fourth move adds one *)
+  let typos =
+    Writ_mcp.Diagnose.replace base
+      [
+        ("(set a.stage running)", "(set a.stage runing)");
+        ("(set a.stage done)", "(set a.stage dne)");
+        ( "(transition finish",
+          "(transition reset (when (is a.stage dne)) (do (set a.stage queued)))\n\
+           (transition finish" );
+      ]
+  in
+  let err, out = tool "writ_validate" [ ("model_source", s typos) ] in
+  check "validate: three typos, three errors"
+    (err && count ~sub:"error E_" out = 3);
+  check "validate: each with its fix" (count ~sub:"  fix:" out = 3);
+  let err, out =
+    tool "writ_validate"
+      [
+        ("model_source", s base);
+        ( "claims_source",
+          s
+            "(property a \"x\" (possible (is a.stage don)))\n\
+             (property b \"y\" (alwys (is a.stage done)))\n\
+             (property c \"z\" (never (is a.stag done)))\n" );
+      ]
+  in
+  check "validate: claims errors all reported, in file order"
+    (err
+    && count ~sub:"in claims at" out = 3
+    &&
+    let i k =
+      Option.get
+        (List.find_index
+           (fun l -> contains ~sub:("model.claims:" ^ k ^ ":") l)
+           (lines out))
+    in
+    i "1" < i "2" && i "2" < i "3");
+  let err, out =
+    tool "writ_validate"
+      [
+        ( "model_source",
+          s (Writ_mcp.Diagnose.replace base [ ("(use shop)", "(use shop") ]) );
+      ]
+  in
+  check "validate: a syntax error still stops at one"
+    (err && count ~sub:"error E_" out = 1);
+  (* 4. the protocol version is negotiated, so instructions are not ignored *)
+  let init v =
+    Option.bind
+      (result
+         (handle
+            (req "initialize" (Some (Json.Assoc [ ("protocolVersion", s v) ])))))
+      (fun r ->
+        Option.bind (Json.member "protocolVersion" r) Json.to_string_opt)
+  in
+  check "initialize: answers the client's version"
+    (init "2025-06-18" = Some "2025-06-18");
+  check "initialize: keeps an older one it speaks"
+    (init "2024-11-05" = Some "2024-11-05");
+  check "initialize: an unknown one gets the newest"
+    (init "1999-01-01" = Some "2025-06-18");
+  (* 5. compare says `none`, not an empty label *)
+  let _, out =
+    tool "writ_compare"
+      [
+        ("old_model_source", s base);
+        ("new_model_source", s base);
+        ("claims_source", s "(property f \"x\" (possible (is a.stage done)))");
+      ]
+  in
+  check "compare: no laws reads `equations:   none`"
+    (contains ~sub:"equations:   none" out)
+
 (* ── a bare (set …) outside (do …) is an error, not a silent no-op ───────── *)
 
 let () =

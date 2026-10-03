@@ -38,7 +38,7 @@ states: 2   edges: 1
 regime: committing — no move can be undone
 gaps: none
 dead ends: 1
-  reached by: offer
+  #1  reached by: offer   (a.role=leader b.role=follower a.offered=yes b.offered=no a.acked=no b.acked=no)
 holds  one-leader
   "never two leaders at once"
 fails  hands-off
@@ -80,7 +80,7 @@ states: 6   edges: 6
 regime: committing — no move can be undone
 gaps: none
 dead ends: 1
-  reached by: offer, b-ack, a-release, b-take
+  #5  reached by: offer, b-ack, a-release, b-take   (a.role=follower b.role=leader a.offered=yes b.offered=no a.acked=no b.acked=yes)
 fails  one-leader
   "never two leaders at once"
   witness:  1. offer    → #1   a.offered: no → yes
@@ -93,7 +93,7 @@ holds  hands-off
 The deadlock is gone, but compare the edit before calling it done:
 
 ```text writ_compare old=handoff.writ new=handoff-v2.writ claims=handoff.claims
-equations:
+equations:   none
 properties:  one-leader  LOST      witness: 1. offer 2. b-ack 3. b-take
              hands-off   gained
 ```
@@ -132,7 +132,7 @@ states: 5   edges: 4
 regime: committing — no move can be undone
 gaps: none
 dead ends: 1
-  reached by: offer, b-ack, a-release, b-take
+  #4  reached by: offer, b-ack, a-release, b-take   (a.role=follower b.role=leader a.offered=yes b.offered=no a.acked=no b.acked=yes)
 holds  one-leader
   "never two leaders at once"
 holds  hands-off
@@ -140,7 +140,7 @@ holds  hands-off
 ```
 
 ```text writ_compare old=handoff.writ new=handoff-v3.writ claims=handoff.claims
-equations:
+equations:   none
 properties:  one-leader  preserved
              hands-off   gained
 ```

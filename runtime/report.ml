@@ -50,8 +50,22 @@ let elide (r : string list) : string =
     ^ " more moves …, "
     ^ String.concat ", " (List.filteri (fun i _ -> i >= n - keep) r)
 
+(* A situation's mutable cells in layout order, [SRC.ARROW=VALUE], [∅] for
+   vacant. Shared by a failing property and `writ show`. *)
+let cells_line (sp : Space.t) (s : State.t) : string =
+  let cells = sp.Space.ctx.State.layout.cells in
+  let cell i (cr : Instance.cellref) =
+    let v = match s.(i) with Value.Filled x -> x | Value.Vacant -> "∅" in
+    cr.Instance.src ^ "." ^ cr.Instance.arrow ^ "=" ^ v
+  in
+  "(" ^ String.concat " " (Array.to_list (Array.mapi cell cells)) ^ ")"
+
 (* So many dead ends are a pattern, not a list to read. *)
 let dead_end_cap = 20
+
+(* Each line leads with the situation's index, as a witness step does, so
+   `writ show --at N` can follow it, and ends with its cells, since an
+   intended ending and a stuck worker look alike in a route alone. *)
 
 let dead_ends (sp : Space.t) : string =
   match Space.dead_ends sp with
@@ -59,12 +73,33 @@ let dead_ends (sp : Space.t) : string =
   | des ->
       let n = List.length des in
       let head = "dead ends: " ^ string_of_int n in
-      let line (_, route) =
-        "  reached by: " ^ match route with [] -> "(initial)" | r -> elide r
-      in
       let shown = List.filteri (fun i _ -> i < dead_end_cap) des in
+      let idx (s, _) =
+        match State.M.find_opt s sp.Space.index with
+        | Some i -> "#" ^ string_of_int i
+        | None -> ""
+      in
+      let routes =
+        List.map
+          (fun (_, route) ->
+            match route with [] -> "(initial)" | r -> elide r)
+          shown
+      in
+      let iw =
+        List.fold_left (fun w d -> max w (String.length (idx d))) 0 shown
+      in
+      let rw = List.fold_left (fun w r -> max w (String.length r)) 0 routes in
+      let pad s w = s ^ String.make (max 0 (w - String.length s)) ' ' in
+      (* A model with no mutable cell has nothing to show but the route. *)
+      let no_cells = Array.length sp.Space.ctx.State.layout.State.cells = 0 in
+      let line d r =
+        "  "
+        ^ pad (idx d) iw
+        ^ "  reached by: "
+        ^ if no_cells then r else pad r rw ^ "   " ^ cells_line sp (fst d)
+      in
       String.concat "\n"
-        ((head :: List.map line shown)
+        ((head :: List.map2 line shown routes)
         @
         if n > dead_end_cap then
           [ "  … and " ^ string_of_int (n - dead_end_cap) ^ " more" ]
@@ -125,16 +160,6 @@ let build (sp : Space.t) : string =
   String.concat "\n" (if lw = "" then parts else parts @ [ lw ])
 
 (* --- §16.1 properties ------------------------------------------------------ *)
-
-(* A situation's mutable cells in layout order, [SRC.ARROW=VALUE], [∅] for
-   vacant. Shared by a failing property and `writ show`. *)
-let cells_line (sp : Space.t) (s : State.t) : string =
-  let cells = sp.Space.ctx.State.layout.cells in
-  let cell i (cr : Instance.cellref) =
-    let v = match s.(i) with Value.Filled x -> x | Value.Vacant -> "∅" in
-    cr.Instance.src ^ "." ^ cr.Instance.arrow ^ "=" ^ v
-  in
-  "(" ^ String.concat " " (Array.to_list (Array.mapi cell cells)) ^ ")"
 
 (* How a run from a failing [inevitable]'s stuck situation avoids F for ever:
    it stops there, or it loops. Without fairness the loop is a concrete

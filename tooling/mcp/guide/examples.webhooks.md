@@ -120,7 +120,7 @@ holds  can-settle
 ```
 
 ```text writ_compare old=webhooks.writ new=webhooks-fixed.writ claims=webhooks.claims
-equations:
+equations:   none
 properties:  no-capture-after-void  gained
              can-settle             preserved
 ```

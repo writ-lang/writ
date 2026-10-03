@@ -48,12 +48,12 @@ states: 49   edges: 94
 regime: committing — no move can be undone
 gaps: none
 dead ends: 6
-  reached by: p1-yes, p2-yes, decide-commit, p1-commit, p2-commit
-  reached by: p1-yes, p2-no, decide-commit, p1-commit, p2-commit
-  reached by: p1-yes, p2-no, decide-abort, p1-abort, p2-abort
-  reached by: p1-no, p2-yes, decide-commit, p1-commit, p2-commit
-  reached by: p1-no, p2-yes, decide-abort, p1-abort, p2-abort
-  reached by: p1-no, p2-no, decide-abort, p1-abort, p2-abort
+  #43  reached by: p1-yes, p2-yes, decide-commit, p1-commit, p2-commit   (p1.vote=yes p2.vote=yes p1.state=committed p2.state=committed c.decision=commit)
+  #44  reached by: p1-yes, p2-no, decide-commit, p1-commit, p2-commit    (p1.vote=yes p2.vote=no p1.state=committed p2.state=committed c.decision=commit)
+  #45  reached by: p1-yes, p2-no, decide-abort, p1-abort, p2-abort       (p1.vote=yes p2.vote=no p1.state=aborted p2.state=aborted c.decision=abort)
+  #46  reached by: p1-no, p2-yes, decide-commit, p1-commit, p2-commit    (p1.vote=no p2.vote=yes p1.state=committed p2.state=committed c.decision=commit)
+  #47  reached by: p1-no, p2-yes, decide-abort, p1-abort, p2-abort       (p1.vote=no p2.vote=yes p1.state=aborted p2.state=aborted c.decision=abort)
+  #48  reached by: p1-no, p2-no, decide-abort, p1-abort, p2-abort        (p1.vote=no p2.vote=no p1.state=aborted p2.state=aborted c.decision=abort)
 fails  atomic
   "no participant commits while another voted no"
   witness:  1. p1-yes          → #1   p1.vote: ∅ → yes
@@ -107,10 +107,10 @@ states: 33   edges: 58
 regime: committing — no move can be undone
 gaps: none
 dead ends: 4
-  reached by: p1-yes, p2-yes, decide-commit, p1-commit, p2-commit
-  reached by: p1-yes, p2-no, decide-abort, p1-abort, p2-abort
-  reached by: p1-no, p2-yes, decide-abort, p1-abort, p2-abort
-  reached by: p1-no, p2-no, decide-abort, p1-abort, p2-abort
+  #29  reached by: p1-yes, p2-yes, decide-commit, p1-commit, p2-commit   (p1.vote=yes p2.vote=yes p1.state=committed p2.state=committed c.decision=commit)
+  #30  reached by: p1-yes, p2-no, decide-abort, p1-abort, p2-abort       (p1.vote=yes p2.vote=no p1.state=aborted p2.state=aborted c.decision=abort)
+  #31  reached by: p1-no, p2-yes, decide-abort, p1-abort, p2-abort       (p1.vote=no p2.vote=yes p1.state=aborted p2.state=aborted c.decision=abort)
+  #32  reached by: p1-no, p2-no, decide-abort, p1-abort, p2-abort        (p1.vote=no p2.vote=no p1.state=aborted p2.state=aborted c.decision=abort)
 holds  atomic
   "no participant commits while another voted no"
 holds  terminates
@@ -118,7 +118,7 @@ holds  terminates
 ```
 
 ```text writ_compare old=commit.writ new=commit-fixed.writ claims=commit.claims
-equations:
+equations:   none
 properties:  atomic      gained
              terminates  preserved
 ```
