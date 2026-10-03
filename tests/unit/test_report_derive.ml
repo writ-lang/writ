@@ -1,7 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Report_derive] (extension §7, §9): the text `writ derive` prints, written
+(* [Report_derive] (extension §4): the text `writ derive` prints, written
    out in full because the spacing is the contract. *)
 
 open Writ_data

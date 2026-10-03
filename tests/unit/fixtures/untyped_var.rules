@@ -1,4 +1,4 @@
-; Extension §1/§3: `X` occurs only in sort-transparent columns, so it gets no
+; Extension §1: `X` occurs only in sort-transparent columns, so it gets no
 ; sort. Rejected at the variable, naming the fix.
 
 (relation p 1)

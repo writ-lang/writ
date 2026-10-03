@@ -59,11 +59,20 @@ situation and by move), `final-phase` and `dead-end`.
 - A **body** is a conjunction of kernel guards
   ([§10.2](kernel-spec.md#102-guards)), relations, negated relations
   `(not (R …))`, and the built-ins of Extension §2.
+- **A variable is an ALL-CAPS atom**; anything else is a constant. A model
+  name spelled in capitals (`KNIGHT`) would read as a variable, so a rule that
+  uses one is rejected at the atom.
 - **Variables are typed by use** — a roster, the reachable situations, or the
   transitions — through a program-wide fixpoint over `(relation, column) →
   sort`, so `Y` above is typed from the other rule. An untypable variable is an
   error; constants are checked, never seeding a sort.
-- Semantics: semi-naïve least fixpoint, per stratum.
+- **A body joins in written order.** Positive relations, built-ins and a
+  top-level `(is PATH V)` bind variables; a negation or test may only use
+  variables bound before it. An unbound variable is rejected where it occurs.
+- Semantics: semi-naïve least fixpoint, per stratum; recursion through
+  negation has no stratum order and is rejected at read time.
+- A `.rules` file may `load` libraries: their forms expand here too, and
+  their schemas are skipped.
 
 In a rule, the right of `is` is a variable or constant, not a chain. Equate
 two chains with a shared variable:
@@ -92,6 +101,9 @@ it joins with the other relations directly. Phases are built in because they
 take one linear pass, where deriving them from `reach` is quadratic; `reach`
 and `before` stay quadratic since their answers are pairs. `phase-step` also
 needs inequality on atoms, which rules lack.
+
+These names are reserved: a `.rules` file cannot declare a relation called
+`edge`, `phase` or any other built-in.
 
 `(holds S G)` takes a guard datum, not a term. Its free variables are the
 rule's, so `(holds S (is X.a Y))` finds where a mutable arrow points in S.
@@ -149,7 +161,9 @@ writ derive oversight.writ org.rules "(subordinate nabu X)" # bound query
 writ derive oversight.writ org.rules --why "(subordinate nabu cabinet)"
 ```
 
-`writ derive` computes only the asked relation and its dependencies. Exit
+A situation is written as its bare index — the numbering `writ show --at N`
+uses — in answers and in bound queries alike. `writ derive` computes only the
+asked relation and its dependencies. Exit
 status ([§18](kernel-spec.md#18-command-line)): `writ solve` exits `1` on zero
 solutions; `writ derive` exits `0` for any well-formed query, empty included;
 unreadable input is `2`.

@@ -3,7 +3,7 @@
 
 open Writ_data
 
-(* Extension §3: sorts, by a program-wide least fixpoint over
+(* Extension §1: sorts, by a program-wide least fixpoint over
    [(relation, column) -> sort], seeded by built-ins, typed declarations, an
    unambiguous arrow's [dom] and a path's codomain. It must span rules: in §1's
    transitive closure the recursive rule's [Y] is typed only by the other

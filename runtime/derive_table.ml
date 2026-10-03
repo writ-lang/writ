@@ -3,7 +3,7 @@
 
 open Writ_data
 
-(* Extension §6's fact tables and the answers read off them; [Derive] is the
+(* Extension §1's fact tables and the answers read off them; [Derive] is the
    fixpoint that fills them. A bound query uses the same [probe] as the join:
    [(reach X 2)] is the forward relation read through column 2's index, which
    is why §2's backward analysis is free. *)

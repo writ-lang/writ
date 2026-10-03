@@ -3,7 +3,7 @@
 
 open Writ_data
 
-(* Extension §9's output for `writ derive`: a relation's rows and the
+(* Extension §4's output for `writ derive`: a relation's rows and the
    derivation tree behind one fact, as pure strings. The row shape resembles
    [Report.query_rows], but a derived relation has no query datum, no "at"
    situation, and positional columns, so it is rendered separately. *)
