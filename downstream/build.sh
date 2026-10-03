@@ -9,6 +9,7 @@
 #   PROBLEMS_REF=my-branch downstream/build.sh   # one repository elsewhere
 #   ARCH_REPO=https://github.com/me/writ-arch.git downstream/build.sh
 #   downstream/build.sh --no-cache               # extra args go to docker build
+#   downstream/build.sh --print-args             # NAME=VALUE lines, no build
 #
 # WHY RESOLVE AT ALL. A RUN that clones "main" is cached on the word "main",
 # so a rebuild would keep testing against a stale checkout and say nothing.
@@ -17,11 +18,17 @@
 # The repositories are read from the ARG lines in downstream/Dockerfile, so a
 # repository is added in one place. Each one is NAME_REPO and NAME_REF there,
 # and the same names are honoured from the environment here.
+#
+# --print-args resolves and prints the build arguments, one NAME=VALUE per
+# line, and builds nothing. The CI workflow uses it to hand them to
+# docker/build-push-action, so CI and a laptop resolve refs the same way.
 set -eu
 cd "$(dirname "$0")/.."
 
 dockerfile=downstream/Dockerfile
 tag=${DOWNSTREAM_TAG:-writ-downstream}
+print_only=0
+if [ "${1:-}" = "--print-args" ]; then print_only=1; shift; fi
 set --  -f "$dockerfile" -t "$tag" "$@"
 
 for name in $(sed -n 's/^ARG \([A-Z0-9]*\)_REPO=.*/\1/p' "$dockerfile"); do
@@ -37,8 +44,12 @@ for name in $(sed -n 's/^ARG \([A-Z0-9]*\)_REPO=.*/\1/p' "$dockerfile"); do
           | head -n 1 | cut -f1)
     [ -n "$sha" ] || { echo "downstream: no branch or tag '$ref' in $repo" >&2; exit 2; }
   fi
-  printf 'downstream: %-11s %s  %s (%s)\n' "$name" "$sha" "$repo" "$ref"
+  printf 'downstream: %-11s %s  %s (%s)\n' "$name" "$sha" "$repo" "$ref" >&2
+  if [ "$print_only" = 1 ]; then
+    printf '%s_REPO=%s\n%s_REF=%s\n' "$name" "$repo" "$name" "$sha"
+  fi
   set -- "$@" --build-arg "${name}_REPO=$repo" --build-arg "${name}_REF=$sha"
 done
+[ "$print_only" = 0 ] || exit 0
 
 exec docker build "$@" .
