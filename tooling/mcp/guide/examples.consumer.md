@@ -37,9 +37,9 @@ states: 10   edges: 9
 regime: committing — no move can be undone
 gaps: none
 dead ends: 3
-  reached by: deliver, process, ack
-  reached by: deliver, process, timeout, deliver, process, ack
-  reached by: deliver, process, timeout, deliver, process, timeout, deliver
+  #3  reached by: deliver, process, ack                                           (m.stage=acked acct.charges=c1)
+  #7  reached by: deliver, process, timeout, deliver, process, ack                (m.stage=acked acct.charges=c2)
+  #9  reached by: deliver, process, timeout, deliver, process, timeout, deliver   (m.stage=delivered acct.charges=c2)
 fails  charged-once
   "the customer is never charged twice"
   witness:  1. deliver   → #1   m.stage: queued → delivered
@@ -109,7 +109,7 @@ states: 6   edges: 6
 regime: reversible — 3 of 6 situations lie on cycles
 gaps: none
 dead ends: 1
-  reached by: deliver, process, ack
+  #3  reached by: deliver, process, ack   (m.stage=acked m.key-seen=yes acct.charges=c1)
 holds  charged-once
   "the customer is never charged twice"
 fails  finishes
@@ -126,7 +126,7 @@ holds  finishes-fairly
 Now `charged-once` holds. `finishes` still fails, correctly: a run can lose the ack for ever (`timeout` again and again). `finishes-fairly` holds: if `ack` is not refused for ever, every run acks. That is `inevitable` with `(fair …)` doing its job, and the honest statement of what this protocol guarantees.
 
 ```text writ_compare old=consumer.writ new=consumer-fixed.writ claims=consumer.claims
-equations:
+equations:   none
 properties:  charged-once     gained
              finishes-fairly  gained
 still failing in both models: finishes

@@ -121,7 +121,7 @@ let render_row (name_w : int) (r : row) : string =
 
 let render_section (label : string) (rows : row list) (name_w : int) : string =
   match rows with
-  | [] -> label
+  | [] -> pad label label_w ^ "  none"
   | first :: rest ->
       let head = pad label label_w ^ "  " ^ render_row name_w first in
       let cont = List.map (fun r -> indent ^ render_row name_w r) rest in

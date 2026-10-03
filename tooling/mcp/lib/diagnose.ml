@@ -88,12 +88,14 @@ let codes : entry list =
     {
       code = "E_LOAD";
       cause =
-        "A `(load \"FILE\")` names a file that cannot be found, loads itself, \
-         or loads a file that is not a library (it holds use, initial or \
-         transition).";
+        "A `(load \"FILE\")` form names a file that cannot be found, loads \
+         itself, or loads a file that is not a library (it holds use, initial \
+         or transition). A path argument that is missing is E_FILE_NOT_FOUND \
+         instead.";
       hint =
-        "Load `stdlib.writ` by that exact name; a library may hold \
-         declarations only.";
+        "Check the name in (load …): it is looked up beside the including \
+         file, then on the library path, where stdlib.writ always is. A loaded \
+         file may hold declarations only.";
       wrong = Model (edit ~from:"stdlib.writ" ~into:"stdlb.writ");
       right = Model base;
     };
@@ -354,6 +356,18 @@ let codes : entry list =
          any counter, and no cell the questions do not read.";
       wrong = Call "writ_check({model_source: …, max_situations: 2})";
       right = Call "writ_check({model_source: …})";
+    };
+    {
+      code = "E_FILE_NOT_FOUND";
+      cause =
+        "A `model`, `claims` or `rules` path argument names no readable file. \
+         The message gives the path it resolved to: paths are read on the \
+         server, relative to its working directory.";
+      hint =
+        "Check the path, or pass the text as model_source (claims_source, \
+         rules_source).";
+      wrong = Call "writ_check({model: \"probe-does-not-exist.writ\"})";
+      right = Call "writ_check({model_source: \"(schema …) …\"})";
     };
     {
       code = "E_NO_SITUATION";

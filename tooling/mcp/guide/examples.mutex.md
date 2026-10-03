@@ -88,7 +88,7 @@ holds  p-can-enter
 Then price the edit against the old model:
 
 ```text writ_compare old=mutex.writ new=mutex-fixed.writ claims=mutex.claims
-equations:
+equations:   none
 properties:  exclusive    gained
              p-can-enter  preserved
 ```

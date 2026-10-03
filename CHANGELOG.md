@@ -5,6 +5,23 @@ Versions follow `dune-project`: what opam publishes, `writ --version` prints and
 
 ## Unreleased
 
+**Dead ends say which situation they are.** Each line now leads with the
+situation's index, like a witness step, so `writ show --at N` / `writ_show`
+follows it, and ends with its cells: an intended ending and a worker stuck
+half-way no longer look alike.
+
+**MCP, from live testing:**
+
+- `writ_validate` reports every error it can find, one per top-level form
+  (up to 20), not only the first; a syntax error still stops the file.
+- A missing `model`, `claims` or `rules` path is `E_FILE_NOT_FOUND` in the
+  arguments, naming the path it resolved to, instead of an `E_LOAD` with a
+  hint about `stdlib.writ`.
+- `initialize` negotiates the protocol version: a client asking for
+  2025-03-26 or later gets it, and with it the `instructions` field it
+  introduced. The server used to answer 2024-11-05 to everyone.
+- `writ compare` prints `equations:   none` rather than an empty label.
+
 **An assistant can author models through MCP with no documentation pasted
 in.** `writ-mcp` now teaches the language and accepts what an assistant
 writes:

@@ -26,7 +26,7 @@ are for reference only — strip them before running.
  2  states: 1   edges: 0
  3  gaps: none
  4  dead ends: 1
- 5    reached by: (initial)
+ 5    #0  reached by: (initial)
 ```
 
 **Five words — 5 of 26.**
@@ -60,7 +60,7 @@ so there is one situation, and with no moves it is a dead end.
  2  states: 1   edges: 0
  3  gaps: none
  4  dead ends: 1
- 5    reached by: (initial)
+ 5    #0  reached by: (initial)   (hamlet.status=available)
 ```
 
 **Two more — 7 of 26.**
@@ -94,7 +94,7 @@ Two values are possible, but only one state is reachable: nothing moves yet.
  2  states: 2   edges: 1
  3  gaps: none
  4  dead ends: 1
- 5    reached by: lend
+ 5    #1  reached by: lend   (hamlet.status=lent)
 ```
 
 **Five more — 12 of 26.**
@@ -434,7 +434,7 @@ Withdrawing a book, with no way back:
  3  gaps: 1
  4    lose — "the rules do not say what happens to a lost book" (min 1 moves)
  5  dead ends: 1
- 6    reached by: withdraw
+ 6    #2  reached by: withdraw   (hamlet.status=withdrawn hamlet.holder=∅)
  7  equation borrow-local
  8    can be broken by: lend-ana, lend-ben, return   (acknowledge in claims)
  9  holds  lendable

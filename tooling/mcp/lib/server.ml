@@ -17,7 +17,16 @@
    NAME.claims, NAME.rules) by layering it over the injected resolver, so a
    client that cannot write to the server's filesystem can still author. *)
 
-let protocol_version = "2024-11-05"
+(* The protocol versions this server speaks, newest first. `instructions`
+   arrived in 2025-03-26, so a client held to 2024-11-05 may ignore them:
+   answer with the client's own version when it is one of these, else the
+   newest (the client then decides whether to go on). *)
+let protocol_versions = [ "2025-06-18"; "2025-03-26"; "2024-11-05" ]
+
+let negotiate (requested : string option) =
+  match requested with
+  | Some v when List.mem v protocol_versions -> v
+  | _ -> List.hd protocol_versions
 
 (* ── JSON-RPC plumbing ───────────────────────────────────────────────────── *)
 
@@ -200,7 +209,9 @@ let descriptors =
       "Writ language guide. Call writ_guide({items:[\"index\"]}) BEFORE \
        writing any .writ, .claims or .rules source. Several topics per call is \
        fine: syntax.model, syntax.claims, syntax.rules, semantics, idioms, \
-       examples.<name>, errors.<code>.",
+       examples.<name>, errors.<code>. Workflow: writ_validate -> writ_check \
+       -> writ_show on each #N -> writ_compare after every edit. A property \
+       reported n/a is a failure.",
       obj
         [
           ( "items",
@@ -222,9 +233,11 @@ let descriptors =
        sources declare (types with their values or entities, arrows, laws, \
        moves, the mutable cells and the most situations they allow, properties \
        with their kinds, queries, relations with arity), so you can confirm \
-       the model means what you intended. On failure, the first error of each \
-       file with a code, position, found/expected, a hint and, for a misspelt \
-       name, the corrected line. Call it before writ_check.",
+       the model means what you intended. On failure, every error it can find \
+       (one per top-level form, up to 20; a syntax error stops the file it is \
+       in), each with a code, position, found/expected, a hint and, for a \
+       misspelt name, the corrected line. A name in the claims that the model \
+       lacks is an error here too. Call it before writ_check.",
       obj
         (model_ps @ claims_ps " to type-check"
         @ [
@@ -631,7 +644,8 @@ let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ?certify
       ok id
         (Json.Assoc
            [
-             ("protocolVersion", Json.String protocol_version);
+             ( "protocolVersion",
+               Json.String (negotiate (str params "protocolVersion")) );
              ( "capabilities",
                Json.Assoc
                  [

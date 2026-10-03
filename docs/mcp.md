@@ -155,6 +155,17 @@ when the mistake is a misspelt name. A misspelt name in claims, which `writ_chec
 would answer `n/a`, is an error in `writ_validate`, and `writ_check` adds a
 `why n/a` line naming it.
 
+`writ_validate` reports every error it can find in a file, one per top-level
+form, up to 20: after a name or type error it leaves that form out and reads
+the file again. A syntax error, or one in the schema or instance, stops there.
+A path argument that names no file is `E_FILE_NOT_FOUND`, with the path it
+resolved to; `E_LOAD` is kept for a `(load …)` form.
+
+The server answers `initialize` with the client's protocol version when it
+speaks it (2024-11-05, 2025-03-26, 2025-06-18), else the newest. `instructions`
+arrived in 2025-03-26, so a client held to 2024-11-05 may not show them; the
+`writ_guide` description carries the workflow for such clients.
+
 The search stops at `max_situations` (default 200 000, at most 2 000 000) or
 `timeout_ms` of CPU time (default 60 000, at most 600 000). Then the answer is
 `E_STATE_LIMIT`: how many situations were explored, the bound (the product of

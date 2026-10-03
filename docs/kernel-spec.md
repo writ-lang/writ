@@ -1414,7 +1414,8 @@ On any successful build, an interrogator reports:
 - **gaps** — every gap edge, with message and minimal route in;
 - **dead ends** — situations where no move is enabled (gap edges do not
   count as moves out — they are exits from the model, not moves within
-  it). The report counts them and routes to them; it does not say which are
+  it). The report counts them and routes to them, each line led by the
+  situation's index and ended by its cells; it does not say which are
   the endings the model is for, because it does not know what the model was
   meant to reach. That is a question, and `(inevitable F)` (§16.1) is where
   it is put;
