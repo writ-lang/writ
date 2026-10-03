@@ -168,3 +168,52 @@ let certificate ~(version : string) ~(sp : Space.t) ~(model_ : Model.t)
           | Some c -> List.map (property sp) c.Claims.props) );
       ("report", report);
     ]
+
+(* What writ-cert said about a certificate, and how a report says it. Both
+   front ends — `writ check` and the MCP server's [writ_check] — run the
+   checker themselves (that is I/O, so it lives in their binaries) and render
+   the result here, so the two cannot word it differently. *)
+type verdict =
+  | Certified
+  | Disagrees of string list  (** writ-cert refuted writ: a bug in writ *)
+  | Partial of string list  (** some answers could not be certified *)
+  | Absent  (** no writ-cert to ask *)
+  | Failed of string  (** writ-cert ran and could not read the certificate *)
+
+let starts_with p s =
+  String.length s >= String.length p && String.sub s 0 (String.length p) = p
+
+(* writ-cert's exit status and output, read: 0 certified, 1 refuted, 3 partly
+   certified; 126/127 is the shell saying there was nothing to run. *)
+let verdict_of_run ~(code : int) ~(output : string list) : verdict =
+  let tagged p = List.filter (starts_with p) output in
+  match code with
+  | 0 -> Certified
+  | 1 -> Disagrees (tagged "DISAGREES")
+  | 3 -> Partial (tagged "uncertified")
+  | 126 | 127 -> Absent
+  | _ -> Failed (String.concat " " (List.filter (( <> ) "") output))
+
+let verdict_line : verdict -> string = function
+  | Certified -> "certified: every answer re-derived from the model (writ-cert)"
+  | Disagrees ls ->
+      String.concat "\n"
+        ("NOT CERTIFIED: writ-cert refutes this report — a bug in writ:"
+        :: List.map (fun l -> "  " ^ l) ls)
+  | Partial ls ->
+      String.concat "\n"
+        ("partly certified: writ-cert could not certify:"
+        :: List.map (fun l -> "  " ^ l) ls)
+  | Absent -> "not certified: writ-cert is not installed (docs/certificates.md)"
+  | Failed e -> "not certified: writ-cert failed: " ^ e
+
+let verdict_json : verdict -> Json.t =
+  let obj status ls =
+    Json.Assoc [ ("status", str status); ("lines", strs ls) ]
+  in
+  function
+  | Certified -> obj "certified" []
+  | Disagrees ls -> obj "disagrees" ls
+  | Partial ls -> obj "partial" ls
+  | Absent -> obj "absent" []
+  | Failed e -> obj "failed" [ e ]

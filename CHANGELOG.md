@@ -16,7 +16,7 @@ where no `writ-cert` is installed — `not certified`, said rather than skipped.
 writ's image and its release tarball ship `writ-cert` — statically linked like
 the rest (4 MB; it reads certificates with its own small JSON reader rather than
 Lean's, which alone was 74 MB) — and both smoke tests require the `certified`
-line; the tarball's runs on Alpine as on Debian. Building from source does not
+line. The MCP server's `writ_check` is certified the same way; the tarball's runs on Alpine as on Debian. Building from source does not
 need Lean: `make writ-cert-bin` builds the checker in docker when wanted.
 
 **`--json` no longer takes minutes on a large space.** Every witness in the

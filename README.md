@@ -594,7 +594,8 @@ questions are yours. And the server remembers the last model checked against
 each claims file, so every `writ_check` ends with a `revision:` block naming
 the guarantees this model **LOST** against the previous one — an edit that
 makes one property pass by losing another, or by making its question `n/a`,
-is reported in the same reply.
+is reported in the same reply. Like `writ check`, every `writ_check` ends
+`certified` when writ-cert re-derives the answer — the image ships it.
 
 ```jsonc
 // .mcp.json — this repository ships one already

@@ -210,8 +210,8 @@ let ints_of j k =
   | Some (Json.Int i) -> [ i ]
   | _ -> []
 
-let call ~resolve ?(pinned = None) ?(memory = Tools.remember) name (a : Json.t)
-    =
+let call ?certify ?(version = "") ~resolve ?(pinned = None)
+    ?(memory = Tools.remember) name (a : Json.t) =
   let need k =
     match str a k with Some s -> Ok s | None -> Error ("missing `" ^ k ^ "`")
   in
@@ -220,8 +220,8 @@ let call ~resolve ?(pinned = None) ?(memory = Tools.remember) name (a : Json.t)
   match name with
   | "writ_check" ->
       let* model = need "model" in
-      Tools.check ~json ~pinned ~memory ~resolve ~model ~claims:(str a "claims")
-        ()
+      Tools.check ~json ~pinned ~memory ?certify ~version ~resolve ~model
+        ~claims:(str a "claims") ()
   | "writ_show" ->
       let* model = need "model" in
       Tools.show ~json ~resolve ~model ~at:(ints_of a "at") ()
@@ -245,8 +245,11 @@ let call ~resolve ?(pinned = None) ?(memory = Tools.remember) name (a : Json.t)
      this arm exists only to make the match total. *)
   | _ -> Error ("no such tool: " ^ name)
 
-let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ~version
-    (msg : Json.t) : Json.t option =
+(* [certify] is writ-cert, injected by the binary as [resolve] is: running a
+   process is I/O, which this library does not do. Without it, checks are not
+   certified and say nothing about it — the library alone cannot tell. *)
+let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ?certify
+    ~version (msg : Json.t) : Json.t option =
   let id = Option.value (Json.member "id" msg) ~default:Json.Null in
   match str msg "method" with
   | Some "initialize" ->
@@ -282,7 +285,7 @@ let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ~version
               (Json.member "arguments" params)
               ~default:(Json.Assoc [])
           in
-          match call ~resolve ~pinned ~memory name a with
+          match call ?certify ~version ~resolve ~pinned ~memory name a with
           | Ok s -> ok id (text s)
           (* A tool that failed still answers: see the header. *)
           | Error e -> ok id (text ~is_error:true e)))

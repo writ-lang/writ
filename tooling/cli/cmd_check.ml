@@ -157,7 +157,9 @@ let run ?(json = false) ?(fibers = []) ?(certificate = Off) ?(version = "")
   (* A refuted report is a finding — the most serious one writ can make about
      itself. *)
   let exit_code =
-    match certified with Some (Certifier.Disagrees _) -> 1 | _ -> a.exit_code
+    match certified with
+    | Some (Certify_json.Disagrees _) -> 1
+    | _ -> a.exit_code
   in
   if json then
     let j = report_json sp a in
@@ -194,7 +196,8 @@ let run ?(json = false) ?(fibers = []) ?(certificate = Off) ?(version = "")
                     if k = "exit" then (k, Json.Int exit_code) else (k, x))
                   kvs
               in
-              Json.Assoc (kvs @ [ ("certification", Certifier.json v) ])
+              Json.Assoc
+                (kvs @ [ ("certification", Certify_json.verdict_json v) ])
           | None -> Json.Assoc kvs)
       | other -> other
     in
@@ -209,7 +212,7 @@ let run ?(json = false) ?(fibers = []) ?(certificate = Off) ?(version = "")
         List.iter say (Report.fiber_lines sp fs))
       props;
     List.iter (fun (q, i, rows) -> say (Report.query_rows q i rows)) a.queries;
-    Option.iter (fun v -> say (Certifier.line v)) certified
+    Option.iter (fun v -> say (Certify_json.verdict_line v)) certified
   end;
   flush stdout;
   exit exit_code

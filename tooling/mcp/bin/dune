@@ -22,4 +22,5 @@
   writ_runtime
   writ_mcp
   writ_json
+  writ_report_json
   writ_loadpath))

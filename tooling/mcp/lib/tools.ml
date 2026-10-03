@@ -104,8 +104,8 @@ let revision ~(memory : memory) ~(cpath : string) (cl : Claims.t) (sp : Space.t)
    answer every property and query. Same output as `writ check`, and the same
    meaning: `fails` carries the shortest route to the counterexample. With
    [json] the answer is the object `writ check --json` prints. *)
-let check ?(json = false) ?(pinned = None) ?(memory = remember) ~resolve ~model
-    ~claims () =
+let check ?(json = false) ?(pinned = None) ?(memory = remember) ?certify
+    ?(version = "") ~resolve ~model ~claims () =
   let* m = load resolve model in
   let* sp = build model m in
   let claims = Option.map (pin ~pinned) claims in
@@ -141,6 +141,33 @@ let check ?(json = false) ?(pinned = None) ?(memory = remember) ~resolve ~model
              props
     | None -> false
   in
+  let report exit =
+    match parts with
+    | None ->
+        Report_json.check ~queries:[] ~sp ~unadmitted:[] ~stale:[] ~props:[]
+          ~answered:[] ~exit
+    | Some (_, cl, unadmitted, stale, props, queries) ->
+        Report_json.check ~queries:cl.Claims.queries ~sp ~unadmitted ~stale
+          ~props ~answered:queries ~exit
+  in
+  (* The same certificate `writ check` writes, handed to writ-cert; a refuted
+     report is a finding, as on the command line. *)
+  let certified =
+    Option.map
+      (fun f ->
+        f
+          (Certify_json.certificate ~version ~sp ~model_:m
+             ~claims:(Option.map (fun (_, cl, _, _, _, _) -> cl) parts)
+             ~report:(report (if failed then 1 else 0))))
+      certify
+  in
+  let failed =
+    failed
+    ||
+    match certified with
+    | Some (Certify_json.Disagrees _) -> true
+    | _ -> false
+  in
   let exit = if failed then 1 else 0 in
   let rev =
     match parts with
@@ -149,13 +176,10 @@ let check ?(json = false) ?(pinned = None) ?(memory = remember) ~resolve ~model
   in
   if json then
     let base =
-      match parts with
-      | None ->
-          Report_json.check ~queries:[] ~sp ~unadmitted:[] ~stale:[] ~props:[]
-            ~answered:[] ~exit
-      | Some (_, cl, unadmitted, stale, props, queries) ->
-          Report_json.check ~queries:cl.Claims.queries ~sp ~unadmitted ~stale
-            ~props ~answered:queries ~exit
+      match (report exit, certified) with
+      | Json.Assoc kvs, Some v ->
+          Json.Assoc (kvs @ [ ("certification", Certify_json.verdict_json v) ])
+      | j, _ -> j
     in
     let with_rev =
       match (base, rev) with
@@ -183,6 +207,7 @@ let check ?(json = false) ?(pinned = None) ?(memory = remember) ~resolve ~model
           props;
         List.iter (fun (q, i, rows) -> add (Report.query_rows q i rows)) queries);
     (match rev with Some (text, _) -> add text | None -> ());
+    Option.iter (fun v -> add (Certify_json.verdict_line v)) certified;
     Ok (Buffer.contents b)
   end
 

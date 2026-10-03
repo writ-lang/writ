@@ -109,7 +109,10 @@ Time is a ladder of named ticks walked by an arrow, never a number.
   When the same claims file was checked before in this session, the reply
   ends with a `revision:` block saying which guarantees this model **LOST**
   against the previous one. Read it before calling an edit done: an edit that
-  makes one property pass by losing another is reported right there.
+  makes one property pass by losing another is reported right there. The
+  last line is the second opinion: `certified` means a checker proved sound in
+  Lean re-derived every answer; `NOT CERTIFIED` means writ itself got it wrong
+  — report that to the human, do not work around it.
 - **`writ_show`** — what a situation IS, by the index a witness step or a
   `stuck at:` line names. Quote the situation, not the number.
 - **`writ_compare`** — which guarantees an edit kept, LOST and gained, the
