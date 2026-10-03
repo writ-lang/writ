@@ -25,12 +25,48 @@ type t = {
 
 let cap = 200_000
 
+(* Why a bounded search stopped short: how far it got, and, per mutable cell,
+   how many distinct values it had seen, most first, the cells driving the
+   growth. *)
+type cutoff = {
+  reason : [ `Cap of int | `Timeout of float ];
+  explored : int;
+  edges_seen : int;
+  spread : (string * int * int) list; (* cell, values seen, domain size *)
+}
+
+(* The most situations the mutable cells allow: the product of their domains.
+   A float, since it overflows an int long before it is interesting. *)
+let bound (lay : State.layout) : float =
+  Array.fold_left
+    (fun acc d -> acc *. float_of_int (max 1 (Array.length d)))
+    1.0 lay.State.domains
+
+let show_bound f =
+  if f < 1e9 then Printf.sprintf "%.0f" f else Printf.sprintf "%.2g" f
+
+let spread_of (ctx : State.ctx) (states : State.t list) =
+  let lay = ctx.State.layout in
+  let n = Array.length lay.State.cells in
+  let seen = Array.init n (fun _ -> Hashtbl.create 8) in
+  List.iter
+    (fun (s : State.t) ->
+      Array.iteri (fun i v -> Hashtbl.replace seen.(i) v ()) s)
+    states;
+  List.init n (fun i ->
+      let cr = lay.State.cells.(i) in
+      ( cr.Instance.src ^ "." ^ cr.Instance.arrow,
+        Hashtbl.length seen.(i),
+        Array.length lay.State.domains.(i) ))
+  |> List.stable_sort (fun (_, a, _) (_, b, _) -> compare b a)
+
 (* Breadth-first search from the initial state, firing every enabled
-   transition. Unnamed transitions get a positional label [#i]. Overflowing
-   [cap] is an error. *)
-let build (m : Model.t) : (t, string) result =
+   transition. Unnamed transitions get a positional label [#i]. The search
+   stops at [max] situations or after [timeout] seconds of CPU time. *)
+let explore ?(max = cap) ?timeout (m : Model.t) :
+    (t, [ `Model of string | `Cutoff of cutoff ]) result =
   match State.build_ctx m.schema m.initial with
-  | Error e -> Error e
+  | Error e -> Error (`Model e)
   | Ok (ctx, init) ->
       let index = ref State.M.empty in
       let dist = ref State.M.empty in
@@ -50,8 +86,20 @@ let build (m : Model.t) : (t, string) result =
         incr count;
         Queue.add s queue
       in
+      let started = Sys.time () in
+      let timed_out = ref None in
+      (* The clock is read every 256 situations expanded, not added: adding
+         can stall while the queue drains. *)
+      let popped = ref 0 in
       add_state init 0;
-      while (not (Queue.is_empty queue)) && not !overflow do
+      while
+        (not (Queue.is_empty queue)) && (not !overflow) && !timed_out = None
+      do
+        incr popped;
+        (match timeout with
+        | Some t when !popped land 255 = 0 && Sys.time () -. started > t ->
+            timed_out := Some t
+        | _ -> ());
         let s = Queue.pop queue in
         let d = State.M.find s !dist in
         List.iteri
@@ -69,12 +117,23 @@ let build (m : Model.t) : (t, string) result =
               | `Next s' ->
                   edges := { src = s; via; dst = `To s' } :: !edges;
                   if not (State.M.mem s' !index) then
-                    if !count >= cap then overflow := true
+                    if !count >= max then overflow := true
                     else add_state ~from:(s, via) s' (d + 1)
             end)
           m.transitions
       done;
-      if !overflow then Error "state space exceeds cap (200000)"
+      let cutoff reason =
+        Error
+          (`Cutoff
+             {
+               reason;
+               explored = !count;
+               edges_seen = List.length !edges;
+               spread = spread_of ctx !states;
+             })
+      in
+      if !overflow then cutoff (`Cap max)
+      else if !timed_out <> None then cutoff (`Timeout (Option.get !timed_out))
       else
         Ok
           {
@@ -87,6 +146,14 @@ let build (m : Model.t) : (t, string) result =
             parent = !parent;
             transitions = m.transitions;
           }
+
+(* The unbounded-by-choice search the CLI uses: [cap] situations, no clock. *)
+let build (m : Model.t) : (t, string) result =
+  match explore m with
+  | Ok t -> Ok t
+  | Error (`Model e) -> Error e
+  | Error (`Cutoff _) ->
+      Error ("state space exceeds cap (" ^ string_of_int cap ^ ")")
 
 let same (a : State.t) (b : State.t) : bool = Value.compare_cells a b = 0
 

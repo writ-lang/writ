@@ -83,3 +83,12 @@
 (test
  (name test_mcp)
  (libraries writ_data writ_syntax writ_runtime writ_mcp writ_json))
+
+; Authoring through MCP: inline sources, the guide, errors, limits. Reads the
+; stdlib from disk, so it depends on it.
+
+(test
+ (name test_mcp_authoring)
+ (deps
+  (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
+ (libraries writ_data writ_syntax writ_runtime writ_mcp writ_json))

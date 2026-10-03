@@ -94,17 +94,70 @@ assistant's to change; the questions stay yours.
 Describe the system and the question in plain words, and say you want it
 checked with writ. The assistant writes the model and claims, calls the tools,
 and revises the model until your questions hold — or shows you why they cannot.
+It needs no Writ documentation from you: the server teaches the language itself
+(below).
 
 | Tool | Arguments | Answers |
 |---|---|---|
+| `writ_guide` | `items` | the language, by topic: syntax, semantics, idioms, worked examples, every error code |
+| `writ_validate` | `model`, `claims`, `rules` | parse and type-check only, instantly; what the sources declare, or coded errors |
 | `writ_check` | `model`, `claims` | every property `holds` / `fails` with a route; laws, gaps, dead ends; what the edit **LOST**; `certified` |
 | `writ_show` | `model`, `at` | what a situation is — the one a witness names by `#N` |
-| `writ_compare` | `old_model`, `new_model` | which guarantees an edit kept, lost and gained |
-| `writ_query` | `model`, `name`, `at` | a named query's matching rows |
+| `writ_compare` | `old_model`, `new_model`, `claims` | which guarantees an edit kept, lost and gained |
+| `writ_query` | `model`, `claims`, `name`, `at` | a named query's matching rows |
 | `writ_derive` | `model`, `rules`, `relation`, `why` | a relation from a `.rules` file, or its derivation tree |
+
+Every file argument is a path **or** inline text: `model_source`,
+`claims_source`, `rules_source` (and `old_model_source`, `new_model_source`),
+at most 256 KB each, so an assistant in a chat app that cannot write to your
+disk can still author. Give inline models a `model_name` to keep revision
+history per name (for as long as the server runs); errors cite the source
+as `inline:NAME.writ`, a name no `(load …)` can reach. Under
+`--claims-dir`, inline claims are refused.
 
 Every tool takes `json: true` for the same answer as one JSON object
 ([json.md](json.md)).
+
+### How an assistant learns the language
+
+- **`instructions`** on initialize: what writ is, the workflow
+  (`writ_validate` → `writ_check` → `writ_show` → `writ_compare`), and that
+  `n/a` is a failure. Some clients drop these, so nothing depends on them.
+- **`writ_guide`**: topics `index`, `syntax.model`, `syntax.claims`,
+  `syntax.rules`, `semantics`, `idioms`, five worked examples
+  (`examples.mutex`, `.webhooks`, `.consumer`, `.commit`, `.handoff`, each
+  with the failing check, the fix and the compare), and `errors.<code>`. The
+  same topics are MCP resources, `writ://guide/<topic>`, and the prompt
+  `writ_model_system` walks a description through the workflow. The topics
+  live in `tooling/mcp/guide/` and are compiled into the server; a test re-runs
+  every example and fails if its output drifts.
+- **`writ_check`'s description** carries one complete model and claims, so a
+  client sees working syntax before it calls anything.
+
+### Errors and limits
+
+A failed call answers with one block per file in error:
+
+```
+error E_UNKNOWN_VALUE in model at inline:shop.writ:8:60
+  value runing not in codomain stage-t
+  found:    runing
+  expected: one of running, done, queued
+  hint:     Write `running` for `runing`. Use a value of the arrow's codomain type.
+  fix:      (transition go (when (is a.stage queued)) (do (set a.stage running)))
+  see:      writ_guide errors.E_UNKNOWN_VALUE
+```
+
+With `json: true` the same fields come as objects. `fix` is the corrected line
+when the mistake is a misspelt name. A misspelt name in claims, which `writ_check`
+would answer `n/a`, is an error in `writ_validate`, and `writ_check` adds a
+`why n/a` line naming it.
+
+The search stops at `max_situations` (default 200 000, at most 2 000 000) or
+`timeout_ms` of CPU time (default 60 000, at most 600 000). Then the answer is
+`E_STATE_LIMIT`: how many situations were explored, the bound (the product of
+every mutable cell's domain), each property marked undecided, and the cells
+that took the most values, the ones to shrink.
 
 Read a reply's last lines first. `NOT CERTIFIED` means writ itself got
 something wrong — report it rather than work around it. A `LOST` guarantee or

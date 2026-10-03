@@ -1,0 +1,4 @@
+; Embeds the guide topics at build time (see embed.ml).
+
+(executable
+ (name embed))
