@@ -1,0 +1,94 @@
+# Run every repository that uses writ against this one: downstream/Dockerfile.
+#
+# WHY IT EXISTS. ci.yml proves writ passes its own suites; image-check.yml
+# proves the runtime image builds. Neither notices a change here breaking
+# writ-problems, writ-arch, writ-scheduling-verification, mgtt2writ or
+# writ-vscode, because those build FROM a published writ and only meet a
+# change after it is released. This is where they meet it on the pull request.
+#
+# THE BUILD IS THE TEST, as in image-check.yml: each suite is a RUN in its own
+# check-* stage, and the final stage depends on all of them. BuildKit runs the
+# independent checks in parallel, and the build fails on the first that fails.
+# Nothing is pushed or loaded.
+#
+# FOUR TRIGGERS, because the thing under test moves from two sides:
+#   pull_request / push to main   writ changed; were the dependents broken?
+#   schedule                      a dependent changed; does it still pass
+#                                 against writ's main? Nothing here would
+#                                 otherwise run when only they moved.
+#   workflow_dispatch             any combination of refs, by hand.
+
+name: downstream
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+    inputs:
+      problems_ref:
+        description: "writ-problems branch, tag or commit"
+        default: main
+      arch_ref:
+        description: "writ-arch branch, tag or commit"
+        default: main
+      scheduling_ref:
+        description: "writ-scheduling-verification branch, tag or commit"
+        default: main
+      mgtt2writ_ref:
+        description: "mgtt2writ branch, tag or commit"
+        default: main
+      vscode_ref:
+        description: "writ-vscode branch, tag or commit"
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: downstream-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  downstream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      # Branch names resolved to commits by the SAME script `make downstream`
+      # uses, so a clone layer is cached on the commit rather than on the word
+      # "main", and CI and a laptop cannot disagree on what a ref means.
+      # Outside workflow_dispatch the inputs are empty and every ref is main.
+      - id: refs
+        env:
+          PROBLEMS_REF: ${{ inputs.problems_ref || 'main' }}
+          ARCH_REF: ${{ inputs.arch_ref || 'main' }}
+          SCHEDULING_REF: ${{ inputs.scheduling_ref || 'main' }}
+          MGTT2WRIT_REF: ${{ inputs.mgtt2writ_ref || 'main' }}
+          VSCODE_REF: ${{ inputs.vscode_ref || 'main' }}
+        run: |
+          {
+            echo "args<<EOF"
+            sh downstream/build.sh --print-args
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      # One cache scope of its own: the runtime image's scopes hold different
+      # layers, and sharing would have the two evict each other.
+      - uses: docker/build-push-action@v7
+        env:
+          # Plain progress, so each suite's whole output is in the log rather
+          # than folded into BuildKit's last-few-lines view.
+          BUILDKIT_PROGRESS: plain
+        with:
+          context: .
+          file: downstream/Dockerfile
+          build-args: ${{ steps.refs.outputs.args }}
+          outputs: type=cacheonly
+          cache-from: type=gha,scope=downstream
+          cache-to: type=gha,mode=max,scope=downstream
