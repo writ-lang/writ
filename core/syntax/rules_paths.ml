@@ -3,33 +3,16 @@
 
 open Writ_data
 
-(* Extension §2/§3 — does every term inhabit what the schema gives its position?
-   Two questions with one answer: a PATH must actually walk the schema, and a
-   CONSTANT must lie in the domain it is compared against (a path's codomain, or
-   a sorted column). Both run AFTER sorting, and must: a path's root is a term,
-   so the type it is rooted at is whatever the fixpoint settled on, and a
-   constant has nothing to be checked against until its column has a sort.
-   Asking either question earlier would mean asking for the answer. That is also
-   why [Grammar.check_guard] cannot be reused — it takes the variable→type
-   environment as an argument.
-
-   The rule that is easy to get wrong is the FIXED-arrow restriction. A BARE
-   guard literal has no situation to be read in, so §2 evaluates it against
-   [sp.initial] and can only be honest about wiring: every step must name a
-   [fixed] arrow. Inside [(holds S G)] the situation is explicit, so a mutable
-   arrow is perfectly legal — importing the bare-guard restriction there would
-   remove the only way in the language to ask "in situation S, where does this
-   mutable arrow point", which is the whole point of §2's reversal. So the
-   restriction is a flag on this walk, off under [holds], and the rejection
-   names the fix that exists. *)
+(* Extension §2/§3, after sorting: every path walks the schema and every
+   constant lies in its domain. A bare guard has no situation, so its steps
+   must be [fixed] arrows; inside [(holds S G)] mutable ones are fine. *)
 
 let ( let* ) = Result.bind
 let iter_r f xs = Rules_terms.iter_r f xs
 let path_str (p : Rules.gpath) = Rules_terms.path_str p
 
-(* The type a path is rooted at. A [some] binder is looked up in [benv]: it is a
-   kernel variable scoped to its own guard body, lower case, and so read as a
-   [Const] — [Instance] knows nothing about it. *)
+(* The type a path is rooted at. A [some] binder reads as a [Const] and is
+   looked up in [benv]. *)
 let root_type (m : Model.t) (sorts : Rules_sorts.t) rid benv (p : Rules.gpath) :
     (string, Errors.t) result =
   match p.Rules.root with
@@ -59,9 +42,7 @@ let mutable_arrow (p : Rules.gpath) (step : string) =
      wrap the guard in (holds S …) to say which situation `" ^ path_str p
   ^ "` is read in"
 
-(* Walk the chain, returning the arrows in path order so the caller can read off
-   the last one's codomain. Each step's dom is fixed by the previous step's cod,
-   so only the ROOT was ever ambiguous — and by now it is not. *)
+(* Walk the chain, returning the arrows in path order. *)
 let resolve (m : Model.t) (sorts : Rules_sorts.t) rid benv ~(fixed_only : bool)
     (p : Rules.gpath) : (Schema.arrow list, Errors.t) result =
   let* rt = root_type m sorts rid benv p in
@@ -78,10 +59,8 @@ let resolve (m : Model.t) (sorts : Rules_sorts.t) rid benv ~(fixed_only : bool)
   in
   go rt [] p.Rules.steps
 
-(* Kernel §5's codomain rule, as [Grammar.check_set] applies it to effects: a
-   CONSTANT compared against a path must inhabit the last arrow's codomain. A
-   variable there is not re-checked — the fixpoint sorted it from that same
-   codomain, so a mismatch would already have been a sort conflict. *)
+(* Kernel §5: a constant compared against a path must inhabit its codomain.
+   Variables were already sorted from that codomain. *)
 let check_value (m : Model.t) benv (arrows : Schema.arrow list) (v : Rules.term)
     =
   match (List.rev arrows, v) with
@@ -127,9 +106,8 @@ let check_literal m sorts rid (l : Rules.literal) =
 
 (* ── Constants in sorted columns ─────────────────────────────────────────── *)
 
-(* A constant does not SEED a sort (§3) — but once its column has one, the
-   constant must lie in it. A typo would otherwise name a row that can never
-   exist, and the resulting silence would read as an answer. *)
+(* A constant does not seed a sort (§3), but must lie in its column's sort;
+   otherwise a typo silently yields an empty answer. *)
 let const_ok (m : Model.t) (srt : Rules.sort) (c : string) =
   match srt with
   (* §9: a situation is a bare non-negative index, in and out. *)
@@ -148,8 +126,6 @@ let const_ok (m : Model.t) (srt : Rules.sort) (c : string) =
       List.mem c (Schema.elements_of m.Model.schema ty)
       || Instance.type_of_entity m.Model.initial c = Some ty
 
-(* One column, one constant, one message shape — the [why] is all that differs
-   between a user relation's column and a built-in's. *)
 let check_col m ~why i (t : Rules.term) (srt : Rules.sort option) =
   match (t, srt) with
   | Rules.Const (c, p), Some srt when not (const_ok m srt c) ->
@@ -170,12 +146,8 @@ let check_args m sorts rel ts =
   in
   go 0 ts
 
-(* A built-in's columns are the most sharply sorted positions in the language:
-   §3 fixes them per position, with no fixpoint to wait for, so the sort is
-   known even where the rest of the rule is not. That makes a typo there the
-   easiest one to write and the quietest one to leave unchecked — the row it
-   names can never exist, and §9 says an empty answer set is an answer. G is
-   exempt because it is not a term position, so [builtin_cols] omits it. *)
+(* A built-in's columns have fixed sorts (§3), so constants there are always
+   checkable. *)
 let check_builtin m (b : Rules.builtin) =
   let name, cols = Rules_terms.builtin_cols b in
   let rec go i = function

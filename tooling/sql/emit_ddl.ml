@@ -1,22 +1,11 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Schema.t] -> CREATE TABLE. The other direction of the one mapping.
-
-   It reads the SCHEMA and nothing else, which is what makes it a reading of the
-   model rather than of the file: the instance is one starting configuration,
-   not the table's contents, and transitions are moves, not DDL. So there is no
-   `--with-data` here — a writ instance exported as INSERTs would be a handful
-   of rows with an opaque domain's single member standing in for every string,
-   which is data in shape only.
-
-   Two conventions carry what SQL has no way to state, both written as
-   `-- writ:` pragmas that [Sql_parse] reads back:
+(* [Schema.t] -> CREATE TABLE: the export direction, from the schema alone.
+   Two `-- writ:` pragmas, read back by [Sql_parse], carry what SQL cannot:
 
      -- writ: mutable   a foreign key the model UPDATEs
-     -- writ: fixed     a non-reference column the model never writes
-
-   Their absence is the common case, so the DDL stays ordinary SQL. *)
+     -- writ: fixed     a non-reference column the model never writes *)
 
 open Writ_data
 
@@ -24,9 +13,8 @@ type note = { line : int; what : string; why : string }
 
 let buf_add = Buffer.add_string
 
-(* The flat [arrows] list is authoritative; the per-type one is the fallback a
-   schema built only from nested declarations leaves behind (Schema.arrow_in
-   makes the same choice). *)
+(* The flat [arrows] list is authoritative; the per-type one is the fallback
+   (as in Schema.arrow_in). *)
 let all_arrows (s : Schema.t) : Schema.arrow list =
   match s.arrows with
   | [] -> List.concat_map (fun (t : Schema.ty) -> t.arrows) s.types
@@ -39,10 +27,8 @@ let arrows_of (s : Schema.t) (t : Schema.ty) : Schema.arrow list =
   | [] -> t.arrows
   | l -> l
 
-(* Open is a table, Enumerated is a domain — and that is not a heuristic but
-   the mapping read backwards. A table's rows live in the instance, which is
-   exactly what an OPEN type says of its members; a domain's values are fixed
-   by the schema, which is what an ENUMERATED type says. *)
+(* An open type (members from the instance) is a table; an enumerated type
+   (members fixed by the schema) is a domain. *)
 let is_table (t : Schema.ty) =
   match t.flavor with Schema.Open -> true | Schema.Enumerated _ -> false
 
@@ -51,8 +37,7 @@ let members (t : Schema.ty) =
 
 let is_bool (t : Schema.ty) = t.name = "bool" && members t = [ "true"; "false" ]
 
-(* An opaque domain is one whose single member carries no information — which
-   is the whole of what "writ cannot look inside a varchar" amounts to. *)
+(* An opaque domain has a single, uninformative member. *)
 let is_opaque (t : Schema.ty) =
   match members t with [ _ ] -> true | _ -> false
 
@@ -71,10 +56,8 @@ let key_column (s : Schema.t) (t : Schema.ty) : string =
 
 (* ---- equations as CHECK constraints ------------------------------------- *)
 
-(* The fragment a row-level CHECK can hold: boolean structure over this row's
-   own columns. A chain of two arrows leaves the row (`order.buyer.active` is a
-   join), and a `some` binder quantifies over a roster — neither is something a
-   CHECK constraint can see, so both are reported rather than approximated. *)
+(* A guard as a row-level CHECK: boolean structure over the row's own
+   columns. A chain (a join) or a `some` (a roster) is [None], and reported. *)
 let rec sql_of_guard (s : Schema.t) (subject : string) (g : Guard.t) :
     string option =
   let ( let* ) = Option.bind in
@@ -98,8 +81,7 @@ let rec sql_of_guard (s : Schema.t) (subject : string) (g : Guard.t) :
       Some ("(" ^ c ^ " IS NOT NULL)")
   | Guard.Is (p, Guard.Lit v) ->
       let* c = one_step p in
-      (* a boolean column compares against a keyword; everything else against a
-         quoted member name *)
+      (* a boolean compares against a keyword, others against a quoted name *)
       let is_boolean =
         match
           List.find_opt

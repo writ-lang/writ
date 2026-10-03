@@ -1,12 +1,7 @@
 ; politics.lib.writ — the Political Domain as a Writ Library
 ;
-; Nothing in this file is known to the engine: it is types, equations, and
-; forms over the kernel's twenty-eight words plus stdlib. If this file ever
-; needs an engine change, that is a kernel bug, not a library feature.
-;
-; Requires stdlib's forms (toggle, phase-gated). A library file itself holds
-; declarations only; the (load "stdlib.writ") that pulls stdlib in belongs in
-; the MODEL that uses this library.
+; Types, equations and forms over the kernel and stdlib only; needing an
+; engine change would be a kernel bug. The model loads stdlib, not this file.
 
 ; 1. Vocabulary
 (schema politics
@@ -22,8 +17,7 @@
   (type support-t    (minority majority supermajority))
   (type stage-t      (investigating prosecuting concluded))
 
-  ; structural labels — open types; a model's entities take these types
-  ; to say what they are
+  ; structural labels: open types for a model's entities
   (type person) (type office) (type chamber) (type court)
   (type legislature) (type executive) (type people) (type clock)
 

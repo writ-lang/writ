@@ -3,29 +3,11 @@
 
 open Writ_data
 
-(* [writ compare OLD NEW [--map M]] — classify every equation and property as
-   preserved / LOST / gained across an amendment (kernel §17, design D5), and
-   render the §17 block as a pure string plus an [any_lost] flag (a LOST makes
-   the exit status 1). No I/O and no front end — the CLI builds the two spaces,
-   reads OLD's claims, parses the map, and prints; this layer only computes.
-
-   Properties are judged from OLD's sibling [.claims] (a guarantee is defined by
-   the OLD contract) applied to BOTH models: pass→pass = preserved, pass→not-pass
-   = LOST (with NEW's witness route), not-pass→pass = gained, not-pass→not-pass
-   omitted (never a guarantee). [n/a] counts as not-pass (kernel §16.1 — n/a is
-   never a pass). Equations are matched by name: same name with equal chains
-   (after the map) = preserved, old-only or meaning-changed = LOST, new-only =
-   gained.
-
-   M2 — the two INTENDED conservative limitations (design M2; do NOT "fix"):
-   (a) a guarantee named only in NEW's claims can never be reported [gained],
-       because only OLD's suite is read here — compare answers "did this
-       amendment lose a guarantee the old contract made?";
-   (b) a rename applied with no [--map] leaves an OLD property naming NEW's old
-       vocabulary, so on NEW it resolves to nothing and is [n/a] → classified
-       LOST — a guarantee we cannot confirm survived is reported lost, consistent
-       with kernel §16.1 ("n/a is never a pass"). The map is a literal atom
-       rename (below); a genuinely restructured schema is deferred to §16.4. *)
+(* [writ compare OLD NEW [--map M]] — every equation and property preserved,
+   LOST or gained across an amendment (kernel §17, design D5). Properties come
+   from OLD's claims, checked on both models, n/a counting as not-pass
+   (§16.1); equations match by name and meaning. The map is a literal atom
+   rename, so an unmapped rename reports LOST (design M2, intended). *)
 
 (* --- the literal atom-rename transform (map application) -------------------- *)
 
@@ -49,8 +31,8 @@ let rec map_guard (mp : (string * string) list) (g : Model.guard) : Model.guard
 
 (* --- classification -------------------------------------------------------- *)
 
-(* A rendered line's data: the item name, its lowercase/UPPERCASE status word,
-   and — only for a LOST property — the NEW model's inline witness route. *)
+(* A rendered line: name, status word, and — for a LOST property only — NEW's
+   witness route. *)
 type row = { name : string; status : string; witness : string list option }
 
 let eqs_of (sp : Space.t) : Schema.equation list =
@@ -109,10 +91,8 @@ let inline_route (route : string list) : string =
   String.concat " "
     (List.mapi (fun i m -> string_of_int (i + 1) ^ ". " ^ m) route)
 
-(* The label column is [max ("equations:", "properties:")] = 11 wide, then two
-   spaces, so both sections' items align at column 13; continuation rows begin
-   with that many spaces. The status word is padded to "preserved" (9) so a
-   trailing [witness:] aligns. Padding is cosmetic (design §2). *)
+(* Labels are 11 wide plus two spaces, so items align at column 13; status
+   words are padded to "preserved" so a trailing [witness:] aligns. *)
 let label_w = 11
 let indent = String.make (label_w + 2) ' '
 

@@ -1,26 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The language server as a process: the only module in [lsp/] that touches a
-   file descriptor, and the only one allowed to.
-
-   Binary mode is set FIRST. On a platform where text mode differs, the runtime
-   would translate '\n' on the way out and '\r' on the way in; [Content-Length]
-   counts the bytes of the body as encoded, so one translated byte leaves the
-   reader permanently one short and every later frame is misaligned.
-
-   Nothing but protocol frames is ever written to stdout. A stray line of
-   debugging is not a stray line — it is a header the client cannot parse, and
-   the session dies naming neither the line nor the module. That is why every
-   module below this one returns values and this file has no reporting in it.
-
-   The [resolve] callback is built HERE (I/O lives only in the binary), over the
-   search order in [Writ_loadpath] (design D3) that the `writ` command line
-   shares — the editor and the CLI must agree about where a library lives, or a
-   model passes on one and shows an error on the other. There is NO implicit
-   prelude — only the loads a buffer actually writes are read. The document's own
-   text is served by the server from the open buffer, so this reader only ever
-   sees load targets. *)
+(* The language server process: the only module in [lsp/] that does I/O.
+   Binary mode is set first, since one translated byte breaks every later
+   Content-Length. Only protocol frames may go to stdout. *)
 
 open Writ_data
 open Writ_lsp
@@ -35,8 +18,6 @@ let read_file path =
       close_in ic;
       Some s
 
-(* Decode the percent-escapes in a file:// path so a URI with spaces or unicode
-   resolves to the real filename the editor opened. *)
 let percent_decode s =
   let n = String.length s in
   let buf = Buffer.create n in
@@ -70,10 +51,8 @@ let path_of_uri uri =
       (String.sub uri (String.length p) (String.length uri - String.length p))
   else uri
 
-(* The search ORDER is [Load_path] (design D3), shared with the `writ` command
-   line; only the reading is here, because I/O is. Sharing it is the point: this
-   resolver used to carry its own shorter list, so a model whose library sat in
-   [core/stdlib] passed `writ check` and showed a red squiggle in the buffer. *)
+(* The [Load_path] search order (design D3), shared with the CLI so both agree
+   on where a library lives. *)
 let resolve uri name : (string, Errors.t) result =
   let rec try_ = function
     | [] -> Error (Load_path.not_found name)
@@ -82,9 +61,8 @@ let resolve uri name : (string, Errors.t) result =
   in
   try_ (Load_path.candidates ~base:(path_of_uri uri) name)
 
-(* Header lines up to the blank one, each stripped of its terminator. [None] at
-   end of input: the client closed the pipe, which is how a killed editor says
-   goodbye. *)
+(* Header lines up to the blank one, terminators stripped. [None] at end of
+   input: the client closed the pipe. *)
 let read_headers () =
   let chomp s =
     let n = String.length s in
@@ -99,13 +77,11 @@ let read_headers () =
   in
   go []
 
-(* Exactly one frame, nothing between frames. *)
 let write (v : Json.t) =
   output_string stdout (Rpc.encode v);
   flush stdout
 
-(* An absurd Content-Length would try to allocate the world; refuse it rather
-   than let the process fall over. *)
+(* Refuse an absurd Content-Length rather than try to allocate it. *)
 let max_body = 32 * 1024 * 1024
 
 let rec loop st =

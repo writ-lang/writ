@@ -6,36 +6,12 @@
 #     scripts/check-release-tag.sh v0.2.0
 #     scripts/check-release-tag.sh v0.2.0 v0.1.0 0.2.0   # nothing read from git
 #
-# THREE THINGS ARE CHECKED, and the second is the one this repository actually
-# needs.
-#
-#   1. THE SHAPE.  vX.Y.Z, and nothing else. This repository already carries a
-#      tag `0.1.0` without its `v` — created by hand, pointing at a different
-#      commit from `v0.1.0` — which is exactly the confusion a shape check
-#      removes: `on: push: tags: ["v*"]` never fired for it, so it named a
-#      release that was never built.
-#
-#   2. THE TAG AND dune-project MUST AGREE.  The version lives in ONE place,
-#      `(version …)` in dune-project: opam publishes it, `writ --version`
-#      prints it (tooling/cli/dune generates the module from it), `make release`
-#      names the tarball with it and image-publish.yml reads it with sed to tag
-#      the image. NOTHING reads the git tag. So tagging v0.2.0 without bumping
-#      dune-project publishes an image tagged 0.1.0, a tarball named 0.1.0 and
-#      a binary that reports 0.1.0, under a release called v0.2.0 — every
-#      artifact quietly disagreeing with the release that carries it. That is
-#      not a hypothetical: it is the default outcome of tagging, because the
-#      bump is a separate act nothing forces.
-#
-#   3. THE TAG MUST GO FORWARD.  Strictly greater than the highest release tag
-#      that already exists, so a release cannot be re-cut under a version that
-#      has already been published or handed a number below one.
-#
-# WHAT IT DELIBERATELY DOES NOT DO: rule on how big the step is. Patch, minor
-# and major bumps are all allowed, because which one a change deserves is a
-# judgement about the change, and a script that made it would be overruled by
-# hand the first time it was wrong.
-#
-# Run from CI before anything is built or pushed, so a wrong tag costs nothing.
+# Checks three things:
+#   1. the shape is vX.Y.Z (a tag without `v` never fires the release workflows);
+#   2. the tag equals `(version …)` in dune-project, which every artifact takes
+#      its version from — nothing reads the tag;
+#   3. the tag is strictly greater than the highest existing release tag.
+# The size of the step (patch, minor, major) is not checked.
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -46,28 +22,13 @@ new=${1:-}
   exit 2
 }
 
-# The declared version, read from the single place that holds it. Passed
-# explicitly only by the self-test, which checks the rule rather than this
-# checkout. `${3-…}` and not `${3:-…}`: an argument given as the empty string
-# means "there is none", which is how the self-test says "no earlier release"
-# without this script quietly falling back to what git happens to hold today.
+# `${3-…}`, not `${3:-…}`: the self-test passes "" to mean "no earlier
+# release" without falling back to git.
 declared=${3-$(sed -n 's/^(version \(.*\))/\1/p' "$root/dune-project")}
 
-# The highest release tag that already exists, NOT COUNTING THE ONE BEING
-# CHECKED. That exclusion is the whole subtlety, and it cost a release to find:
-# this runs in CI on a tag push, where the tag has by definition already been
-# created, so without the exclusion every tag is compared against itself and
-# every release is refused for not coming after itself. v0.2.0 failed exactly
-# that way.
-#
-# What the exclusion gives up: it can no longer tell that a version was
-# ALREADY released — delete v0.2.0, re-tag it elsewhere, and this passes. That
-# case is unreachable from CI anyway (the tag is always present there), so the
-# alternative was not "catch it" but "refuse everything", and a check that
-# refuses everything is one that gets deleted.
-#
-# "Highest", not "the one before this": comparing against the highest is what
-# makes a tag BELOW an existing release fail rather than pass unnoticed.
+# The highest existing release tag, excluding the one being checked: in CI the
+# tag already exists, and comparing it with itself would refuse every release.
+# The cost is that a deleted and re-created tag passes.
 highest_tag() {
   git -C "$root" tag --list 'v*' 2>/dev/null | while read -r t; do
     [ "$t" = "$new" ] && continue
@@ -77,9 +38,7 @@ highest_tag() {
   done | sort -k1,1n | tail -n 1 | cut -d' ' -f2
 }
 
-# A sortable integer for a tag, so `sort -n` orders 0.10.0 above 0.9.0 —
-# ordering them as text does not, and 9-to-10 is precisely where a hand-written
-# comparison goes wrong.
+# A sortable integer, so 0.10.0 sorts above 0.9.0.
 key() {
   v=${1#v}
   x=${v%%.*}; rest=${v#*.}; y=${rest%%.*}; z=${rest#*.}

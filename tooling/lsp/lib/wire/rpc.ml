@@ -1,17 +1,11 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* JSON-RPC 2.0 as a function from values to strings and back — no I/O; the
-   process loop that reads and writes these lives in the binary (P-T4).
+(* JSON-RPC 2.0 framing, without I/O. A frame is [Content-Length: N\r\n\r\n]
+   then the body, where N is the body's byte length, not its code points. *)
 
-   The framing is [Content-Length: N\r\n\r\n] then the body, where N is the
-   BYTE length of the body ([String.length]), not a count of code points — a
-   body with multi-byte UTF-8 has N larger than its rendered width. Line endings
-   are always [\r\n], never a bare [\n]. *)
-
-(* Read the body length from a set of header lines. The [content-length] name is
-   matched case-insensitively; [Content-Type] and any other header is ignored;
-   an absent or unparsable length is an [Error]. *)
+(* The body length from the header lines; the name is case-insensitive and
+   other headers are ignored. *)
 let header_len (headers : string list) : (int, string) result =
   let lower = String.lowercase_ascii in
   let found = ref None in
@@ -34,7 +28,6 @@ let header_len (headers : string list) : (int, string) result =
       | Some len when len >= 0 -> Ok len
       | _ -> Error ("unparsable Content-Length: " ^ value))
 
-(* Frame a message: the header carries the body's byte length. *)
 let encode (j : Json.t) : string =
   let body = Json.to_string j in
   "Content-Length: " ^ string_of_int (String.length body) ^ "\r\n\r\n" ^ body

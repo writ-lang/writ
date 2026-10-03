@@ -1,10 +1,5 @@
-# Asks first-time contributors to sign CLA.md, and records the signature in
-# this repository on the `cla-signatures` branch.
-#
-# No secret to configure. The action needs a Personal Access Token only when
-# signatures live in a *remote* repository; these are stored in this one, so
-# the built-in GITHUB_TOKEN suffices — with the write permissions granted
-# below.
+# Asks first-time contributors to sign CLA.md; signatures are stored on this
+# repository's `cla-signatures` branch, so GITHUB_TOKEN suffices.
 name: CLA
 
 on:

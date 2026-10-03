@@ -1,16 +1,11 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The JSON parser (split from [Json] up front — value plus parser overflowed
-   the 300-line cap last time). Pure, no I/O.
+(* The JSON parser. Pure, no I/O.
 
-   [\uXXXX] escapes decode to UTF-8, including surrogate pairs: a high surrogate
-   (0xD800-0xDBFF) must be followed by a [\u] low surrogate (0xDC00-0xDFFF), and
-   the pair becomes the 4-byte encoding of the astral code point (so a grinning
-   face U+1F600 yields its four UTF-8 bytes). A lone or mismatched surrogate is an
-   [Error], not a crash. Trailing garbage, unterminated strings, and bad escapes
-   are rejected; nesting past a depth cap is an [Error] rather than a stack
-   overflow. *)
+   [\uXXXX] escapes decode to UTF-8, surrogate pairs included; a lone or
+   mismatched surrogate, trailing garbage, an unterminated string, a bad escape
+   or nesting past [depth_cap] is an [Error], never a crash. *)
 
 exception Err of string
 

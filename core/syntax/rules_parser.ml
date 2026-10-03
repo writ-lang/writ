@@ -3,26 +3,14 @@
 
 open Writ_data
 
-(* [.rules] datums -> relation declarations and rules (extension §1, §2).
-   [(relation NAME ARITY)] or the typed [(relation NAME (T1 … Tn))];
-   [(rule HEAD LITERAL…)] where a literal is a relation, a negated relation, one
-   of §2's five built-ins, or a guard. The positioned atoms a literal is built
-   from — terms, paths, guards — are [Rules_guard]'s, which is also where the
-   reason for not going through [Grammar] is written down.
-
-   This module DECODES and nothing else. Sort inference, stratification and
-   range restriction are read-time rejections too, but they are program-wide
-   fixpoints rather than shape checks, and they live in [Rules_check]. What is
-   rejected here is what a single datum can be judged on: an arity, a shape, a
-   term where a datum belongs. *)
+(* [.rules] datums -> relations and rules (extension §1, §2). Decoding only;
+   program-wide checks are in [Rules_check]. *)
 
 let ( let* ) = Result.bind
 let map_r = Rules_guard.map_r
 let term = Rules_guard.term
 
-(* Extension §2's table, each built-in beside the shape it is written in. Their
-   arities and per-position sorts are fixed, so a literal headed by one of these
-   is never a user relation, and a wrong arity can name the right one. *)
+(* Extension §2's built-ins, each with its written shape for arity errors. *)
 let builtins =
   [
     ("situation", "(situation S)");
@@ -36,9 +24,8 @@ let builtins =
 
 let is_builtin k = List.mem_assoc k builtins
 
-(* The kernel's guard vocabulary (§10.2). A body literal headed by one of these
-   is a guard, not a relation — which is also how [(not …)] is read in a body:
-   [(not (is …))] is a negated GUARD, [(not (R …))] a negated relation. *)
+(* The guard words (§10.2). A literal headed by one is a guard, so
+   [(not (is …))] is a negated guard and [(not (R …))] a negated relation. *)
 let guard_words = [ "and"; "or"; "not"; "is"; "defined"; "some" ]
 
 (* ── Built-in literals ───────────────────────────────────────────────────── *)
@@ -116,13 +103,8 @@ let no_nullary =
   "a relation needs at least one column; a yes/no question is the emptiness of \
    a one-column answer set, which also gives you a witness"
 
-(* A column names a sort. The two sort words are capitalised and everything else
-   names a schema type, which is what keeps the stdlib quiver's lowercase
-   [(type edge …)] readable beside the [Edge] sort. The one spelling that cannot
-   be disentangled is a schema type actually NAMED [Situation] or [Edge]: the
-   sort word wins, so the type would be silently unreachable. That is rejected
-   here, at the declaration, which is the only place in a .rules file where the
-   collision can be seen. *)
+(* A column is [Situation], [Edge], or a schema type name. A schema type named
+   [Situation] or [Edge] would be unreachable, so it is rejected here. *)
 let column (schema : Schema.t) (d : Reader.t) : (Rules.sort, Errors.t) result =
   match d with
   | Reader.List (_, p) ->
@@ -191,10 +173,8 @@ let decode_rule (id : Rules.rule_id) (d : Reader.t) :
       )
   | _ -> Reader.err_at d "malformed rule: (rule (R T…) LITERAL…)"
 
-(* What a .rules file says, before anything has been inferred about it. The
-   engine's [Rules.program] is deliberately NOT this type: it additionally
-   carries the sorts and strata that [Rules_check] computes, so a program can
-   only exist once it has been checked. *)
+(* A .rules file as written. [Rules_check] turns it into a [Rules.program],
+   adding sorts and strata. *)
 type t = { relations : Rules.relation list; rules : Rules.rule list }
 
 let parse (schema : Schema.t) (datums : Reader.t list) : (t, Errors.t) result =

@@ -1,16 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Sort inference tests (TRS): [Rules_sorts.infer], extension §3.
-
-   These drive the checker directly. `writ derive` does not exist yet, so a unit
-   test is the ONLY way to prove any of this now — and the run's fitness gates
-   will exercise the same fixtures through the CLI once it does.
-
-   Every rejection is asserted to land on an exact [line:col]. That is the whole
-   reason the check lives in core/syntax: §1 asks for "an error at the
-   variable", and only the parser's positioned IR can say where the variable
-   was. *)
+(* Sort inference: [Rules_sorts.infer] (extension §3). Every rejection lands
+   on an exact [line:col]. *)
 
 open Writ_data
 open Writ_syntax
@@ -42,8 +34,7 @@ let model_of src =
   | Ok m -> m
   | Error e -> failwith ("model error: " ^ Errors.to_string e)
 
-(* The org chart of tests/unit/fixtures/rules_base.writ: [reports-to] is fixed
-   wiring, [stands] is mutable. *)
+(* The org chart of rules_base.writ: [reports-to] fixed, [stands] mutable. *)
 let org =
   model_of
     "(schema org (type stance (quiet vocal)) (type person (arrow reports-to \
@@ -55,8 +46,7 @@ let org =
      (transition speak (when (is nabu.stands quiet)) (do (set nabu.stands \
      vocal)))"
 
-(* Kernel §7 scopes arrow names to their dom, and river.writ really does give
-   [at] to two types — the case that makes an annotation unavoidable. *)
+(* river.writ gives [at] to two types (§7), which needs an annotation. *)
 let amb =
   model_of
     "(schema amb (type bank (left right)) (type traveler (arrow at (to bank))) \
@@ -85,10 +75,8 @@ let rejected name m src ~line ~col ~sub =
         (contains_sub ~sub e.Errors.msg)
 
 (* --- the fixpoint case: §1's own transitive closure -------------------------
-   [Y] in the recursive rule occurs only in the head and in a sort-transparent
-   relation literal, so no per-rule left-to-right pass can type it. It is typed
-   by [subordinate]'s second column, which the OTHER rule teaches. This is the
-   example the fixpoint exists for. *)
+   [Y] in the recursive rule is typed only by [subordinate]'s second column,
+   which the other rule teaches; no left-to-right pass can type it. *)
 
 let () =
   let src =
@@ -109,9 +97,8 @@ let () =
         (Rules_sorts.var_sort s 1 "Z" = Some (Rules.Entity "person"))
 
 (* --- chain resolution, inside the fixpoint ----------------------------------
-   An arrow name owned by two types seeds nothing, so the variable waits — and
-   waits for ever if no other occurrence sorts it. §3's workaround is a typed
-   head column, and it must actually work. *)
+   An arrow name owned by two types seeds nothing; §3's workaround, a typed
+   head column, must work. *)
 
 let () =
   rejected "ambiguous arrow: the root is not seeded" amb
@@ -138,9 +125,8 @@ let () =
     "(relation p 1)\n(relation q 1)\n(rule (p X) (q X))" ~line:3 ~col:10
     ~sub:"cannot be inferred"
 
-(* --- a conflict names BOTH occurrences ------------------------------------
-   Blamed at the second, because that is the one the author is free to move;
-   the first is the evidence for why they must. *)
+(* --- a conflict names both occurrences --------------------------------------
+   Blamed at the second, the one the author is free to move. *)
 
 let () =
   match

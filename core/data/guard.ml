@@ -1,33 +1,13 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The guard language (§10.2), in its own module because TWO things hold one:
-   a transition's [when], and — since laws became guards — a [Schema.equation].
-   It cannot live in [Model] any more, which is where it used to be: [Model]
-   depends on [Schema], so a schema referring to [Model.guard] would close a
-   cycle. It depends on nothing but [Value], which is why it can sit this low.
+(* The guard language (§10.2). Both a transition's [when] and a
+   [Schema.equation] hold one, so it sits below [Schema] and depends only on
+   [Value]. *)
 
-   There is no [Guard] keyword and never will be. This module names a shape the
-   language already had; the kernel's word count is unchanged by where a type
-   lives. *)
-
-(* The right-hand side of [is]: a literal element or entity name, or a second
-   chain. Which one is meant is decided LEXICALLY, by the reader's own rule —
-   an atom containing a dot is a chain (§5.2 splits it already), anything else
-   is a literal. Two consequences worth stating where the type is:
-
-   - every guard written before this existed reads exactly as it did, because a
-     literal has no dot;
-   - a bare [some]-binder on the right stays uncomparable, since it has no dot
-     either. That is the price of deciding lexically instead of inventing a
-     sigil, and it is the cheap half of the trade: the chains that motivate
-     comparison at all — [c.approver] against [c.preparer] — are dotted.
-
-   Uncomparable is not the same as unsaid: [Grammar.lit_fault] REFUSES a binder
-   written here, as it refuses any literal outside the chain's target domain.
-   The rule was §10.2's from the start and went unenforced for [is], so a wrong
-   literal was a guard false everywhere — a move that never fires and a law
-   violated in every situation, neither of them diagnosed. *)
+(* The right-hand side of [is]: a literal, or a chain if the atom has a dot
+   (§5.2). A bare binder there is a literal, which [Grammar.lit_fault]
+   refuses. *)
 type rhs = Lit of string | Chain of Value.path
 
 type t =
@@ -38,9 +18,7 @@ type t =
   | Defined of Value.path
   | Some_ of string * string * t
 
-(* Every chain a guard mentions, [some]-binders and all. Callers that care
-   about scope use [free_roots]; this one is for "which arrows does this touch",
-   which is scope-blind by nature. *)
+(* Every chain a guard mentions, ignoring scope ([free_roots] respects it). *)
 let rec paths (g : t) : Value.path list =
   match g with
   | And gs | Or gs -> List.concat_map paths gs
@@ -50,20 +28,14 @@ let rec paths (g : t) : Value.path list =
   | Is (p, Lit _) -> [ p ]
   | Is (p, Chain q) -> [ p; q ]
 
-(* The arrow names a guard reads. [Observe] asks this to decide whether a move
-   can break a law: an effect that writes an arrow no chain of the law walks
-   cannot change the law's answer. *)
+(* The arrow names a guard reads; [Observe] uses it to skip moves that cannot
+   affect a law. *)
 let arrows (g : t) : string list =
   List.concat_map (fun (p : Value.path) -> p.Value.steps) (paths g)
 
-(* The roots a guard mentions that no enclosing [some] bound — its free
-   variables, in first-mention order and deduplicated.
-
-   This is what makes a law's implicit quantification statable. §8.6 writes an
-   equation's chains from the TYPE ("case.investigator… means for every case"),
-   so in a law the free roots ARE the subject, and the single-root rule is the
-   demand that there be exactly one of them. A binder is excluded because
-   [some] already says what it ranges over. *)
+(* The free roots (not bound by an enclosing [some]), deduplicated, in
+   first-mention order. In a law these are the subject (§8.6), and there must
+   be exactly one. *)
 let free_roots (g : t) : string list =
   let seen = ref [] in
   let note bound (p : Value.path) =
@@ -85,10 +57,8 @@ let free_roots (g : t) : string list =
   go [] g;
   List.rev !seen
 
-(* Structural equality. Explicit, not polymorphic [=], for the reason
-   [Value.compare_cell] gives: the ordering must not depend on constructor
-   runtime tags. [Compare] asks this to decide whether a law survived a version
-   change, so a wrong answer here is a wrong "preserved". *)
+(* Structural equality, written out as in [Value.compare_cell]. [Compare] uses
+   it to decide whether a law survived a version change. *)
 let rec equal (a : t) (b : t) : bool =
   match (a, b) with
   | And xs, And ys | Or xs, Or ys ->

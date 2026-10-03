@@ -4,15 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Finding certificates
 
-Everything in this file is UNTRUSTED. It searches — breadth-first, Tarjan,
-Emerson–Lei — for the evidence `WritCert.Props` checks, and nothing it does is
-proved. It need not be: a wrong certificate is refused by `checkCert`, and a
-refused certificate is reported as uncertified, never as a verdict. A bug here
-can cost an answer; it cannot produce a wrong one.
-
-That division is the whole design. The algorithms that are hard to get right
-live here, where getting them wrong is safe; the conditions that are easy to
-state live in the checker, where they are proved.
+Untrusted searches for the evidence `WritCert.Props` checks. A wrong
+certificate is refused by `checkCert`, so a bug here costs an answer, never
+gives a wrong one.
 -/
 import WritCert.Props
 import Std.Data.HashMap
@@ -23,9 +17,8 @@ open Std
 
 /-! ## The space, explored -/
 
-/-- Breadth-first search from the initial situation, exactly as `Space.build`
-does it: the same order, so the same numbering. For `by writ`, which has a
-model and no writ. -/
+/-- Breadth-first search in `Space.build`'s order, so the numbering matches
+writ's. Used by `by writ`, which has no writ to ask. -/
 def explore (M : Model) (cap : Nat := 200000) : Except String Graph := Id.run do
   let T := M.transitions.length
   let mut index : HashMap State Nat := HashMap.emptyWithCapacity 64
@@ -56,7 +49,6 @@ def explore (M : Model) (cap : Nat := 200000) : Except String Graph := Id.run do
     i := i + 1
   return .ok { states, out, parent }
 
-/-- The successors of every situation over real edges, deduplicated. -/
 def succs (G : Graph) (T : Nat) : Array (Array Nat) :=
   (Array.range G.size).map fun i => Id.run do
     let mut r : Array Nat := #[]
@@ -66,9 +58,7 @@ def succs (G : Graph) (T : Nat) : Array (Array Nat) :=
       | _ => pure ()
     return r
 
-/-- Breadth-first distances and parents over a graph someone else numbered —
-writ's, in `writ-cert`. When that numbering is writ's BFS order, each parent is
-earlier than its child, which is what `checkGraph` asks. -/
+/-- BFS parents; in writ's BFS numbering each precedes its child. -/
 def bfs (G : Graph) (T : Nat) : Array Nat × Array Nat := Id.run do
   let n := G.size
   let sx := succs G T
@@ -91,11 +81,8 @@ def bfs (G : Graph) (T : Nat) : Array Nat × Array Nat := Id.run do
 
 /-! ## Strongly connected components -/
 
-/-- Tarjan's algorithm, iterative (a native stack does not hold 200 000
-frames), over the subgraph `alive`. Components are numbered in the order they
-close, which is reverse topological: an edge between two components always
-goes from a higher number to a lower. That is the rank a round needs. A dead
-situation gets `none`. -/
+/-- Iterative Tarjan over `alive`. Components are numbered in reverse
+topological order (edges go higher to lower): the rank a round needs. -/
 def tarjan (n : Nat) (succ : Array (Array Nat)) (alive : Nat → Bool) : Array (Option Nat) := Id.run do
   let mut visit := Array.replicate n (none : Option Nat)
   let mut low := Array.replicate n 0
@@ -141,8 +128,7 @@ def tarjan (n : Nat) (succ : Array (Array Nat)) (alive : Nat → Bool) : Array (
 
 /-! ## The certificates -/
 
-/-- Breadth-first search backwards from the F situations: the distance is a
-rank `live` can be held to, and what it never reaches is a closed F-free set. -/
+/-- Backward BFS from F: a `live` rank, or a closed F-free remainder. -/
 def backDist (G : Graph) (T : Nat) (sat : Nat → Bool) : Array (Option Nat) := Id.run do
   let n := G.size
   let sx := succs G T
@@ -173,8 +159,6 @@ def liveCert (M : Model) (G : Graph) (F : Guard) (prefer : Option Nat) : Cert :=
       | none => (closed.findIdx? id).getD 0
     .liveFails k closed
 
-/-- A shortest route from `a` to `b` inside `inside`, as (move, situation)
-steps. -/
 def routeWithin (G : Graph) (T : Nat) (inside : Nat → Bool) (a b : Nat) :
     Option (Array (Nat × Nat)) := Id.run do
   if a == b then return some #[]
@@ -206,17 +190,15 @@ def routeWithin (G : Graph) (T : Nat) (inside : Nat → Bool) (a b : Nat) :
     | none => return none
   return some path.reverse
 
-/-- A fair lasso through `k`, inside its component of the surviving region:
-for every fair move the component offers, walk to an edge of it that stays in
-the component and take it, then walk home. -/
+/-- A fair lasso through `k` within its component: take an internal edge of
+every fair move the component offers, then return to `k`. -/
 def lasso (M : Model) (G : Graph) (fair : List Nat) (alive : Nat → Bool)
     (comp : Array (Option Nat)) (k : Nat) : Option Cert := do
   let T := M.transitions.length
   let c ← comp[k]!
   let inC := fun i => alive i && comp[i]! == some c
   let members := (List.range G.size).filter inC
-  -- waypoints: one internal edge per fair move on offer in C, plus any edge
-  -- inside C at all if no fair move needs one (a cycle must move)
+  -- one internal edge per fair move on offer; any edge if none (a cycle must move)
   let mut legs : Array (Nat × Nat × Nat) := #[]
   for m in fair.eraseDups do
     if members.any (fun i => G.cell i m != .absent) then
@@ -243,13 +225,11 @@ def lasso (M : Model) (G : Graph) (fair : List Nat) (alive : Nat → Bool)
   let cyc := #[k] ++ (steps.pop.map (·.2))
   return .inevitableLasso cyc (steps.map (·.1))
 
-/-- The Emerson–Lei loop, recording each deletion as a round. -/
 def inevitableCert (M : Model) (G : Graph) (F : Guard) (fair : List Nat) (prefer : Option Nat) :
     Option Cert := do
   let T := M.transitions.length
   let n := G.size
   let sat := G.sat M F
-  -- a situation outside F with nowhere to go stops the run there
   let stopped := (List.range n).filter fun i =>
     !sat i && !(List.range T).any fun t => Graph.isTo (G.cell i t)
   if !stopped.isEmpty then
@@ -305,10 +285,8 @@ def inevitableCert (M : Model) (G : Graph) (F : Guard) (fair : List Nat) (prefer
     | none => cyc.head!
   lasso M G fair alive comp k
 
-/-- A certificate for a property: the verdict, and the evidence for it. For
-the verdicts that need a situation — a satisfying one, a stuck one — `prefer`
-names the one writ chose, so the certificate speaks about writ's answer and
-not merely about the property. -/
+/-- A certificate for a property. `prefer` names the witness situation writ
+chose, so the certificate backs writ's answer, not just some answer. -/
 def certify (M : Model) (G : Graph) (p : Property) (prefer : Option Nat := none) : Option Cert :=
   let F := p.formula
   let n := G.size

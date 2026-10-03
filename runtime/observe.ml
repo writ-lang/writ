@@ -3,21 +3,10 @@
 
 open Writ_data
 
-(* Equation observation (kernel §8, §15/§16.3). [can_break] is the static
-   arrow-footprint test: a transition can break an equation iff it writes
-   (Set/Vacate) an arrow appearing as a step in either path of the equation — a
-   sound approximation; a move touching no used arrow keeps holds-before ⟹
-   holds-after.
-
-   Two audiences, kept apart:
-   - §15 build report (claims-agnostic): [laws] gives, per equation with a
-     breaker or a violation, ALL its can-break moves and — if the law is broken
-     somewhere reachable — the count of violating situations plus the shortest
-     route to the nearest one.
-   - §16.3 acknowledgments (claims-dependent): [unadmitted] is a can-break move
-     the claims did not [accept]; [stale] is an [accept] naming a move that
-     cannot break the law. Even acknowledged breakage still shows as a §15
-     violation. *)
+(* Equation observation (kernel §8, §15, §16.3). [can_break] is a sound
+   static test: a move can break a law iff it writes an arrow the law reads.
+   [laws] is the claims-agnostic §15 finding; [unadmitted] and [stale] compare
+   breakers against the claims' [accept]s (§16.3). *)
 
 let last_step (p : Value.path) : string option =
   match List.rev p.steps with [] -> None | x :: _ -> Some x
@@ -31,17 +20,15 @@ let can_break (tr : Model.transition) (eq : Schema.equation) : bool =
         | Model.Gap _ -> None)
       tr.effects
   in
-  (* Every arrow any chain of the law walks — scope-blind on purpose: a move
-     writing an arrow the law never reads cannot change its answer, whether the
-     chain that reads it is bound by a `some` or not. *)
+  (* Every arrow any chain of the law walks, regardless of [some] scope. *)
   let used = Guard.arrows eq.Schema.body in
   List.exists (fun w -> List.mem w used) written
 
 let tr_name (tr : Model.transition) : string =
   match tr.name with Some n -> n | None -> ""
 
-(* Per-equation §15 finding: the can-break moves, and the reachable violation
-   (count of violating situations, shortest route to the nearest) if any. *)
+(* Per-equation §15 finding: the breakers, and the reachable violation if
+   any. *)
 type law = {
   name : string;
   breakers : string list;

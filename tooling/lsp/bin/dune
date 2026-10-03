@@ -1,9 +1,5 @@
-; The language server process. It is the only executable that links [writ_lsp],
-; and the only file in the LSP tree allowed to perform I/O — the read/write loop
-; lives here so every module it drives stays a function from values to values.
-
-; Installed alongside `writ` as `writ-lsp`, so an editor on a machine that only
-; ran `opam install writ` still gets diagnostics from the real engine.
+; The language server process, installed as `writ-lsp` alongside `writ`. The
+; only file in the LSP tree that performs I/O.
 
 (executable
  (name writ_lsp)

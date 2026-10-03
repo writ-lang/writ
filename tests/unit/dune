@@ -1,12 +1,8 @@
-; The engine unit tests. OCaml stdlib only, no external framework: plain
-; assertions that raise on failure and print a pass summary. They link the three
-; engine libraries — the data model, the front end, and the interrogator.
-
-; The .writ data the tests read is declared as a dependency, so dune copies it
-; into the build context the tests actually run in. Without this they only
-; worked by climbing OUT of _build to the source tree — which broke the moment
-; `dune build @install` put core/stdlib/*.writ inside _build, because the climb
-; then stopped at _build/default, where tests/models and the fixtures were not.
+; The engine unit tests: stdlib only, plain assertions that exit on failure.
+;
+; The .writ data is a declared dependency so dune copies it into the build
+; context; climbing out of _build to the source tree breaks once
+; `dune build @install` puts core/stdlib inside _build.
 
 (tests
  (names
@@ -39,23 +35,16 @@
   (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
  (libraries writ_data writ_syntax writ_runtime writ_loadpath writ_sql))
 
-; The --stdin behaviour. It links [writ_cli], the command line's own modules,
-; which is why they are a library rather than the executable's private modules:
-; an executable's modules cannot be linked into a test, and the sentinel and
-; the flag-stripping pass are decisions worth checking without running the
-; binary.
-;
-; Its own stanza rather than a name in the list above: [writ_cli] is unwrapped,
-; so linking it into the whole engine suite would put [Help], [Cmd_check] and
-; their siblings in scope for twenty tests that have no business seeing them.
+; The --stdin behaviour, through [writ_cli] (a library so a test can link it).
+; Its own stanza because [writ_cli] is unwrapped and would put [Help],
+; [Cmd_check] and the rest in scope for every engine test.
 
 (test
  (name test_stdin)
  (libraries writ_cli))
 
-; The JSON rendering of every answer. It links [writ_report_json] and the JSON
-; parser, because the assertion is on the TEXT: serialise, parse back, read the
-; members. Its own stanza for [test_stdin]'s reason — the library is unwrapped.
+; The JSON rendering: serialise, parse back, read the members. Its own stanza
+; because [writ_report_json] is unwrapped, as above.
 
 (test
  (name test_origin)
@@ -79,17 +68,14 @@
   (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
  (libraries writ_data writ_syntax writ_runtime writ_json writ_report_json))
 
-; The language-server tests drive [Server.handle] (pure: JSON in, JSON out), so
-; they link the [writ_lsp] library alongside the engine. No I/O — the resolver
-; serves fixture text from an in-memory map.
+; The language server: [Server.handle] is pure, and the resolver serves
+; fixture text from memory.
 
 (test
  (name test_lsp)
  (libraries writ_data writ_syntax writ_runtime writ_lsp))
 
-; The MCP server tests, likewise: [Server.handle] is pure (JSON in, JSON out),
-; so they link [writ_mcp] and drive the whole protocol with no process and no
-; pipe. The resolver serves fixture text from an in-memory map.
+; The MCP server, likewise pure and driven with no process.
 
 (test
  (name test_mcp)

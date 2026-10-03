@@ -11,8 +11,7 @@ Exit status: 0 every line certified and in agreement with writ; 1 some line
 DISAGREES with writ; 2 the input could not be read; 3 nothing disagrees but
 something could not be certified.
 -/
--- Only the checker: the tactic half of the package (`WritCert.Tactic`) links the
--- whole Lean elaborator, and a checker has no use for it.
+-- Not `WritCert`: the tactic half would link the whole Lean elaborator.
 import WritCert.Verify
 
 open Writ Writ.Verify

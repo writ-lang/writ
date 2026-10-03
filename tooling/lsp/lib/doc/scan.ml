@@ -1,31 +1,15 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The lexical layer: what a byte offset is inside, from bytes alone.
-
-   Everything above this file works on a datum tree or on editor coordinates.
-   This one works on the raw source, because completion runs on a document that
-   does NOT parse: the moment the author types [(] the reader returns an error
-   and there is no tree at all, which is exactly the keystroke after which the
-   kind or value names should be offered.
-
-   THE SCAN RUNS FORWARD from the start of the document, never backward from the
-   offset, and the reason is in models/presidential.writ: its (cite "…") holds
-   "(veto, override)" INSIDE a quoted atom. Read from the right, an opening quote
-   cannot be told from a closing one, so those parentheses count and the depth is
-   wrong for the whole rest of the file. Read from the left, strings and comments
-   are skipped whole with the same rules the reader uses, and one pass costs
-   nothing worth saving. This is a hard lesson from the prior LSP run.
-
-   No LSP coordinate crosses this file — it is offsets and bytes only, so the
-   position token stays confined to text.ml. *)
+(* What a byte offset is inside, from the raw bytes, for completion on a
+   document that does not parse. The scan runs forward from the start: read
+   backward, an opening quote looks like a closing one. *)
 
 let is_space ch = ch = ' ' || ch = '\t' || ch = '\n' || ch = '\r'
 let is_delim ch = is_space ch || ch = '(' || ch = ')' || ch = ';' || ch = '"'
 
-(* One past the closing quote of the string opening at [o], or [None] when it
-   never closes — the normal state of a citation half typed. Backslash escapes
-   are honoured, so an escaped quote inside the string does not end it. *)
+(* One past the closing quote of the string opening at [o] (backslash escapes
+   honoured), or [None] when it never closes. *)
 let string_close src n o =
   let rec go i =
     if i >= n then None
@@ -40,8 +24,7 @@ let string_close src n o =
 let string_stop src n o =
   match string_close src n o with Some stop -> stop | None -> n
 
-(* The newline that ends the comment opening at [o], or the end of the source.
-   The newline is the terminator and not part of the comment. *)
+(* The newline ending the comment opening at [o], or the end of the source. *)
 let comment_stop src n o =
   let rec go i = if i >= n || src.[i] = '\n' then i else go (i + 1) in
   go o
@@ -51,7 +34,6 @@ let atom_stop src n o =
   let rec go i = if i >= n || is_delim src.[i] then i else go (i + 1) in
   go o
 
-(* Whitespace and comments, which separate tokens and are never one. *)
 let trivia_stop src n o =
   let rec go i =
     if i >= n then i
@@ -61,8 +43,6 @@ let trivia_stop src n o =
   in
   go o
 
-(* One past the token starting at [o]: a list runs to its match, a string to its
-   close, a comment to its newline, anything else to the next delimiter. *)
 let token_stop src n o =
   if o >= n then o
   else
@@ -73,15 +53,8 @@ let token_stop src n o =
 
 (* ------------------------------------------------------------- the state *)
 
-(* [Prose] is inside a citation or a comment: bytes the language never reads,
-   where completion owes the author nothing. [Code] carries the byte offsets of
-   the lists still open at the position, innermost first.
-
-   Both ends of a span are decided separately. A comment ends AT its newline, so
-   an offset equal to [comment_stop] is still inside it — exactly where the
-   cursor sits while a note is being typed. A string ends one PAST its closing
-   quote; a string that never closes runs to end of source, which is where the
-   cursor sits while the citation is being typed. *)
+(* [Prose] is inside a string or comment; [Code] holds the offsets of the
+   open lists, innermost first. *)
 type state = Prose | Code of int list
 
 let state src off =
@@ -92,8 +65,7 @@ let state src off =
     else
       match src.[i] with
       | '(' -> go (i + 1) (i :: stack)
-      (* A stray ')' closes nothing rather than raising: a normal state of a
-         file being typed. *)
+      (* A stray ')' closes nothing. *)
       | ')' -> go (i + 1) (match stack with _ :: rest -> rest | [] -> [])
       | '"' -> (
           match string_close src n i with
@@ -111,11 +83,9 @@ let in_prose src off =
 
 (* ------------------------------------------------------------- open form *)
 
-(* The innermost list still open at [off]: its head atom, the COMPLETE atoms
-   written between that head and [off], and whether [off] is still inside the
-   head itself. A partial token at the offset is deliberately not an argument —
-   [(entity nab] names no kind yet; the client filters the offered names by that
-   partial prefix. *)
+(* The innermost list open at [off]: its head, the complete atoms before
+   [off], and whether [off] is in the head. A partial token is not an
+   argument. *)
 type form = { head : string; args : string list; in_head : bool }
 
 let open_form src off : form option =
@@ -136,8 +106,7 @@ let open_form src off : form option =
             if s >= off then List.rev acc
             else
               let e = token_stop src n s in
-              (* [e >= off] is the token being typed; a scan that fails to
-                 advance ([e <= s]) is refused so a request cannot hang. *)
+              (* [e <= s] would loop forever *)
               if e >= off || e <= s then List.rev acc
               else go e (String.sub src s (e - s) :: acc)
           in

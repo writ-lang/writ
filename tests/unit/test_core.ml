@@ -1,13 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Core data-layer unit tests. Stdlib only, no framework: each [check] counts a
-   pass or aborts the run with a located message. A green run prints a summary.
-
-   Coverage: a small schema (enumerated + open types, fixed + vacatable arrows,
-   one equation); Schema.check_path on a good and a bad chain; State.build_ctx
-   totality rules (layout, domains, initial vector, missing-fixed, unset
-   vacatable, out-of-domain); State.M state identity; Value's total order. *)
+(* Core data-layer unit tests. *)
 
 open Writ_data
 
@@ -154,7 +148,6 @@ let () =
         (Array.length ctx.layout.cells = 4);
       check "build_ctx: state vector aligns to the layout"
         (Array.length st = Array.length ctx.layout.cells);
-      (* a mutable enumerated cell's domain *)
       let i_ind = idx_of ctx (cell "independence" "watchdog") in
       check "build_ctx: independence cell is in the layout" (i_ind >= 0);
       let dom_ind = ctx.layout.domains.(i_ind) in
@@ -171,7 +164,6 @@ let () =
         (Array.exists (Value.equal_cell Value.Vacant) dom_judge);
       check "build_ctx: vacatable open domain includes the roster entity"
         (Array.exists (Value.equal_cell (Value.Filled "alice")) dom_judge);
-      (* the initial vector via get, fixed and mutable *)
       check "build_ctx: initial independence@watchdog = independent"
         (Value.equal_cell
            (State.get ctx st (cell "independence" "watchdog"))

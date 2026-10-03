@@ -1,24 +1,5 @@
-# Publish the runtime image to GHCR, for amd64 and arm64.
-#
-# WHY A WORKFLOW AND NOT A LOCAL `docker push`. GHCR is a container registry
-# speaking the Docker Registry HTTP API, so it authenticates with a bearer
-# token — an SSH key pushes git, and cannot push an image. A personal access
-# token with `write:packages` would work; the built-in GITHUB_TOKEN below does
-# too, and is scoped to this repository and this run rather than to a person.
-# Nothing has to be stored anywhere.
-#
-# NOT ON EVERY PUSH, deliberately. Publishing is outward-facing and the version
-# it carries comes from dune-project, so it fires on a tag — the moment a
-# version means something — or by hand from the Actions tab.
-#
-# The build itself is in image-build.yml, shared with image-check.yml, so the
-# thing verified on a pull request and the thing published on a release are the
-# same file's work rather than two copies that have to be kept in step.
-#
-# NAMED FOR WHAT IT DOES. It was `image.yml` while it was the only one, and then
-# `image` and `image-check` sat side by side reading as "the image one" and
-# "some extra check" — which hid that the real difference between them is
-# publish versus verify.
+# Publish the runtime image to GHCR, for amd64 and arm64, on a v* tag or by
+# hand. The build is image-build.yml, shared with image-check.yml.
 
 name: image-publish
 
@@ -35,9 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  # Each architecture, pushed by digest under no tag. `packages: write` is
-  # granted HERE rather than at the top of the file, so it reaches this job and
-  # nothing else — including any job added later.
+  # `packages: write` is granted per job, not file-wide, so later jobs do not
+  # inherit it.
   build:
     permissions:
       contents: read
@@ -46,9 +26,7 @@ jobs:
     with:
       push: true
 
-  # Join the per-architecture images under the real tags, then prove the join
-  # worked. This is the only job that names a version, so the sed that reads it
-  # stays in one place.
+  # Join the per-architecture images under the real tags, then check the join.
   publish:
     needs: build
     runs-on: ubuntu-latest
@@ -60,22 +38,11 @@ jobs:
         with:
           fetch-depth: 0   # the check below compares this tag against the others
 
-      # The version dune-project holds is the one `writ --version` prints and
-      # `make release` names its tarball with. Read it rather than repeating
-      # it: a hand-kept copy of a version number is one that goes wrong.
       - id: v
         run: echo "version=$(sed -n 's/^(version \(.*\))/\1/p' dune-project)" >> "$GITHUB_OUTPUT"
 
-      # THE TAG THAT FIRED THIS AND THE VERSION BELOW ARE NOT THE SAME NUMBER,
-      # and nothing here would notice. The line above reads dune-project; the
-      # trigger is `v*`. Tag v0.2.0 without bumping dune-project and this
-      # workflow happily publishes ghcr.io/writ-lang/writ:0.1.0 — over the image
-      # that tag already names — while release.yml, which checks, fails beside
-      # it. So the same check runs here, before the manifest is tagged, and the
-      # push-by-digest blobs from the build job stay untagged and unreferenced.
-      #
-      # The rule itself is in the script, so both workflows and a laptop are
-      # asking one question rather than three.
+      # The version comes from dune-project, not the tag; refuse to publish if
+      # they differ, before anything is tagged.
       - name: the tag and dune-project must agree
         if: startsWith(github.ref, 'refs/tags/v')
         run: sh scripts/check-release-tag.sh "${GITHUB_REF_NAME}"
@@ -102,18 +69,8 @@ jobs:
             --tag ghcr.io/${{ github.repository }}:${{ inputs.tag || 'latest' }} \
             $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
 
-      # Two checks, and they are checking different things.
-      #
-      # The first is that the tag is a manifest list naming BOTH architectures.
-      # Nothing else can catch a half-published tag — the amd64 image alone
-      # pulls and runs perfectly well on the amd64 runner below, which is
-      # exactly how the arm64 gap went unnoticed the first time.
-      #
-      # The second is the one only a publish can make: that the bytes which
-      # reached the registry come back down and run. The image's own smoke test
-      # is a RUN in the Dockerfile's second stage, so it has already passed on
-      # each architecture natively, on that architecture's machine, before
-      # anything was pushed.
+      # A half-published tag still runs on the amd64 runner, so check the manifest
+      # names both architectures, then pull and run what reached the registry.
       - name: check the manifest carries both architectures
         run: |
           image=ghcr.io/${{ github.repository }}:${{ steps.v.outputs.version }}

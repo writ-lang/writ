@@ -1,27 +1,16 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_check] — the [writ check] verb, on its own so that the dispatch in [Writ]
-   stays a table of verbs rather than a file that grows by one implementation
-   every time the tool learns a new question.
-
-   Emits the §15 build report always; with a [.claims] file it adds the §16.3
-   acknowledgments, the §16.1 property outcomes, and the §16.2 queries at the
-   initial situation. A finding — a failing property, or a violated / unadmitted
-   / stale law — makes the exit status 1.
-
-   With [--json] the same answers go out as one object ([Report_json.check])
-   and nothing else is printed. The verdicts are computed ONCE, into values,
-   and only then rendered one way or the other — so the two renderings cannot
-   disagree about what was found. *)
+(* [writ check]: the §15 build report, and with a [.claims] file the §16.3
+   acknowledgments, §16.1 property outcomes and §16.2 queries. A finding makes
+   the exit status 1. [--json] prints the same answers as one object. *)
 
 open Writ_data
 open Writ_runtime
 open Cli_io
 
-(* Everything `check` decides, computed once and before any rendering — so the
-   prose, the JSON, and the certificate wrapped around the JSON
-   ([Cmd_certify]) are three renderings of one set of values. *)
+(* Everything `check` decides, computed before any rendering, so the prose,
+   the JSON and the certificate cannot disagree. *)
 type answers = {
   unadmitted : (string * string) list;
   stale : (string * string) list;
@@ -88,19 +77,12 @@ let report_json (sp : Space.t) (a : answers) : Json.t =
     ~props:(List.map (fun (p, o, _) -> (p, o)) a.props)
     ~answered:a.queries ~exit:a.exit_code
 
-(* The certificate: the same answers, wrapped in everything a second checker
-   needs to re-derive them ([Certify_json]; docs/certificates.md).
+(* The certificate: the answers plus what a second checker needs to re-derive
+   them (docs/certificates.md). Written by default as [MODEL.cert.json];
+   a piped model gets one only with [--certificate FILE].
 
-   Written BY DEFAULT, beside the model as [MODEL.cert.json], so that every
-   answer writ gives can be checked after the fact without anyone having
-   remembered to ask for it. [--certificate FILE] puts it elsewhere and
-   [--no-certificate] opts out. A model read from stdin has no name to put one
-   beside, so it gets one only when a FILE is named.
-
-   The two cases fail differently, on purpose. A certificate that was ASKED
-   for and cannot be written is a bad command line (exit 2). The default one is
-   a by-product: a read-only checkout or a mounted volume must not turn a
-   successful check into a failure, so it is a warning and the answer stands. *)
+   An explicitly requested certificate that cannot be written is exit 2; the
+   default one only warns, so a read-only checkout does not fail the check. *)
 type certificate = Off | Beside | To of string
 
 let certificate_path (model : string) = function
@@ -132,8 +114,7 @@ let run ?(json = false) ?(fibers = []) ?(certificate = Off) ?(version = "")
   let resolve = make_resolve model in
   let m = load_model resolve model in
   let sp = build_space model m in
-  (* A fiber names a mutable cell as the report spells it; anything else is a
-     bad command line, not an empty answer. *)
+  (* An unknown fiber cell is a bad command line. *)
   let cells =
     List.map
       (fun c ->
@@ -145,8 +126,7 @@ let run ?(json = false) ?(fibers = []) ?(certificate = Off) ?(version = "")
       fibers
   in
   let a = answer ~cells resolve m sp claims_path in
-  (* Written, then checked at once ([Certifier]): a certificate is worth
-     something only if somebody runs the checker, so the check runs it. *)
+  (* A written certificate is checked at once ([Certifier]). *)
   let certified =
     match certificate_path model certificate with
     | Some (file, asked) when write_certificate ~file ~asked ~version m sp a ->
@@ -154,8 +134,7 @@ let run ?(json = false) ?(fibers = []) ?(certificate = Off) ?(version = "")
     | _ -> None
   in
   let props = a.props in
-  (* A refuted report is a finding — the most serious one writ can make about
-     itself. *)
+  (* A refuted report is a finding. *)
   let exit_code =
     match certified with
     | Some (Certify_json.Disagrees _) -> 1

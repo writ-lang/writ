@@ -1,10 +1,5 @@
-; captured_trap.claims — the same `accountability` claim as any_model, written
-; as the politics.lib claim-form invocation (kernel §6 / politics §7). On
-; captured_trap.writ this claim FAILS: once the watchdog is captured, the case
-; can no longer reach `concluded`, and the witness names the capture move.
-;
-; stdlib loads first because politics.lib.writ's `swing` form references stdlib's
-; `toggle` (see any_model.claims).
+; any_model's `accountability` claim, which fails on captured_trap.writ: the
+; witness names the capture. stdlib loads first for politics.lib's `swing`.
 
 (load "stdlib.writ")
 (load "../../models/politics.lib.writ")

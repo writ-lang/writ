@@ -1,7 +1,5 @@
-; recurse.writ — a form whose template invokes itself. Form hygiene rejects it
-; at collection (a template may mention only reserved words, its slots, and
-; EARLIER forms), so `writ check recurse.writ` fails with a positioned
-; "recurses" error before the model is ever parsed.
+; A form whose template invokes itself: rejected at collection with a
+; positioned "recurses" error.
 
 (form (loop X) (loop X))
 

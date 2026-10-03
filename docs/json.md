@@ -1,29 +1,24 @@
 # The JSON output
 
-Every verb that answers a question answers it as prose by default, and as one
-JSON object with `--json`. The object is not a parse of the prose: both are
-rendered from the same engine values, by `runtime/report.ml` and
-`tooling/report_json/report_json.ml` respectively, so they cannot drift. The
-exit status is unchanged, and is also carried inside the object as `exit`,
-because a consumer reading a pipe has no status to read.
+With `--json`, every verb that answers a question prints one JSON object
+instead of prose. Both are rendered from the same engine values
+(`runtime/report.ml` and `tooling/report_json/report_json.ml`). The exit status
+is unchanged and also carried as `exit`.
 
-Three conventions hold everywhere:
+Everywhere:
 
 - **A route carries landings.** A witness is `[{"move": M, "to": N}, …]`: the
-  move's name and the index of the situation it lands in. One numbering runs
-  through the whole tool — `to` is what `writ show --at N` renders and
-  `writ query --at N` evaluates at — so a witness can be followed without
-  counting.
-- **A vacant cell is `null`.** The prose prints `∅`; the object never does.
-- **Names are the model's.** Moves, cells, properties and rows are spelled
-  exactly as the model spells them.
-- **Provenance rides along.** A witness step and an equation carry
-  `origin`: the text of the `; writ:origin …` pragma above the move or law
+  move's name and the index of the situation it lands in — the index `writ
+  show --at N` and `writ query --at N` take.
+- **A vacant cell is `null`** (the prose prints `∅`).
+- **Names are the model's**, spelled exactly as the model spells them.
+- **Provenance rides along.** A witness step and an equation carry `origin`:
+  the text of the `; writ:origin …` pragma above the move or law
   ([bridges.md](bridges.md) §5), or `null`.
 
-`writ check … --certificate FILE` writes this object again, inside a
-certificate that also carries the model it answers about, for a
-second checker to re-derive it from — [certificates.md](certificates.md).
+`writ check … --certificate FILE` writes this object into a certificate,
+alongside the model, for a second checker to re-derive
+([certificates.md](certificates.md)).
 
 ## `writ check MODEL [--claims F] --json`
 
@@ -51,16 +46,15 @@ second checker to re-derive it from — [certificates.md](certificates.md).
 - `verdict` is `"holds"`, `"fails"` or `"n/a"`; an `n/a` carries `reason`.
 - A holding `possible` carries its solution as `witness`; the other holding
   modalities carry an empty one.
-- `stuck_at` is the index of the situation a failing `live` or `inevitable`
-  is stuck at, and `null` otherwise. It equals the last `to` of the witness.
-- `fair` lists the moves an `inevitable` assumed are not starved.
+- `stuck_at` is where a failing `live` or `inevitable` is stuck (the last `to`
+  of its witness), else `null`.
+- `fair` lists the moves an `inevitable` assumes are not starved.
 - `fibers`, with `--fiber CELL`: one object per value the cell takes —
   `{"cells": {"gov.regime": "normal"}, "verdict", "witness", "stuck_at"}` —
   the property asked of the situations holding that value (kernel §17).
-- `show` carries the answers of the property's `(show QUERY…)` queries at
-  the situation the verdict singles out, each shaped as a query object
-  (`{"name", "at", "rows"}`); empty when the property shows nothing or the
-  verdict singles out no situation.
+- `show` holds the answers of the property's `(show QUERY…)` queries at the
+  situation the verdict singles out, as query objects (`{"name", "at",
+  "rows"}`); empty if there is none.
 - Without `--claims`, `unadmitted`, `stale`, `properties` and `queries` are
   empty lists.
 
@@ -75,9 +69,8 @@ second checker to re-derive it from — [certificates.md](certificates.md).
 }
 ```
 
-`status` is `"preserved"`, `"LOST"` or `"gained"`, as the prose spells them.
-A LOST property's witness runs through the NEW model, and its landings are
-indices in the new model's space.
+`status` is `"preserved"`, `"LOST"` or `"gained"`. A LOST property's witness
+runs through the new model, with indices in its space.
 
 ## `writ show MODEL [--at N]… --json`
 
@@ -108,11 +101,10 @@ A move out that ends at a gap carries `gap` (the message) instead of `to`.
  "edges": [{"from": 0, "to": 3, "moves": ["capture-watchdog"], "lit": true}]}
 ```
 
-`by` is `"phase"` or `"situation"`. A node's `id` is the index of its
-representative situation (the least in its phase) or the situation itself;
-`size` counts the situations in a phase; `final` means nothing leads out;
-`gaps` lists the messages of gap edges fired from inside. `lit` marks the
-nodes and edges a `--witness` route passes through.
+`by` is `"phase"` or `"situation"`. A node's `id` is its situation's index (for
+a phase, the least in it); `size` counts a phase's situations; `final` means
+nothing leads out; `gaps` lists the gap messages fired from inside; `lit` marks
+what a `--witness` route passes through.
 
 ## `writ derive MODEL RULES RELATION --json`
 
@@ -121,9 +113,8 @@ nodes and edges a `--witness` route passes through.
  "rows": [["0", "0"], ["0", "1"]]}
 ```
 
-Cells are strings in every column; a situation column holds its index as a
-string, exactly as the prose prints it. `columns` names each column's sort:
-`situation`, `edge`, or a schema type.
+Cells are strings, a situation as its index. `columns` names each column's
+sort: `situation`, `edge`, or a schema type.
 
 With `--why`, the derivation tree:
 
@@ -137,6 +128,5 @@ With `--why`, the derivation tree:
  ]}
 ```
 
-A fact with no `premises` is a leaf read off the model. A fact that does not
-hold answers `{"fact": [...], "derived": false}` and exits 0, as the prose
-does — it is an answer, not a failure.
+A fact with no `premises` is read off the model. A fact that does not hold
+answers `{"fact": [...], "derived": false}` and exits 0.

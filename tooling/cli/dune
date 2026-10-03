@@ -1,20 +1,7 @@
-; The command line — the only module tree with I/O besides the LSP process. It
-; links all three engine libraries: the data model, the front end (to read
-; models), and the interrogator (to answer questions about them). The exe main
-; module is [Writ], which is only the argument dispatch: one [Cmd_*] sibling per
-; verb, [Cli_io] for the filesystem they share, [Help] for the `--help` text,
-; and [Version] generated below. One module per verb so that adding a verb adds
-; a file rather than growing the one everything already lives in.
-
-; (public_name writ) is what makes `opam install .` put this binary on the PATH
-; as `writ`; without it the exe exists only inside _build.
-
-; The verbs are a LIBRARY and [Writ] is a thin executable over it. An
-; executable's modules cannot be linked into a test, so with everything in one
-; stanza the only way to check the command line was to run the binary and read
-; its output — which is a fine end-to-end test and a poor unit one. UNWRAPPED,
-; as [writ_json] is, so the module names stay [Cli_io], [Help] and [Cmd_*] and
-; no source file needed an edit to make the split.
+; The command line. [Writ] is a thin executable doing argument dispatch over
+; the [writ_cli] library: one [Cmd_*] module per verb, [Cli_io] for shared I/O,
+; [Help] for `--help`. The verbs are a library so tests can link them; it is
+; unwrapped so module names stay [Cli_io], [Cmd_*], etc.
 
 (library
  (name writ_cli)
@@ -49,27 +36,10 @@
  (modules writ version)
  (libraries writ_cli))
 
-; `writ --version` reads the version dune already knows — the one in dune-project
-; that opam publishes and `make release` names the tarball with. Generated
-; rather than written down, because a hand-kept copy of a version number is a
-; copy that is eventually wrong, and a binary lying about which writ it is
-; wastes far more time than it saves.
-
-; THE LEADING `v` IS STRIPPED, and the reason is `dune subst`. writ.opam runs
-; it in dev mode — which is every `opam pin`, the install route this project
-; lists FIRST — and it rewrites dune-project's version from `git describe`. At
-; the tag v0.2.0 that is the string "v0.2.0", so a pinned install printed
-; `writ v0.2.0` while the tarball, the image and this checkout all printed
-; `writ 0.2.0`: one release, two answers to "which writ is this".
-;
-; opam already strips the v for its own metadata (writ.opam gets 0.2.0), so
-; before this the binary disagreed with the package it was installed from,
-; inside a single install. Stripping here makes every route agree again, and
-; leaves a dev pin honest — it reports 0.1.0-68-gb054efa, which is not a
-; release version and does not pretend to be one.
-;
-; Only before a DIGIT: a version that genuinely began with a letter would be
-; left alone.
+; `writ --version` is generated from dune-project's version. A leading `v`
+; before a digit is stripped: `dune subst` (run by every `opam pin`) sets the
+; version from `git describe`, giving "v0.2.0" where tarball and opam say
+; "0.2.0".
 
 (rule
  (targets version.ml)

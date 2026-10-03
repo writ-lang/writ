@@ -1,6 +1,5 @@
-; control_min.writ — a tiny model exercising `writ control`. Two NAMED
-; transitions (raise, lower) plus one UNNAMED transition (rendered as move-3),
-; so the emitted quiver has three edges self-looping on one node.
+; For `writ control`: two named transitions and one unnamed (move-3), so three
+; self-loops on one node.
 
 (schema sw
   (type pos-t (down up))

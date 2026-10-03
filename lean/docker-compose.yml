@@ -5,9 +5,8 @@
 #   docker compose run --rm test               # fixtures certify; tampering is refused
 #   docker compose run --rm corpus             # every model in the sibling repositories
 #
-# The toolchain layer is cached, so only the first run pays for it. `test` and
-# `corpus` need writ: build its image first (`make image` in the directory
-# above), or point WRIT_IMAGE at a published one.
+# `test` and `corpus` need writ: run `make image` in the directory above, or
+# set WRIT_IMAGE.
 
 services:
   build:

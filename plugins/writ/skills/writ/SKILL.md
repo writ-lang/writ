@@ -6,28 +6,25 @@ description: Use when a question is about whether a rule-governed world can reac
 # Answering with Writ
 
 Writ enumerates **every** reachable situation of a small rule-governed world and
-answers questions about it by exhaustion. It does not sample, and it does not
-approximate: a `holds` comes with the shortest route that makes it true, and a
-`fails` comes with the shortest counterexample.
+answers by exhaustion: a `holds` comes with the shortest route that makes it
+true, a `fails` with the shortest counterexample.
 
-Reach for this when the honest answer needs a **proof over all cases** rather
-than an argument. It is the right tool for deadlock, reachability, "can this
-ever happen", scheduling feasibility and optimality on small instances, and
-"can this policy be broken". It is the wrong tool for anything numeric,
-recursive or unbounded — Writ has no arithmetic by design. The test for a
-new domain is `docs/tractability.md` in the writ repository: a fixed cast;
-quantities compared against constants, never against each other; moves that
-set a slot to a named value; an answer set small enough to want.
+Use it when the answer needs a proof over all cases: deadlock, reachability,
+"can this ever happen", scheduling feasibility and optimality on small
+instances, "can this policy be broken". Do not use it for anything numeric,
+recursive or unbounded — Writ has no arithmetic. A domain fits
+(`docs/tractability.md` in the writ repository) when it has a fixed cast,
+quantities compared only against constants, moves that set a slot to a named
+value, and an answer set small enough to want.
 
 ## The loop
 
-1. **Write the model** (`.writ`) — the kinds of thing that exist, the typed
-   arrows between them, one starting configuration, and the guarded moves.
-2. **Write the questions separately** (`.claims`) — a model and the
-   interrogation of it are two documents on purpose.
-3. **Call `writ_check`** with both. Read the report.
-4. If it will not parse, the error carries `file:line:col` and says what it
-   wanted. Fix and re-run — do not guess.
+1. **Write the model** (`.writ`): the kinds of thing, the typed arrows between
+   them, one starting configuration, the guarded moves.
+2. **Write the questions** in a separate `.claims` file.
+3. **Call `writ_check`** with both and read the report.
+4. A parse error carries `file:line:col` and says what it wanted. Fix and
+   re-run; do not guess.
 
 ## Reading a report
 
@@ -42,17 +39,13 @@ fails  never-stuck            false — with the shortest counterexample
   stuck at: #7 (…)            the index is what `writ_show` / `show --at` take
 ```
 
-**A witness under a holding `possible` is the answer, not evidence for it.** If
-you asked "is there a schedule", the witness is the schedule. Quote it.
+**The witness of a holding `possible` is the answer.** If you asked "is there a
+schedule", the witness is the schedule. Quote it.
 
-**`dead ends: 3` is a count, not a finding.** Some endings are the ones the
-model is for — the job finished, the transaction committed — and some are the
-world seizing up, and the report cannot tell them apart because it does not know
-what the model was supposed to reach. You do. Say it, as `(inevitable F)`: an
-ending that does not satisfy F is then a failure with a route to it, and the
-designed ones are silent. Two-phase commit with a coordinator that can crash
-reports twenty dead ends either way, and the modality is what says whether ten
-of them are the protocol blocking or none of them are.
+**`dead ends` is a count, not a finding.** Some endings are the goal (the job
+finished) and some are the world seizing up; only you know which. Say it as
+`(inevitable F)`: an ending that does not satisfy F then fails with a route,
+and the designed endings stay silent.
 
 ## The four modalities
 
@@ -64,65 +57,49 @@ of them are the protocol blocking or none of them are.
 | `inevitable F` | …and no whole run avoids it |
 | `inevitable F (fair M…)` | …assuming those moves are not starved for ever |
 
-`live` is the one people forget and the one that finds traps. "Every job can
-finish" is `possible`; "no schedule can paint itself into a corner" is `live`,
-and a model can pass the first while failing the second — that is exactly what
-a deadlock is.
+`live` finds traps: "every job can finish" is `possible`, "no schedule can
+paint itself into a corner" is `live`, and passing the first while failing the
+second is a deadlock.
 
-`inevitable` is the next step up, and it is the one to reach for wherever the
-model has parties that act independently of each other. `live` asks whether the
-goal is still AVAILABLE; `inevitable` asks whether it is UNAVOIDABLE, which is
-what "does this terminate" actually means. A protocol that retransmits a lost
-message can always still finish — `live` holds — while a run that loses the
-message every time never does, and only `inevitable` reports it. The witness
-names the situation the run circles in, or the one it stops at.
+`inevitable` asks whether the goal is unavoidable, not just still available —
+what "does this terminate" means. Use it wherever parties act independently: a
+protocol that retransmits a lost message passes `live` but fails `inevitable`
+if a run can lose the message every time. Ask `live` for a capability the model
+must not lose, `inevitable` for an outcome it must deliver.
 
-Nothing passes `inevitable` and fails `live`: a situation has at least one run,
-so if every run reaches F then F is reachable. Ask `live` when the goal is a
-capability the model must not lose, and `inevitable` when it is an outcome the
-model must deliver.
-
-**`(fair MOVE…)`** narrows which runs count: one where a named move is on offer
-again and again for ever and never taken is not a run the question is about.
-That is how you ask the question a protocol is actually judged by — *it
-terminates, provided the network does not refuse to deliver for ever* — while
-still being able to ask the unconditional one of the same model, since the
-assumption lives in the claims file rather than in the model. Both verdicts
-print the assumption, so neither can be quoted as the other.
-
-It does not rescue a deadlock, and should not: a run that STOPS is finite, so
-nothing is starved in it. If `inevitable` fails at a situation with no moves,
-no scheduling assumption will fix it — the model is stuck, not unlucky.
+`(fair MOVE…)` ignores runs in which a named move is offered for ever and never
+taken — *it terminates, provided the network does not refuse to deliver for
+ever*. The assumption lives in the claims file and both verdicts print it. It
+cannot rescue a deadlock: a run that stops starves nothing.
 
 ## Optimising without arithmetic
 
 There is no cost function. Ask for **decreasing N**; the smallest N that holds
 is the optimum, and its witness is the optimal plan. Pin it from both sides —
-one property that fails and one that holds is a *proof*, where either alone is
-only a bound.
-
+one property that fails and one that holds is a proof; either alone is a bound.
 Time is a ladder of named ticks walked by an arrow, never a number.
 
 ## Tools
 
-- **`writ_check`** — the verb to reach for first. Model, optional claims.
-  When the same claims file was checked before in this session, the reply
-  ends with a `revision:` block saying which guarantees this model **LOST**
-  against the previous one. Read it before calling an edit done: an edit that
-  makes one property pass by losing another is reported right there. The
-  last line is the second opinion: `certified` means a checker proved sound in
-  Lean re-derived every answer; `NOT CERTIFIED` means writ itself got it wrong
-  — report that to the human, do not work around it.
-- **`writ_show`** — what a situation IS, by the index a witness step or a
-  `stuck at:` line names. Quote the situation, not the number.
-- **`writ_compare`** — which guarantees an edit kept, LOST and gained, the
-  old model's claims put to both. Price your own edit with it.
+- **`writ_check`** — the verb to reach for first. Model, optional claims. When
+  the same claims file was checked before in this session, the reply ends with
+  a `revision:` block listing the guarantees this model **LOST** against the
+  previous one; read it before calling an edit done. The last line is
+  `certified` when a checker proved sound in Lean re-derived every answer;
+  `NOT CERTIFIED` means writ itself got it wrong — report that to the human, do
+  not work around it.
+- **`writ_show`** — what a situation is, by the index a witness step or
+  `stuck at:` line names.
+- **`writ_compare`** — which guarantees an edit kept, LOST and gained, the old
+  model's claims put to both. Price your own edit with it.
 - **`writ_query`** — one named query, optionally at a chosen situation.
-- **`writ_derive`** — a relation from a `.rules` file. `why: true` returns the
-  **derivation tree**: why the engine believes a fact, down to the model facts
-  it rests on. Use it when the answer matters enough to show your working.
-- Every tool takes `json: true` to answer as the object `writ … --json`
-  prints, witnesses carrying the situation each move lands in.
+- **`writ_derive`** — a relation from a `.rules` file; `why: true` returns the
+  derivation tree down to the model facts it rests on.
+- Every tool takes `json: true` to answer as the object `writ … --json` prints.
+
+An index (`#17`, or a rules row's `17`) is not an answer: one numbering runs
+through the whole tool, so follow it with `writ_show` and quote the situation,
+not the number. A failing tool answers with the engine's own message; read it.
 
 **Two rules the verifier holds you to.** A property reported `n/a` names
 structure the model lacks — an arrow you deleted, a value you renamed — and it
@@ -132,18 +109,8 @@ runs with `--claims-dir`, every claims file is read from that directory by
 its basename whatever path you pass, and the reply says which file it read.
 Change the model until the human's questions hold.
 
-A derivation answers with **state indices**, and an index is not an answer:
-`17` means nothing until you ask what it holds. One numbering runs through the
-whole tool — the index a rules row prints is the one `writ show --at 17`
-renders, `writ query --at 17` evaluates at, and a witness route walks to. So
-follow a derivation with `writ show` and quote the situation, not the number.
-
-A tool that fails answers with the engine's own message rather than dying —
-read it, it is usually enough to fix the file.
-
 ## Writing a model
 
-See `references/language.md` for the full shape, the keyword list, and worked
-examples. Read it before writing your first model; the language is small but it
-is not like other languages — laws are *observed*, not enforced, and a move
-that cannot fire is *absent* rather than failed.
+Read `references/language.md` before writing your first model: the full shape,
+the keywords and worked examples. The language is small but unusual — laws are
+*observed*, not enforced, and a move that cannot fire is *absent*, not failed.

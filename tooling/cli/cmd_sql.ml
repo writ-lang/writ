@@ -1,30 +1,18 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_sql] — the [writ sql] verb, beside its sibling verbs.
+(* [writ sql]: a `.sql` file is imported as a model, a `.writ` file is
+   exported as DDL.
 
-   ONE verb, both directions, dispatched on the extension, because there is one
-   mapping and reading it backwards is not a second feature. A `.sql` argument
-   is read into a model; a `.writ` argument is read out as DDL.
-
-   What the DDL says and the model cannot hold goes to STDERR, aggregated by
-   reason, always — a schema imported in silence would let "writ proved this
-   safe" be a claim about a schema nobody has. Aggregation is not tidying: a
-   real dump has a DEFAULT on half its columns, and forty identical lines would
-   bury the one decline that mattered. The count is kept, so nothing is hidden;
-   only repeated.
-
-   Exit status follows the standard interface: 0 answered, 2 unreadable. A
-   decline is NOT a finding by default — every real schema has some — so it
-   costs 1 only under --strict, which is the shape a CI check wants: fail when
-   the DDL grows a construct the model would have carried silently. *)
+   Whatever the translation drops is always reported on stderr, grouped by
+   reason with a count, so an imported model never silently differs from its
+   schema. A decline exits 1 only under [--strict], for CI. *)
 
 open Writ_data
 open Writ_sql
 open Cli_io
 
-(* Declines with one reason are one line, with a count and the first line
-   number so there is something to go and look at. *)
+(* One line per reason, with a count and the first line number. *)
 let report_declines (ds : Sql_ast.decline list) =
   let rec group acc = function
     | [] -> List.rev acc
@@ -57,8 +45,7 @@ let import (file : string) ~(with_data : bool) ~(strict : bool) =
     Emit_writ.file ~name ~source:(Filename.basename file) db
   in
   let ds = db.declines @ clashes in
-  (* refuse BEFORE writing: a redirected run that emitted a model and then
-     exited 2 would leave a file behind that reads like an answer *)
+  (* Refuse before writing, so a redirected failure leaves no model behind. *)
   if db.tables = [] then begin
     report_declines ds;
     die 2 (file ^ ": no CREATE TABLE that writ could read")

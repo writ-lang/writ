@@ -1,15 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Everything about resolving a [(load "FILE")]: WHERE the file is looked for,
-   and WHO gets blamed when it is not found.
-
-   Both halves are here because both were one bug. The CLI and the LSP process
-   carried separate copies of the search order that drifted — the command line
-   searched [core/stdlib], the editor searched [lib/] — so a model whose library
-   lives in the dev checkout passed `writ check` while showing a red error in the
-   buffer. And the error it showed carried no position, so it landed on line 1:
-   a squiggle under the comment header while the real fault was the load. *)
+(* Resolving a [(load "FILE")]: where the file is looked for (one search order
+   for the CLI and the LSP), and who is blamed when it is not found. *)
 
 open Writ_data
 open Writ_syntax
@@ -47,9 +40,7 @@ let () =
   check "load path: a bare name is never a candidate on its own"
     (not (List.mem "stdlib.writ" c))
 
-(* [base] names the file doing the loading, so a load inside a library resolves
-   against THAT library's directory — not the model's, and not the process CWD.
-   This is what lets a library's own [(load …)] work wherever it is checked out. *)
+(* A load inside a library resolves against that library's directory. *)
 let () =
   let c =
     Load_path.candidates ~base:"core/stdlib/politics.lib.writ" "stdlib.writ"
@@ -71,10 +62,8 @@ let resolve_of files name : (string, Errors.t) result =
   | Some s -> Ok s
   | None -> Errors.err ("no such file: " ^ name)
 
-(* A resolver is handed a name, not a datum, so the error it returns carries no
-   position. The load datum's position is known to [inline], which must fill it
-   in: a positionless error lands on line 1 in an editor, and line 1 is usually
-   a comment — a squiggle pointing at prose while the real fault is the load. *)
+(* A resolver sees a name, not a datum, so [inline] fills in the load's
+   position; without it the error lands on line 1. *)
 let () =
   let files = [ ("a.writ", "; a comment line\n(load \"missing.writ\")") ] in
   match Loader.load_library (resolve_of files) "a.writ" with
@@ -85,8 +74,7 @@ let () =
       check "loader: blames the load datum, not the first line"
         (e.Errors.pos = Some { Errors.file = Some "a.writ"; line = 2; col = 1 })
 
-(* An error raised *inside* a loaded library keeps its own position; filling in
-   the load site must not clobber one that is already there. *)
+(* An error inside a loaded library keeps its own position. *)
 let () =
   let files =
     [
@@ -98,10 +86,6 @@ let () =
   | Ok _ ->
       check "loader: (use …) inside a loaded library must be rejected" false
   | Error e ->
-      (* The load site is line 1 of a.writ; this error came from line 2 of
-         b.writ. Both halves matter — that filling in the load site did not
-         clobber a position the loaded file already gave, and that the position
-         still says which file that was. *)
       check "loader: keeps a position the loaded file already supplied"
         (match e.Errors.pos with
         | Some q -> q.Errors.line = 2 && q.Errors.file = Some "b.writ"
@@ -109,14 +93,8 @@ let () =
 
 (* --- which file the coordinates index (conformance gap 3) ------------------ *)
 
-(* [inline] splices a loaded library's datums into the loading file's list, so
-   once it has run the position is the only thing that still knows which file its
-   line and column belong to. While the file was supplied by whoever PRINTED the
-   error instead, that was the path on the command line, and the two combined
-   into a coordinate no file fits: the position below is column 55 of an 84-column
-   line in the library, reported against a loading file whose line 1 has 16
-   columns. That is why a wrong filename is worse than none — an absent one sends
-   the reader looking, a wrong one sends them somewhere definite and sounds sure. *)
+(* After [inline], only the position knows which file its line and column
+   index; a wrong filename is worse than none. *)
 let () =
   let lib =
     "(schema lib (type v (a b)) (type box (arrow f (to v)) (equation e (= \
@@ -154,11 +132,8 @@ let () =
           check "loader: the rendered diagnostic names the library"
             (contains_sub ~sub:"lib.writ:1:55: " (Errors.to_string e)))
 
-(* The common case must be no worse. A fault in the file the caller asked about
-   names that file under the name the CALLER used — [resolve] is handed a bare
-   basename (design D3), but a path is what the reader of the message can act
-   on, so the two are not the same string and the position carries the useful
-   one. *)
+(* [resolve] gets a bare basename (design D3), but the message names the path
+   the caller used. *)
 let () =
   let model =
     String.concat "\n"
@@ -178,10 +153,7 @@ let () =
         | Some p -> p.Errors.file = Some "sub/m.writ" && p.Errors.line = 1
         | None -> false)
 
-(* Text read with no file is not a degraded reading: a query typed on a command
-   line and an unnamed buffer have real positions and no name. [file = None] has
-   to keep meaning "unnamed" rather than "unpositioned", or something downstream
-   prints a filename it was never given. *)
+(* [file = None] means "unnamed", not "unpositioned". *)
 let () =
   match Reader.read_string "(schema s (type v (a b))" with
   | Ok _ -> check "reader: an unclosed list must be rejected" false

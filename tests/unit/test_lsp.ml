@@ -1,26 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* LSP tests (rule 6): [Server.handle] is pure — a JSON message in, a list of
-   JSON messages out — so the whole protocol surface is driven here with no I/O.
-   The injected [resolve] serves fixture text from a small in-memory map keyed by
-   file name, exactly as the binary's disk reader would, so a .claims buffer's
-   sibling model and a library resolve without touching the filesystem.
-
-   [initialize] is pinned first, because it is the one answer no other test can
-   stand in for: the editor client reads serverInfo to tell whether the server
-   it found is the writ its own version expects.
-
-   Three behaviours are then pinned, one per finished fix:
-     1. a VALID .claims buffer publishes NO diagnostic, and its outline shows the
-        property / query / accept symbols with range ⊇ selectionRange;
-     2. a LIBRARY .writ buffer (no [use]) publishes NO "needs (use)" diagnostic;
-     3. a .claims buffer with a genuine (query path) error publishes exactly ONE
-        diagnostic carrying a line:col range.
-   Plus two about WHERE a squiggle may be drawn: on the [(load …)] that failed to
-   resolve, and — for a fault inside the library that load pulled in — nowhere in
-   particular, because a coordinate into another file cannot honestly be drawn on
-   this one. *)
+(* LSP tests: [Server.handle] is pure, so the protocol is driven with no I/O. *)
 
 open Writ_data
 open Writ_lsp
@@ -44,8 +25,7 @@ let contains_sub ~sub s =
 
 (* --- fixtures, served in memory ------------------------------------------- *)
 
-(* A self-contained model: a one-arrow box over a two-value flag. No loads, so
-   the map needs nothing else. Sibling of both mini.claims and bad.claims. *)
+(* A self-contained model, sibling of both claims files. *)
 let model_src =
   "(schema tiny\n\
   \  (type flag (lo hi))\n\
@@ -55,26 +35,20 @@ let model_src =
    (initial i)\n\
    (transition raise (when (is b.f lo)) (do (set b.f hi)))\n"
 
-(* A valid claims file for the model: a property (shape only, kernel §8), a
-   well-typed query, and an acknowledgement. *)
 let claims_ok =
   "(property phantom \"shape only\" (possible (is b.f hi)))\n\
    (query captured (where (x box)) (is x.f hi))\n\
    (accept raise same-agency)\n"
 
-(* A claims file whose query names an arrow the box type lacks — a genuine
-   author error the query path-checker blames at a position (kernel §8: query
-   guards ARE checked, unlike property formulas). *)
+(* Query guards are checked, unlike property formulas (kernel §8). *)
 let claims_bad = "(query oops (where (x box)) (is x.ghost hi))\n"
 
-(* A library: declarations only, NO (use)/(initial)/transition. *)
+(* A library: declarations only, no (use)/(initial)/transition. *)
 let library_src =
   "(form (all (X T) G) (not (some (X T) (not G))))\n\
    (schema quiver (type node))\n"
 
-(* A library with a fault of its own, on one long line: the [(equation …)] sits
-   inside a [(type …)] body, at column 55 of 84. Loaded by a buffer whose lines
-   are all far shorter, so the position it carries indexes nothing here. *)
+(* A library whose fault sits at a column the loading buffer does not have. *)
 let flawed_library_src =
   "(schema lib (type v (a b)) (type box (arrow f (to v)) (equation e (= box.f \
    box.f))))\n"
@@ -119,8 +93,6 @@ let doc_symbol ~id uri =
       );
     ]
 
-(* The diagnostics array from the publishDiagnostics notification a didOpen
-   answers with. *)
 let diagnostics_of outputs =
   let is_pub j =
     Json.member "method" j
@@ -169,16 +141,8 @@ let sym_encloses j =
 
 (* --- the drives ----------------------------------------------------------- *)
 
-(* 0. initialize names the writ it is.
- *
- * The editor client has no other way to ask. It resolves a server by path — a
- * checkout's `_build` build, or `writ-lsp` on PATH — and those are separate
- * installs from the extension itself, so the two CAN be out of step and the
- * symptom is a diagnostic that disagrees with the CLI. The client compares this
- * against its own version and says so; that comparison is only as good as this
- * field, and a client reading `undefined` would report a mismatch that is not
- * one. Checked against the generated [Version.v] rather than a literal, because a test
- * that spelled the version out would be one more copy to bump. *)
+(* 0. initialize reports the server's version: the editor client compares it
+   with its own, as they are installed separately. *)
 let () =
   let init =
     Json.Assoc
@@ -246,12 +210,8 @@ let () =
         ^ string_of_int (List.length ds))
         false
 
-(* 4. an unresolvable [(load …)]: the squiggle sits on the load form, and has
-   WIDTH. Two regressions in one buffer, both once real:
-     - the resolver's error carried no position, so it fell back to line 1 —
-       which in a real model is the comment header, prose blamed for a load;
-     - a list datum's position is its '(', and a token range on a delimiter is
-       zero-width, so a correctly-placed diagnostic was invisible. *)
+(* 4. an unresolvable [(load …)]: the squiggle sits on the load form and has
+   width. *)
 let () =
   let src = "; a comment header, not code\n;\n(load \"nope.writ\")\n" in
   let st = Server.create ~resolve in
@@ -273,13 +233,8 @@ let () =
         ^ string_of_int (List.length ds))
         false
 
-(* 5. a fault INSIDE a loaded library. The loader inlines that library's datums
-   into this buffer's, so the error arrives carrying column 55 of a file the
-   editor is not showing — and this buffer's longest line is 28 columns. Drawing
-   it here would underline whatever text happens to sit nearby with complete
-   confidence, which is the wrong-file coordinate this guards against. So the
-   range falls back to line 1 exactly as a positionless error does, and the
-   message carries the location that is actually true. *)
+(* 5. a fault inside a loaded library falls back to line 1; the message
+   carries the true location. *)
 let () =
   let src =
     "(load \"flaw.writ\")\n\
@@ -307,11 +262,7 @@ let () =
         ^ string_of_int (List.length ds))
         false
 
-(* 5. a .rules buffer is checked as RULES against its sibling model, not waved
-   through as a library. The failure this pins is silence: before the Rules
-   role existed the buffer fell to [Library], which read+expanded it happily,
-   so an undeclared relation head produced no diagnostic at all while the CLI
-   reported it. *)
+(* 5. a .rules buffer is checked as rules against its sibling model. *)
 let () =
   let st = Server.create ~resolve in
   let src = "(relation declared 1)\n(rule (undeclared X) (situation X))\n" in
@@ -330,26 +281,17 @@ let () =
 
 (* --- the claims vocabulary, in the copies that remain --------------------- *)
 
-(* This vocabulary lived in three places — the parser, the editor's completion
-   list and its hover table — and the third time a word was added, two of them
-   were updated. The modalities are now READ from the parser rather than listed
-   again, so completion cannot offer a word the parser refuses. What is left is
-   completion against hover, and it is pinned here WITHOUT naming a word: a test
-   that spelled the list out would be a fourth copy, and would go stale in the
-   same way and at the same moment. *)
+(* Completion and hover agree, compared without naming a word so the test is
+   not another copy of the list. *)
 let () =
   let offered = List.sort compare Completion.interrogator in
   let described = List.sort compare (List.map fst Lookup.interrogator_desc) in
   check "every word the editor offers, it can also explain" (offered = described);
-  (* And the parser's own list is covered by both, which is what makes the two
-     above worth comparing: an empty pair of lists would satisfy the equality. *)
   let mods = List.map fst Writ_syntax.Claims_parser.modalities in
   check "…including every modality the parser accepts"
     (mods <> []
     && List.for_all (fun m -> List.mem m offered && List.mem m described) mods);
-  (* `fair` is vocabulary but NOT a modality — it heads the clause an
-     `inevitable` may carry — so it must be offered and explained while the
-     parser refuses it where a modality belongs. *)
+  (* `fair` heads a clause, not a modality. *)
   check "a clause head is offered without being a modality"
     (List.mem "fair" offered && List.mem "fair" described
     && Writ_syntax.Claims_parser.modality_of "fair" = None)

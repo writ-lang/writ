@@ -1,13 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* DDL -> [Sql_ast.db]. A recursive-descent reader over [Sql_lex]'s tokens that
-   recognises the handful of statements carrying schema MEANING and declines
-   everything else by name and line.
-
-   The rule throughout: never repair, never guess. A construct half-understood
-   is worse than one refused, because the refusal appears in the report and the
-   half-understanding does not. *)
+(* DDL -> [Sql_ast.db]: a recursive-descent reader over [Sql_lex]'s tokens. It
+   reads the statements that carry schema meaning and declines the rest by
+   line. It never repairs or guesses. *)
 
 open Sql_lex
 open Sql_ast
@@ -16,8 +12,7 @@ let ident_of = function Word w -> Some w | Quoted q -> Some q | _ -> None
 
 (* ---- token-list helpers ------------------------------------------------- *)
 
-(* Split at top-level commas, so the `10,2` inside `numeric(10,2)` does not cut
-   a column definition in half. *)
+(* Split at top-level commas (not the one in `numeric(10,2)`). *)
 let split_commas (ts : tok list) : tok list list =
   let out = ref [] and cur = ref [] and depth = ref 0 in
   List.iter
@@ -51,10 +46,7 @@ let balanced (ts : tok list) : (tok list * tok list) option =
       go 0 [] rest
   | _ -> None
 
-(* A possibly schema-qualified name: `public.orders` is the table `orders`. The
-   qualifier is dropped rather than folded in, because a type named
-   `public-orders` would export to a table of that name in the default schema —
-   a different database. *)
+(* A possibly schema-qualified name; `public.orders` is the table `orders`. *)
 let rec qualified_name (ts : tok list) : (string * tok list) option =
   match ts with
   | t :: rest -> (
@@ -86,11 +78,8 @@ let head_words (n : int) (ts : tok list) : string =
   in
   String.concat " " (take n ts)
 
-(* PostgreSQL writes casts throughout the CHECK expressions it dumps —
-   `((status)::text = ANY (ARRAY['draft'::character varying]))` — and every one
-   is noise to a language with no types to cast between. Stripping them first
-   is what lets one grammar read both a hand-written constraint and pg_dump's
-   rendering of the same constraint. *)
+(* Drop the `::type` casts pg_dump writes into CHECK expressions, so one
+   grammar reads both hand-written and dumped constraints. *)
 let strip_casts (ts : tok list) : tok list =
   let rec go acc = function
     | { tk = Punct ':'; _ } :: { tk = Punct ':'; _ } :: rest ->
@@ -107,11 +96,8 @@ let strip_casts (ts : tok list) : tok list =
   in
   go [] ts
 
-(* pg_dump also parenthesises bare operands — `((status)::text = …)` — and a
-   grammar that reads `(` as "a nested expression begins" cannot tell that
-   group from a real one. Unwrapping the groups whose whole contents is a
-   column reference is exact rather than heuristic: a lone name is never an
-   expression this fragment could have meant. *)
+(* Unwrap the parenthesised bare operands pg_dump writes
+   (`((status)::text = …)`). *)
 let rec unwrap_operands (ts : tok list) : tok list =
   match ts with
   | { tk = Punct '('; _ } :: _ -> (
@@ -132,11 +118,9 @@ let strings (ts : tok list) : string list =
 
 (* ---- CHECK expressions -------------------------------------------------- *)
 
-(* The expressible fragment: boolean structure over null-ness and membership.
-   Anything else — arithmetic, ordering, a function call, a subquery — returns
-   [None] and becomes a decline. That boundary is not this parser's limitation
-   but the target language's: writ has no numbers, so `price > 0` has no
-   reading, and inventing one would be the first lie the tool told. *)
+(* The expressible fragment: boolean structure over null-ness, membership and
+   comparison with an integer constant (later cut into regions). Anything else
+   is [None] and becomes a decline; writ has no arithmetic. *)
 let rec p_or (ts : tok list) : check option * tok list =
   match p_and ts with
   | None, r -> (None, r)
@@ -205,8 +189,7 @@ and p_atom (ts : tok list) : check option * tok list =
           match balanced r with
           | Some (inner, rest') -> (Some (C_in (c, strings inner)), rest')
           | None -> (None, r))
-      (* `= ANY (ARRAY[…])` is pg_dump's rendering of `IN (…)`; the members are
-         the string literals in the group, whatever shape it takes. *)
+      (* `= ANY (ARRAY[…])` is pg_dump's rendering of `IN (…)`. *)
       | { tk = Op "="; _ }
         :: { tk = Word "any"; _ }
         :: ({ tk = Punct '('; _ } :: _ as r) -> (
@@ -227,8 +210,7 @@ and p_atom (ts : tok list) : check option * tok list =
           (Some (C_not (C_is (c, v))), r)
       | { tk = Op "<>"; _ } :: { tk = Str v; _ } :: r ->
           (Some (C_not (C_is (c, v))), r)
-      (* a column against an integer constant: kept as a comparison here and
-         cut into regions by [cut_regions], once every constant is known *)
+      (* kept as a comparison until [cut_regions] knows every constant *)
       | { tk = Op op; _ } :: { tk = Num n; _ } :: r -> (
           let cmp =
             match op with
@@ -252,8 +234,8 @@ let parse_check (ts : tok list) : check option =
 
 (* ---- column definitions ------------------------------------------------- *)
 
-(* Where a type name stops and its modifiers begin. `timestamp with time zone`
-   is three words of type; `timestamp not null` is one. *)
+(* Words that end a type name: `timestamp with time zone` is all type,
+   `timestamp not null` is not. *)
 let modifier_words =
   [
     "not";
@@ -382,10 +364,8 @@ let parse_column ~(tname : string) ~(pragmas : (int * string) list)
           in
           mods rest;
           let cname = Sql_names.ident_to_pol raw_name in
-          (* A reference is wiring by default: a `fixed` arrow is not part of a
-             state at all, so the assuming import builds the smaller model, and
-             promoting one to mutable is a modelling decision made with the
-             move that motivates it. A `-- writ:` pragma overrides either way. *)
+          (* A reference is fixed (wiring, not state) by default, giving the
+             smaller model; a `-- writ:` pragma overrides. *)
           let fixed =
             match List.assoc_opt line pragmas with
             | Some "fixed" -> true
@@ -639,9 +619,8 @@ let parse_create_type (st : stmt) (rest : tok list) (db : db) : db =
           :: db.declines;
       }
 
-(* pg_dump emits every foreign key as its own ALTER TABLE, so this path is not
-   an optional convenience — without it a dumped schema imports with no arrows
-   at all, which is to say as no olog. *)
+(* pg_dump emits every foreign key as its own ALTER TABLE, so this is where a
+   dumped schema gets its arrows. *)
 let parse_alter_table ~(pragmas : (int * string) list) (st : stmt)
     (rest : tok list) (db : db) : db =
   let rest = match rest with { tk = Word "only"; _ } :: r -> r | r -> r in
@@ -832,10 +811,8 @@ let parse_insert (st : stmt) (rest : tok list) (db : db) : db =
 
 (* ---- the resolve pass --------------------------------------------------- *)
 
-(* Two things can only be decided once every statement has been read: whether a
-   column's type names an enum declared elsewhere in the file, and whether a
-   surviving CHECK compares against members that exist. Both are deferred here
-   rather than guessed at the point of parse. *)
+(* Passes that need every statement read first: enum types declared later in
+   the file, regions, and whether each CHECK refers to real members. *)
 
 let is_textual = function
   | Sql_names.Opaque n -> (
@@ -844,19 +821,10 @@ let is_textual = function
       | _ -> false)
   | _ -> false
 
-(* A column-level `CHECK (c IN ('a','b'))` over a textual column is not a law
-   about the column — it IS the column's type, spelled in the only notation SQL
-   has for one. Promoting it is what lets those members cross with their
-   identities intact instead of collapsing into one opaque value. *)
 (* ---- regions: a column compared against constants ------------------------ *)
 
-(* The constants a table's checks compare a column against cut its range into
-   regions on which every check is constant: below the least, exactly each,
-   strictly between each adjacent pair, above the greatest. Each region
-   becomes a member of an enumerated domain and each comparison a membership
-   test — lossless, because nothing in the schema could tell two values in one
-   region apart. An integer column skips an empty open interval (nothing lies
-   strictly between 4 and 5). *)
+(* Each numeric column a check compares against constants becomes an enum of
+   its [Sql_regions], and each comparison a membership test. *)
 let numeric_domain = function
   | Sql_names.Opaque n ->
       List.exists
@@ -936,8 +904,8 @@ let cut_regions (db : db) : db =
                      (fun (c, k) -> if c = col then Some k else None)
                      mentioned)
               in
-              (* `-range`, because a column-level CHECK's law is auto-named
-                 `T-col` and the two share one namespace *)
+              (* `-range`: a column-level CHECK's law is already named
+                 `T-col` *)
               let ename = t.tname ^ "-" ^ col ^ "-range" in
               let rs = Sql_regions.pieces ~integral cuts in
               extra_enums :=
@@ -993,6 +961,8 @@ let cut_regions (db : db) : db =
     regions = db.regions @ List.rev !region_cuts;
   }
 
+(* A `CHECK (c IN ('a','b'))` over a textual column is the column's type, so
+   it becomes an enum and the members keep their identities. *)
 let promote_enums (db : db) : db =
   let extra_enums = ref [] and decls = ref [] in
   let tables =
@@ -1069,10 +1039,8 @@ let resolve_enum_columns (db : db) : db =
   in
   { db with tables }
 
-(* A check that compares an OPAQUE column against a literal cannot be carried:
-   the domain has one member, so the comparison is either trivially true or
-   names a member that does not exist. Null-ness is different — that is exactly
-   what an opaque column still says. *)
+(* A check comparing an opaque column against a literal cannot be carried: the
+   domain's one member is named by no literal. Null-ness checks are kept. *)
 let vet_checks (db : db) : db =
   let decls = ref [] in
   let tables =
@@ -1120,10 +1088,8 @@ let vet_checks (db : db) : db =
   in
   { db with tables; declines = db.declines @ List.rev !decls }
 
-(* A composite primary key is a uniqueness constraint over a tuple, which is
-   the same unsayable thing UNIQUE is. The junction TABLE still crosses — as an
-   ordinary type with one arrow per foreign key — so what is declined is the
-   constraint, not the table. *)
+(* A composite primary key is declined like UNIQUE; the table itself still
+   crosses. *)
 let vet_keys (db : db) : db =
   let decls = ref [] in
   List.iter
@@ -1141,9 +1107,8 @@ let vet_keys (db : db) : db =
     db.tables;
   { db with declines = db.declines @ List.rev !decls }
 
-(* Positional INSERTs get their column names, and a row is named by its single
-   -column primary key — an entity IS its identity, so a table without one has
-   no way to name the things it holds. *)
+(* Positional INSERTs get their column names. A row is named by its
+   single-column primary key; without one it is declined. *)
 let resolve_rows (db : db) : db =
   let decls = ref [] in
   let rows =
@@ -1209,8 +1174,7 @@ let parse ?(with_data = false) (src : string) : db =
                   :: db.declines;
               }
         | [] -> db
-        (* an index is storage, except a UNIQUE one, which is a constraint —
-           and the same unsayable constraint UNIQUE always is *)
+        (* a UNIQUE index is a constraint; other indexes are storage *)
         | { tk = Word "create"; _ } :: { tk = Word "unique"; _ } :: _ ->
             {
               db with

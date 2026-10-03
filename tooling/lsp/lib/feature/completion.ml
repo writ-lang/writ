@@ -1,18 +1,10 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Completion — the one request that cannot use the datum tree. A document being
-   completed is half-typed and therefore unparseable: the moment the author types
-   [(] the reader errors and there is no tree, which is exactly the keystroke
-   after which the word or value names are wanted. So the CONTEXT comes from a
-   FORWARD lexical scan over the raw bytes ([Scan.open_form]) and the NAMES come
-   from the buffer plus the libraries it loads, gathered through the injected
-   [resolve] — both available while the current text does not parse.
-
-   The kernel and interrogator vocabularies are closed sets the parser matches as
-   string literals; OCaml offers no way to enumerate a [match], so they are
-   written out here. The library form heads ARE derived — from the [(form …)]
-   declarations the loaded libraries bring in. NEVER raises. *)
+(* Completion. A buffer being completed usually does not parse, so the context
+   comes from a lexical scan and the names from the buffer plus the libraries
+   it loads. Kernel words are listed by hand (the parser matches them as
+   literals); library form heads are derived. Never raises. *)
 
 open Writ_syntax
 
@@ -26,7 +18,7 @@ let item ?detail label kind =
     | Some d -> [ ("detail", Json.String d) ]
     | None -> []))
 
-(* The twenty-eight reserved words of the language (kernel §9). *)
+(* The reserved words of the language (kernel §9). *)
 let reserved =
   [
     "use";
@@ -58,13 +50,8 @@ let reserved =
     "some";
   ]
 
-(* The interrogator's file-format words (kernel §9) — NOT the language.
-
-   The modalities are read from [Claims_parser], not listed again: they are the
-   words the parser accepts, and a hand-kept copy of them is a copy that
-   eventually offers a word the parser refuses, or refuses to offer one it
-   accepts. The rest are file-format vocabulary the parser recognises
-   structurally rather than by name, so they are written out. *)
+(* The interrogator's file-format words (kernel §9). The modalities come from
+   [Claims_parser] so they cannot drift from what it accepts. *)
 let interrogator =
   ("property" :: List.map fst Writ_syntax.Claims_parser.modalities)
   @ [
@@ -88,7 +75,6 @@ let dedup xs =
 let is_atom = function Reader.Atom _ -> true | _ -> false
 let atom_str = function Reader.Atom (s, _) -> [ s ] | _ -> []
 
-(* The name a [(form …)] declares, from its pattern head. *)
 let form_head = function
   | Reader.List (Reader.Atom ("form", _) :: rest, _) -> (
       match rest with
@@ -97,9 +83,8 @@ let form_head = function
       | _ -> None)
   | _ -> None
 
-(* One pass over a datum tree collecting (form heads, offerable value/entity
-   names). Values come from an enumerated type's value list — the single list of
-   bare atoms after the type name — and from an instance's roster entities. *)
+(* The form heads and offerable values in a datum tree: an enumerated type's
+   values and an instance's roster entities. *)
 let collect (ds : Reader.t list) : string list * string list =
   let forms = ref [] and vals = ref [] in
   let visit d =
@@ -143,10 +128,8 @@ let load_names ds =
       | _ -> None)
     ds
 
-(* The [(load "NAME")] targets found by a forward lexical scan, so they survive a
-   buffer that does not yet parse — completion's normal condition, since one
-   half-typed form makes [Reader.read_string] reject the whole file, while the
-   load lines above the edit are still complete. *)
+(* The [(load "NAME")] targets found lexically, so they survive a buffer that
+   does not parse. *)
 let lexical_loads (src : string) : string list =
   let n = String.length src in
   let out = ref [] in
@@ -169,10 +152,8 @@ let lexical_loads (src : string) : string list =
   done;
   List.rev !out
 
-(* The buffer's own datums plus every library it loads (one level: the shipped
-   libraries load nothing further). Loads are gathered both from the parsed
-   buffer and lexically, so form heads and value domains survive a half-typed
-   file. *)
+(* The buffer's datums plus every library it loads, one level deep (the
+   shipped libraries load nothing further). *)
 let universe (resolve : Loader.resolve) (src : string) : Reader.t list =
   let bufds = match Reader.read_string src with Ok ds -> ds | Error _ -> [] in
   let loads = dedup (load_names bufds @ lexical_loads src) in

@@ -2,8 +2,8 @@
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
 (* Runs writ-cert on a certificate `writ check` just wrote. The checker is
-   found, never required — $WRIT_CERT, then beside this executable, then the
-   PATH — and a missing one is reported as such ([Certify_json.verdict]). *)
+   looked up in $WRIT_CERT, beside this executable, then on the PATH; a missing
+   one is reported as a verdict, not an error. *)
 
 open Cli_io
 

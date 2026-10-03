@@ -1,14 +1,10 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Regions: a numeric column, cut by the constants a schema compares it
-   against. The constants partition the range into pieces on which every
-   CHECK is constant — below the least, exactly each, strictly between each
-   adjacent pair, above the greatest — and each piece becomes a member of an
-   enumerated domain. Nothing in the schema can tell two values in one piece
-   apart, so carrying the piece instead of the value loses nothing
-   (docs/tractability.md §3). Shared by the parser, which cuts, and the
-   emitter, which classifies a seed row's number into its piece. *)
+(* A numeric column cut into regions by the constants the schema compares it
+   against. Every CHECK is constant on a region, so a region can stand in for
+   the value losslessly (docs/tractability.md §3). The parser cuts; the
+   emitter classifies a seed row's number. *)
 
 let name (k : int) : string =
   if k < 0 then "minus" ^ string_of_int (-k) else string_of_int k

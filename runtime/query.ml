@@ -3,14 +3,9 @@
 
 open Writ_data
 
-(* Query bindings: the rows of a roster tuple satisfying the guard at the
-   initial state or an addressed state. No proofs are attached here — those
-   belong to the checker (the [checker] module holds the state-category
-   morphisms). *)
-
-(* Enumerate the binding rows: the cartesian product of the binders' rosters,
-   kept where the guard holds at the addressed state (default: the initial
-   state). Each row lists the bindings in binder order. *)
+(* Query bindings: the rows of the binders' rosters for which the guard holds
+   at the addressed state (default: the initial one), each row in binder
+   order. Witnesses belong to [Checker]. *)
 let run (sp : Space.t) (q : Claims.query) ?at () : (string * string) list list =
   let ctx = sp.Space.ctx in
   let st = match at with Some s -> s | None -> sp.Space.initial in

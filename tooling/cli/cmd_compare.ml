@@ -1,15 +1,10 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_compare] — the [writ compare] verb and its [--git] form. It is the
-   largest of the verbs because it is the one with I/O of its own: two models
-   instead of one, a [--map] file to parse, and a shell out to git. Keeping all
-   of that here leaves [Compare] a pure string builder and [Writ] a dispatch.
-
-   [writ compare OLD NEW [--map M]] (kernel §17): the guarantees to weigh come
-   from OLD's sibling [.claims] (the old contract), applied to BOTH models;
-   [Compare.run] classifies each equation/property preserved / LOST / gained.
-   A LOST is a finding -> exit 1. *)
+(* [writ compare OLD NEW [--map M]] and its [--git] form (kernel §17). OLD's
+   sibling [.claims] is the contract, applied to both models; [Compare.run]
+   classifies each equation/property as preserved, LOST or gained. A LOST is
+   a finding: exit 1. *)
 
 open Writ_data
 open Writ_syntax
@@ -18,7 +13,7 @@ open Cli_io
 
 let empty_claims : Claims.t = { props = []; queries = []; accepts = [] }
 
-(* Parse a [--map] file: bare [(map X => Y)] rename datums, front end in bin. *)
+(* A [--map] file: bare [(map X => Y)] rename datums. *)
 let parse_map (path : string) : (string * string) list =
   match read_file path with
   | Error e -> die 2 (path ^ ": " ^ e)
@@ -70,9 +65,7 @@ let run ?(json = false) (old_p : string) (new_p : string)
   let new_sp = build_space new_p (load_model new_r new_p) in
   emit_compare ~json old_sp new_sp (claims_for old_r old_m old_p) mp
 
-(* Fetch a revision of a file with [git show REV:path] into a temp file, read
-   it back, and delete it — Stdlib only ([Sys.command] + [Filename.temp_file]),
-   no [unix] dependency. *)
+(* [git show REV:path] via a temp file, to stay Stdlib-only (no [unix]). *)
 let git_show (rev : string) (path : string) : string =
   let tmp = Filename.temp_file "writ-git-" ".writ" in
   let cmd =
@@ -91,9 +84,8 @@ let git_show (rev : string) (path : string) : string =
       Sys.remove tmp;
       die 2 e
 
-(* A resolver that serves [content] as the model's own basename (the revision's
-   source) and defers every [(load …)] target to the working tree — a
-   documented simplification: cross-revision library drift is not tracked. *)
+(* Serves the revision's source as the model and every [(load …)] from the
+   working tree: library changes across revisions are not tracked. *)
 let git_resolve (model : string) (content : string) : Loader.resolve =
   let base = make_resolve model in
   let entry = Filename.basename model in

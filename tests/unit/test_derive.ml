@@ -1,14 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Derivation tests (TDV): [Facts] and [Derive], extension §2 and §6 — the
-   built-in relations, and the stratified semi-naive fixpoint over them.
-
-   Every expected row set below is enumerated BY HAND from the fixture, never
-   copied from what the engine printed: a test that records the output cannot
-   fail when the output is wrong. rules_base.writ wires nabu → mid → cabinet and
-   flips two stances once each, so its derived category is four situations and
-   four edges — small enough to count. *)
+(* Derivation tests: [Facts] and [Derive] (extension §2, §6). Expected rows are
+   counted by hand: rules_base.writ wires nabu → mid → cabinet, four
+   situations, four edges. *)
 
 open Writ_data
 open Writ_syntax
@@ -49,8 +44,6 @@ let model_file name =
 let space m =
   match Space.build m with Ok sp -> sp | Error e -> failwith ("space: " ^ e)
 
-(* [Rules_check.check] is the only constructor of a [Rules.program], so it is
-   the only way in here too — the engine cannot be handed anything unchecked. *)
 let program_of m src =
   match Rules_parser.parse m.Model.schema (read src) with
   | Error e -> failwith ("rules: " ^ Errors.to_string e)
@@ -84,10 +77,7 @@ let reach = Derive.run base_sp (program base "space.rules")
 
 (* ── The specification's own transitive closure ──────────────────────────── *)
 
-(* The base rule gives (nabu mid) and (mid cabinet) — cabinet's cell is vacant
-   and a vacant cell derives NOTHING, which is the partiality the whole language
-   is about — and the recursive rule adds (nabu cabinet). Three rows, no
-   fourth. *)
+(* cabinet's vacant cell derives nothing: three rows. *)
 let () =
   check "the transitive closure is exactly the three rows the wiring forces"
     (all closure "subordinate"
@@ -101,12 +91,8 @@ let () =
     (backward = [ [ "mid"; "cabinet" ]; [ "nabu"; "cabinet" ] ]);
   check "the backward image is a strict subset of the unbound answer"
     (List.length backward < List.length (all closure "subordinate"));
-  (* Two different negatives, and the whole point of gap 5b is that they must
-     not look alike. `cabinet` and `nabu` are both real people, so asking for a
-     pair that is simply not in the relation is an ANSWER: no rows. An atom no
-     roster holds cannot appear in any row of any relation, so asking about it is
-     a mis-asked question, and reporting it as "no rows" left the author unable
-     to tell a false claim from a typo. *)
+  (* A pair not in the relation is an answer; an atom no roster holds is a
+     mis-asked question. *)
   check "a row that does not hold is an empty answer"
     (rows closure "subordinate" [ Some "cabinet"; Some "nabu" ] = []);
   check "an atom no roster holds is reported, not answered empty"
@@ -125,9 +111,7 @@ let () =
 
 (* ── Recursion over the derived category ─────────────────────────────────── *)
 
-(* Counted by hand off the four edges above: four reflexive rows, the four
-   single steps, and 0 → 3 by either route. Nine, and no tenth — 1 and 2 are
-   siblings. *)
+(* Four reflexive rows, four steps, and 0 → 3. *)
 let pairs = List.map (fun (a, b) -> [ string_of_int a; string_of_int b ])
 
 let () =
@@ -143,9 +127,7 @@ let () =
   check "and the backward image of 2 runs the dynamics in reverse"
     (rows reach "reach" [ None; Some "2" ] = [ [ "0"; "2" ]; [ "2"; "2" ] ])
 
-(* The same recursion over a state graph that loops. Every pair is reachable,
-   so this is where a derivation graph gets the chance to close a cycle — see
-   the acyclicity check at the end, which a DAG could not put under strain. *)
+(* A looping graph strains the acyclicity check at the end. *)
 let cycle_m = model_file "cycle.writ"
 let cycle_sp = space cycle_m
 let cycle = Derive.run cycle_sp (program cycle_m "space.rules")
@@ -158,11 +140,8 @@ let () =
 
 (* ── Negation sees a COMPLETED stratum ───────────────────────────────────── *)
 
-(* `skipped` asks for a two-step chain that is not also a one-step fact of
-   `subordinate`. The only chain is nabu → mid → cabinet, and (nabu cabinet) IS
-   in `subordinate` — but only after the recursion has closed. So an empty
-   `skipped` is evidence the negation ran against the finished relation; had it
-   run against the base facts alone, or mid-round, it would derive that row. *)
+(* The only two-step chain is a `subordinate` fact once recursion has closed,
+   so an empty `skipped` shows negation saw the finished stratum. *)
 let () =
   let d =
     Derive.run base_sp
@@ -181,9 +160,7 @@ let () =
 
 (* ── No fact is among its own transitive premises ────────────────────────── *)
 
-(* Asserted directly, over every fact of every relation, because nothing at the
-   level of an answer set would notice its loss: the rows would be identical and
-   `--why` would walk for ever. *)
+(* Answer sets would not notice a cyclic derivation, but `--why` would loop. *)
 let fact_ids d =
   List.concat_map
     (fun rel -> List.filter_map (Derive_answers.fact_id d rel) (all d rel))
@@ -218,11 +195,8 @@ let () =
 
 (* ── Demand: one question, one cone ──────────────────────────────────────── *)
 
-(* [~only] must change the COST and never the ANSWER. Three relations: `want`
-   rests on `dep` (positively) and on `neg` (negatively), and `spare` on
-   nothing anyone asked for. Pruning to `want` has to keep both dependencies —
-   a dropped negative premise would silently turn `not` into "true", which is
-   the failure mode worth a test of its own — and drop only `spare`. *)
+(* [~only] changes cost, never the answer: pruning to `want` keeps `dep` and
+   the negative premise `neg`, and drops `spare`. *)
 let demand_src =
   "(relation dep 1)\n\
    (rule (dep S) (situation S))\n\
@@ -248,8 +222,7 @@ let () =
   check "a relation nothing asked for is not computed at all"
     (Derive_answers.sorts_of only "spare" = None
     && Derive_answers.sorts_of full "spare" <> None);
-  (* Asking for a built-in prunes every user rule and still answers, because the
-     built-ins are extensional and seeded before any stratum runs. *)
+  (* Built-ins are seeded before any stratum. *)
   let b = Derive.run ~only:"edge" base_sp (prog ()) in
   check "a built-in can be the question, with no user relation computed"
     (all b "edge" = all full "edge" && Derive_answers.sorts_of b "want" = None)

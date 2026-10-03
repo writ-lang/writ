@@ -1,14 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Report_derive], extension §7 and §9 — the strings `writ derive` prints.
-
-   Every expectation below is written out in full rather than compared against
-   what the printer produced: spacing IS the contract here (two spaces of row
-   indent, two spaces per tree level), and a test that echoes the output cannot
-   fail when the output is wrong. The fixture is rules_base.writ, whose wiring —
-   nabu → mid → cabinet, cabinet vacant — is small enough to enumerate by
-   hand. *)
+(* [Report_derive] (extension §7, §9): the text `writ derive` prints, written
+   out in full because the spacing is the contract. *)
 
 open Writ_data
 open Writ_syntax
@@ -46,8 +40,6 @@ let model_file name =
   | Ok m -> m
   | Error e -> failwith (name ^ ": " ^ Errors.to_string e)
 
-(* [Rules_check.check] is the only constructor of a [Rules.program], so the
-   printer is only ever shown tables the checker admitted. *)
 let derive m src =
   let sp =
     match Space.build m with Ok sp -> sp | Error e -> failwith ("space: " ^ e)
@@ -79,9 +71,7 @@ let space_rules = derive base (fixture "space.rules")
 
 (* ── Rows (§9) ───────────────────────────────────────────────────────────── *)
 
-(* A header line, then every row indented two spaces. The count on the header
-   is what makes an empty answer legible as an answer rather than as a report
-   that stopped early. *)
+(* A header with a count, so an empty answer reads as an answer. *)
 let () =
   let out =
     Report_derive.rows closure "subordinate" (all closure "subordinate")
@@ -106,9 +96,7 @@ let () =
        (bound closure "subordinate" [ Some "nabu"; Some "mid" ])
     = joined [ "subordinate  (1 row)"; "  nabu  mid" ])
 
-(* A situation is its bare [Space.index], never [s0]: an entity legitimately
-   named [s3] exists, so an [s] prefix would be ambiguous in exactly the column
-   it was meant to clarify. *)
+(* A situation is its bare index, never [s0]: an entity may be named [s3]. *)
 let () =
   let out = Report_derive.rows space_rules "reach" (all space_rules "reach") in
   check "a Situation column prints as a bare integer"
@@ -123,9 +111,7 @@ let () =
 
 (* ── Derivation trees (§7) ───────────────────────────────────────────────── *)
 
-(* nabu's subordination to the cabinet is two rule applications deep: the
-   recursive rule over `mid`, whose own derivation is the base rule. So the
-   tree has a four-space line, and that depth is what --why exists for. *)
+(* Two rule applications deep: a four-space line. *)
 let () =
   check "a two-deep derivation indents two spaces per level"
     (Report_derive.why closure "subordinate" [ "nabu"; "cabinet" ]
@@ -137,9 +123,7 @@ let () =
           "    is mid.reports-to cabinet";
         ])
 
-(* §7's three kinds of leaf, in one tree, each written differently: a fact read
-   off the space, a guard checked against the model, and an absence completed
-   by a lower stratum. *)
+(* §7's three kinds of leaf: a fact, a guard, a completed absence. *)
 let three_leaves =
   derive base
     (joined
@@ -168,9 +152,7 @@ let () =
     (Report_derive.why three_leaves "step" [ "0"; "1" ]
     = joined [ "step 0 1"; "  edge nabu-speaks 0 1" ])
 
-(* A fact that does not hold is an answer, not a failure: it is named and
-   reported underived, because an empty tree would be indistinguishable from a
-   fact with no premises. *)
+(* A fact that does not hold is reported as underived, not as an empty tree. *)
 let () =
   check "a fact that is not derived prints a `not derived` line"
     (Report_derive.why closure "subordinate" [ "nabu"; "nabu" ]

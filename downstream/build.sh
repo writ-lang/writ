@@ -3,25 +3,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Build the downstream regression image with every downstream branch pinned to
-# the commit it points at right now.
+# its current commit, so the clone cache is keyed on the commit, not "main".
 #
 #   downstream/build.sh                          # every repository at main
 #   PROBLEMS_REF=my-branch downstream/build.sh   # one repository elsewhere
 #   ARCH_REPO=https://github.com/me/writ-arch.git downstream/build.sh
 #   downstream/build.sh --no-cache               # extra args go to docker build
-#   downstream/build.sh --print-args             # NAME=VALUE lines, no build
+#   downstream/build.sh --print-args             # NAME=VALUE lines, no build (CI)
 #
-# WHY RESOLVE AT ALL. A RUN that clones "main" is cached on the word "main",
-# so a rebuild would keep testing against a stale checkout and say nothing.
-# Passing the commit makes the cache key the thing that actually matters.
-#
-# The repositories are read from the ARG lines in downstream/Dockerfile, so a
-# repository is added in one place. Each one is NAME_REPO and NAME_REF there,
-# and the same names are honoured from the environment here.
-#
-# --print-args resolves and prints the build arguments, one NAME=VALUE per
-# line, and builds nothing. The CI workflow uses it to hand them to
-# docker/build-push-action, so CI and a laptop resolve refs the same way.
+# The repositories are read from the NAME_REPO / NAME_REF ARG lines in
+# downstream/Dockerfile.
 set -eu
 cd "$(dirname "$0")/.."
 

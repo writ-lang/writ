@@ -1,22 +1,7 @@
-# Run every repository that uses writ against this one: downstream/Dockerfile.
-#
-# WHY IT EXISTS. ci.yml proves writ passes its own suites; image-check.yml
-# proves the runtime image builds. Neither notices a change here breaking
-# writ-problems, writ-arch, writ-scheduling-verification, mgtt2writ or
-# writ-vscode, because those build FROM a published writ and only meet a
-# change after it is released. This is where they meet it on the pull request.
-#
-# THE BUILD IS THE TEST, as in image-check.yml: each suite is a RUN in its own
-# check-* stage, and the final stage depends on all of them. BuildKit runs the
-# independent checks in parallel, and the build fails on the first that fails.
-# Nothing is pushed or loaded.
-#
-# FOUR TRIGGERS, because the thing under test moves from two sides:
-#   pull_request / push to main   writ changed; were the dependents broken?
-#   schedule                      a dependent changed; does it still pass
-#                                 against writ's main? Nothing here would
-#                                 otherwise run when only they moved.
-#   workflow_dispatch             any combination of refs, by hand.
+# Run every repository that uses writ against this checkout (downstream/Dockerfile),
+# so a change that breaks a dependent fails on its pull request, not after
+# release. The build is the test: each suite is a RUN in its own stage.
+# The nightly schedule catches dependents that changed while writ did not.
 
 name: downstream
 
@@ -58,10 +43,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Branch names resolved to commits by the SAME script `make downstream`
-      # uses, so a clone layer is cached on the commit rather than on the word
-      # "main", and CI and a laptop cannot disagree on what a ref means.
-      # Outside workflow_dispatch the inputs are empty and every ref is main.
+      # Resolve refs to commits with the same script `make downstream` uses, so
+      # clone layers cache on the commit, not on "main".
       - id: refs
         env:
           PROBLEMS_REF: ${{ inputs.problems_ref || 'main' }}
@@ -78,12 +61,10 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      # One cache scope of its own: the runtime image's scopes hold different
-      # layers, and sharing would have the two evict each other.
+      # Own cache scope, so it does not evict the runtime image's layers.
       - uses: docker/build-push-action@v7
         env:
-          # Plain progress, so each suite's whole output is in the log rather
-          # than folded into BuildKit's last-few-lines view.
+          # Plain, so each suite's full output is in the log.
           BUILDKIT_PROGRESS: plain
         with:
           context: .

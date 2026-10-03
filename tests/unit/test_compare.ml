@@ -1,10 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Compare tests (T3): load the fixture pair through the real front end, run
-   [Compare.run], and assert the §17 classification — a genuinely lost guarantee
-   is reported LOST with the new model's witness, and a preserved equation stays
-   preserved. Stdlib only; the resolver reads tests/unit/fixtures then core/stdlib. *)
+(* Compare tests: §17's classification over the fixture pair. *)
 
 open Writ_data
 open Writ_syntax
@@ -27,10 +24,7 @@ let contains ~sub s =
   in
   go 0
 
-(* Ascend from the cwd to the repo root (the nearest ancestor with
-   core/stdlib/stdlib.writ), then resolve a name under core/stdlib/ then
-   tests/unit/fixtures/ — dune runs the test from _build/default/tests/unit, not
-   the repo root. *)
+(* dune runs tests from _build/default/tests/unit, so walk up to the root. *)
 let repo_root () =
   let rec up dir n =
     if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir

@@ -3,10 +3,8 @@ The river crossing (writ-problems/river), as Lean theorems.
 
 The certificate was written by
     writ check river.writ --claims river.claims --certificate river.cert.json
-and only its MODEL and PROPERTIES are read here; the graph and the verdicts in
-it are ignored. `by writ` re-explores the space and the kernel checks the
-answer — so these are theorems about the model writ's front end produced, not
-about what writ said of it.
+Only its model and properties are read; `by writ` re-explores the space and the
+kernel checks the answer.
 -/
 import WritCert
 

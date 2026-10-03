@@ -1,20 +1,13 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* What `writ sql` understands of a relational schema — which is deliberately
-   less than SQL, and exactly as much as an olog can mean.
+(* What `writ sql` understands of a relational schema: as much as an olog can
+   mean. Anything else in the DDL is declined, recorded with its line and
+   reason, never dropped silently. *)
 
-   Everything a DDL says that is not here is DECLINED: recorded with its line
-   and its reason, never dropped in silence. A skipped construct that nobody is
-   told about turns "writ proved this schema safe" into a claim about a schema
-   nobody has. *)
-
-(* A comparison of a column against an integer constant. It never reaches the
-   model as arithmetic: [cut_regions] turns every such column into an
-   enumerated domain of the REGIONS the constants cut its range into, and the
-   comparison into membership of the regions that satisfy it — the quotient
-   docs/tractability.md §3 proves exact. A comparison between two columns has
-   no such quotient and stays declined. *)
+(* A comparison of a column against an integer constant. [cut_regions] turns
+   it into membership of the column's regions ([Sql_regions]); a comparison
+   between two columns is declined. *)
 type cmp = Lt | Le | Gt | Ge | Eq | Ne
 
 type check =
@@ -33,11 +26,8 @@ type column = {
   domain : Sql_names.domain;
   nullable : bool;
   fixed : bool;
-      (** wiring rather than state. A foreign key defaults to [true] — a
-          reference is the shape of the world, and a `fixed` arrow costs the
-          state space nothing — and anything else to [false]. A `-- writ:`
-          pragma overrides, which is how the export records an arrow whose
-          mutability the DDL alone could not have said. *)
+      (** wiring rather than state: [true] by default for a foreign key, [false]
+          otherwise; a `-- writ:` pragma overrides. *)
   refs : string option;  (** the referenced table, writ spelling *)
   comment : string option;
   cline : int;
@@ -50,19 +40,15 @@ type table = {
   pk : string list;
   checks : (string * check) list;
   check_lines : (string * int) list;
-      (** where each CHECK was written, by its writ name: the line `writ sql`
-          echoes as the law's origin, so a violation names the DDL line *)
+      (** each CHECK's DDL line, echoed as the law's origin *)
   comment : string option;
   tline : int;
 }
 
 type enum_def = { ename : string; emembers : string list }
 
-(* One INSERTed row. Read only under --with-data, and for a reason worth
-   stating: a writ instance is ONE starting configuration and the state space is
-   a product over it, so importing a table's ten thousand rows builds a model
-   that cannot be enumerated and was never a question anyone asked. Seed data
-   for a scenario is a different thing, and small. *)
+(* One INSERTed row (--with-data only): seed data for one starting
+   configuration. *)
 type row = {
   rtable : string;
   rvals : (string * string option) list;  (** column -> literal, None = NULL *)
@@ -77,8 +63,7 @@ type db = {
   rows : row list;
   declines : decline list;
   regions : (string * int list) list;
-      (** a region domain's name -> the sorted constants that cut it; what
-          [Emit_writ.value_for] classifies a seed row's number against *)
+      (** a region domain's name -> the sorted constants that cut it *)
 }
 
 let empty = { tables = []; enums = []; rows = []; declines = []; regions = [] }

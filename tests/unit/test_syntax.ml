@@ -1,15 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Front-end (core/syntax) unit tests. Stdlib only, no framework: each [check]
-   counts a pass or aborts with a located message.
-
-   Coverage: [Reader.split_dots]; form collection rejecting self/forward
-   references and accepting an earlier-only template; the expander rewriting a
-   toggle-like form to two transitions and expanding nullary + [&rest] forms; a
-   read→expand→parse round-trip producing the expected [Model.t]; a mistyped
-   path surfacing through the parser with a [line:col]; and the loader detecting
-   a load cycle and rejecting a library that contains [use]. *)
+(* Front-end (core/syntax) unit tests. *)
 
 open Writ_data
 open Writ_syntax
@@ -134,11 +126,9 @@ let () =
   | Ok _ -> check "expand: &rest produced the wrong datum count" false
   | Error e -> check ("expand &rest failed: " ^ Errors.to_string e) false
 
-(* --- A §7 claim-form: a SLOTTED form whose template names the form itself as a
-   data atom (the [property] symbol). Invoking it must expand to the [(property
-   …)] datum, NOT re-expand that bare name as a nullary invocation and fail with
-   "too few arguments" (regression). And a genuine nullary self-reference is
-   still rejected at collection — the recursion guard must not be weakened. *)
+(* --- A §7 claim form whose template names the form itself as a data atom
+   must expand to the [(property …)] datum, not re-expand it as a nullary call
+   (regression). A real nullary self-reference is still rejected. *)
 
 let () =
   let src =

@@ -1,14 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Data tests (TC): the .writ standard library, the political domain library, and
-   the worked model load + parse through the real front end.
-
-   IO is fine here (this is tests/unit, not the engine libraries): [resolve] mimics the CLI search
-   path — a filename is looked up in core/stdlib/ first, then in the model's directory.
-   The repo root is found by ascending from the cwd until core/stdlib/stdlib.writ is seen,
-   so the test runs the same under `dune exec` (cwd = root) and `dune runtest`
-   (cwd = the build dir). *)
+(* Data tests: the standard library, the political domain library and the
+   worked model through the real front end. [resolve] mimics the CLI search
+   path. *)
 
 open Writ_data
 open Writ_syntax
@@ -29,8 +24,6 @@ let read_file path =
   close_in ic;
   s
 
-(* Ascend from the cwd to the repo root — the nearest ancestor holding
-   core/stdlib/stdlib.writ. *)
 let repo_root () =
   let rec up dir n =
     if Sys.file_exists (Filename.concat dir "core/stdlib/stdlib.writ") then dir
@@ -53,7 +46,6 @@ let resolve : Loader.resolve =
   | Some p -> Ok (read_file p)
   | None -> Errors.err ("no such file: " ^ name)
 
-(* The stdlib and the domain library both parse as libraries. *)
 let () =
   (match Loader.load_library resolve "stdlib.writ" with
   | Ok _ -> check "load_library: stdlib.writ parses" true
@@ -63,14 +55,12 @@ let () =
   | Error e ->
       check ("load_library politics.lib.writ: " ^ Errors.to_string e) false
 
-(* The worked model loads (stdlib + politics.lib), expands, and parses. *)
 let () =
   match Loader.read_model resolve "tests/models/any_model.writ" with
   | Error e -> check ("read_model any_model.writ: " ^ Errors.to_string e) false
   | Ok m -> (
-      (* The transcription yields 18 transitions: bill-cycle 4, case-pipeline 2,
-         swing 2, captured-by ×2, restored-by ×2, declare/lift/gap emergency 3,
-         support erode ×2 + recover 1. *)
+      (* bill-cycle 4, case-pipeline 2, swing 2, captured-by ×2, restored-by
+         ×2, emergency 3, support erode ×2 + recover 1. *)
       check "read_model: 18 transitions" (List.length m.Model.transitions = 18);
       let sets_bill =
         List.exists
@@ -103,11 +93,8 @@ let () =
             (Array.length st = 8)
       | Error e -> check ("build_ctx: " ^ e) false)
 
-(* An END-TO-END n/a (kernel §8): a property whose path names an arrow the schema
-   lacks is n/a through the REAL loader/parser — not a parse error. Before the
-   fix, parse-time path type-checking of property formulas rejected the unknown
-   arrow outright (exit 2); now only the SHAPE is decoded and arrow resolution is
-   deferred to [Checker.check], which returns [Not_applicable] (exit 0). *)
+(* Kernel §8, end to end: a property naming a missing arrow is n/a, not a
+   parse error. *)
 let () =
   match Loader.read_model resolve "na.writ" with
   | Error e -> check ("read_model na.writ: " ^ Errors.to_string e) false
@@ -134,11 +121,8 @@ let () =
                     (String.length r >= 3 && String.sub r 0 3 = "n/a")
               | _ -> check "na: expected exactly one property" false)))
 
-(* The many-to-many form is `span`, and `relation` belongs to the .rules file
-   type. Both halves are checked against the REAL stdlib, expanded by the real
-   expander, because the collision they guard against was invisible to a test
-   that transcribed the form instead of loading it: one expander serves every
-   file type, so a stdlib form named `relation` rewrites a rules declaration. *)
+(* The many-to-many form is `span`; `relation` belongs to .rules, and one
+   expander serves both. *)
 
 let rec sexp (d : Reader.t) =
   match d with
@@ -195,10 +179,7 @@ let contains_sub ~sub s =
   in
   go 0
 
-(* Cross-FILE is the case that bites in practice: neither file holds a duplicate
-   on its own, so the check has to run over the loaded universe (§6.2), after
-   inlining — which is why it lives in [Parser.collect_decls] and not in [Decl].
-   Uses the real loader and the real stdlib rather than a hand-built pair. *)
+(* Cross-file duplicates are caught over the loaded universe (§6.2). *)
 let () =
   let src =
     "(load \"stdlib.writ\")\n\

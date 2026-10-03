@@ -1,18 +1,9 @@
 # A tour of Writ
 
-Ten steps. Each one is a complete model you can run, each adds a few words,
-and the output shown is the output you get. At the end: [the whole language
-on one page](#cheat-sheet).
-
-This is the on-ramp. [`kernel-spec.md`](kernel-spec.md) is the reference —
-precise, normative, and not meant to be read front to back first.
-
-You need `writ` on your `PATH` (`make install-writ`). Put each file in an empty
-directory and run the command under it.
-
-Every block carries **line numbers, restarting at 1 in each block**, so a line
-can be named — "step 7, line 12". They are not part of the source; strip the
-leading number and two spaces before running.
+Ten runnable steps, each adding a few words, ending with [the whole language
+on one page](#cheat-sheet); [`kernel-spec.md`](kernel-spec.md) is the
+reference. You need `writ` on your `PATH` (`make install-writ`). Line numbers
+are for reference only — strip them before running.
 
 ---
 
@@ -40,19 +31,14 @@ leading number and two spaces before running.
 
 **Five words — 5 of 26.**
 
-- `schema` — declares a map: what kinds of things exist, and how they point.
-- `type` — one kind of thing. `book` is now a kind.
-- `instance` — one concrete filling of that map.
+- `schema` — what kinds of things exist, and how they point.
+- `type` — one kind of thing.
+- `instance` — one concrete filling of the schema.
 - `use` — which schema the model runs on.
 - `initial` — which filling it starts from.
 
-`(book hamlet)` is a **clause**: it declares `hamlet` as a member of type
-`book`. The head is the type's own name, not a keyword — which is why clauses
-cost no vocabulary. An instance is a list of them, and there is only ever this
-one shape.
-
-One situation, because nothing can vary; no moves, so it is a dead end.
-**`writ` reports the size of a model before you ask it anything.**
+`(book hamlet)` is a **clause** declaring `hamlet` a `book`. Nothing can vary,
+so there is one situation, and with no moves it is a dead end.
 
 ## 2. A thing with a state
 
@@ -79,17 +65,11 @@ One situation, because nothing can vary; no moves, so it is a dead end.
 
 **Two more — 7 of 26.**
 
-- `arrow` — how one kind of thing points at another. Every `book` has a
-  `status`.
-- `to` — where the arrow lands: a member of `shelf-state`.
+- `arrow` — how one kind of thing points at another.
+- `to` — where the arrow lands.
 
-The clause grew a **slot**: `(book hamlet (status available))` reads as one
-sentence — a book, hamlet, whose status is available. Declaring the entity and
-filling its slots is one act, in one place.
-
-A **slot** is one entity plus one arrow — the cell where that entity's answer
-lives. The schema names the arrows, the instance names the entities, and every
-pairing of the two is a slot:
+A **slot** is one entity plus one arrow — the cell holding that entity's
+answer:
 
 ```
            status
@@ -98,12 +78,7 @@ pairing of the two is a slot:
           └───────────┘
 ```
 
-Columns are arrows, rows are entities, cells are slots. Nothing declares a slot
-directly; you get exactly the ones the schema and the instance imply. Add a
-second book and there are two, add a second arrow and there are four.
-
-Two arrangements now exist **on paper** — available and lent — but still only
-one *state*. A state is one the model can reach, and nothing yet moves.
+Two values are possible, but only one state is reachable: nothing moves yet.
 
 ## 3. A move, and a move back
 
@@ -111,7 +86,8 @@ one *state*. A state is one the model can reach, and nothing yet moves.
  1  ;; added after (initial shelf)
  2  (transition lend
  3    (when (is hamlet.status available))
- 4    (do  (set hamlet.status lent)))```
+ 4    (do  (set hamlet.status lent)))
+```
 
 ```console
  1  $ writ check library.writ
@@ -129,22 +105,16 @@ one *state*. A state is one the model can reach, and nothing yet moves.
 - `is` — a guard: tests a chain against a value.
 - `set` — an effect: writes one.
 
-You never write a state or an edge. `lend` is a *rule* for edges — it
-contributes one from every state where its guard is true. Here that is one
-state, so one edge. The book is now stuck out on loan, hence the dead end. Add
-the way back:
-
-Note what a transition is written over: **entities, not types.** `hamlet` is
-named outright, and it resolves because `(initial shelf)` chose the instance it
-belongs to — a model has exactly one, so nothing has to say which. There is no
-way to write "any book": a `some`-bound variable is legal in a guard but not in
-an effect. That is deliberate — one datum stays one rule for edges — and it is
-why step 6 needs forms.
+You never write a state or an edge: `lend` contributes an edge from every
+state where its guard is true. A transition names entities, not types — there
+is no "any book" in an effect. The book is now stuck on loan; add the way
+back:
 
 ```lisp
  1  (transition return
  2    (when (is hamlet.status lent))
- 3    (do  (set hamlet.status available)))```
+ 3    (do  (set hamlet.status available)))
+```
 
 ```console
  1  $ writ check library.writ
@@ -179,33 +149,20 @@ models.
  9    "from every reachable state, a loan is still possible"
 ```
 
-**No new language words — still 12 of 26.** `property`, `possible` and `live`
-belong to the claims file, not to the language. A model cannot see them, which
-is why one set of questions can be put to many models.
+**No new language words — still 12 of 26.** These are claims-file words.
 
 - `property` — a named question, with an optional doc string.
 - `(possible F)` — some reachable state satisfies F.
 - `(never F)` — no reachable state does.
 - `(live F)` — from *every* reachable state, an F-state is still reachable.
 
-The difference between the three is the point of the tool. A holding
-`possible` prints its route — `1. lend` — because the shortest way to get there
-*is* the answer; each step says which situation it lands in (`#1`, an index
-`writ show --at 1` renders) and which cells it changed. `live` is the one that finds traps; it has nothing to report
-yet, and will in step 10.
-
-**What each modality wraps is a guard — the language's, not the claims file's.**
-`(is hamlet.status lent)` here is the same construct as the `when` in step 3,
-and it means the same thing. A guard has three homes: the `when` of a
-transition, the body of an `equation` (step 7), and the inside of a modality.
-That is why a claims file can say `and`, `not`, `defined` or `some` without
-those being claims words — a claims file is a thin vocabulary wrapped around
-ordinary guards.
+A holding `possible` prints its shortest route: each step names the situation
+it lands in (`#1`; `writ show --at 1` renders it) and the cells it changed.
+What a modality wraps is an ordinary guard, the same as a `when`.
 
 ## 5. Nothing, as itself
 
-A book on loan is held by someone. A book on the shelf is held by **nobody** —
-and nobody is not a person.
+A book on the shelf is held by nobody — and nobody is not a person.
 
 ```lisp
  1  (schema library
@@ -262,13 +219,7 @@ and nobody is not a person.
 - `and` — a guard: every operand true.
 - `not` — a guard: the operand false.
 
-The last three are **language** words, not claims words, even though the file
-above is where they first appear — guards work in a `when` exactly as they work
-inside a modality (step 4). `(when (not (defined hamlet.holder)))` is a legal
-transition guard, and means what it says here.
-
-`hamlet` has two slots now, and one of them holds nothing — `writ` prints an
-empty slot as `∅`:
+`writ` prints an empty slot as `∅`:
 
 ```
            status     holder
@@ -277,19 +228,12 @@ empty slot as `∅`:
           └───────────┴────────┘
 ```
 
-There is no `nobody` person, and that is deliberate — see
-[why partial](kernel-spec.md#23-the-arrows-are-partial).
-
-`defined` asks about the slot itself, which is not the same as testing a value.
-With the slot empty, `(is hamlet.holder ana)` and `(is hamlet.holder ben)` are
-*both* false. Both-false is the signature of an empty slot; `defined` is what
-tells it apart from an answer you did not expect.
+With the slot empty, every `(is hamlet.holder …)` is false; `defined` asks
+whether there is an answer at all ([why partial](kernel-spec.md#23-the-arrows-are-partial)).
 
 ## 6. Your own vocabulary
 
-`lend-ana` and `lend-ben` differ by one word, because a transition names
-entities and cannot quantify over a type (step 3). Forms are how that gap is
-closed — name the shape once:
+`lend-ana` and `lend-ben` differ by one word. A form names the shape once:
 
 ```lisp
  1  (form (lend-to NAME WHO)
@@ -313,22 +257,15 @@ closed — name the shape once:
 **One more — 19 of 26.**
 
 - `form` — declares a pattern and what it expands into.
-- `NAME`, `WHO` — ALL-CAPS atoms in the pattern are **blanks**, filled by
-  whatever the invocation puts there. A convention, not a keyword.
+- `NAME`, `WHO` — ALL-CAPS **blanks**, filled by the invocation.
 
-Byte-identical results, because a form can only **rename and paste**: it cannot
-compute, loop, or test. That is why an error inside expanded code still points
-at the line you wrote, and why whole domain vocabularies are libraries rather
-than compiler features.
-
-Pass a name through, as `NAME` does here. An unnamed transition works, but then
-reports have nothing to call it.
+A form only renames and pastes, so the result is identical and errors point at
+the line you wrote.
 
 ## 7. A law, and the tool breaking it
 
-Books belong to a branch; so do members; a book should only be lent to someone
-from its own branch. That is two routes through the schema that must agree —
-which is what an `equation` is.
+A book should only be lent within its own branch — two routes through the
+schema that must agree.
 
 ```lisp
  1  (load "stdlib.writ")
@@ -369,43 +306,32 @@ which is what an `equation` is.
 **Three more — 22 of 26.**
 
 - `equation` — declares a law: an arrow-chain identity that must hold.
-- `fixed` — marks an arrow as **wiring**: set once by the instance, never
-  varying. `member-of` and `home` are facts about the world, not state.
-- `load` — pulls in another file. Needed here because `=` is *not* a kernel
-  word: it is a form from `stdlib.writ`.
+- `fixed` — marks an arrow as **wiring**: set by the instance, never varying.
+- `load` — pulls in another file; `=` is a form from `stdlib.writ`.
 
-An equation holds **a guard** — any guard — so `=` is a choice, not a fixture.
-It is the *vacuous* comparison: true whenever either side has no answer. Write
-the same law with `is`, which is strict, and the shelved book becomes a
-violation of it —
+`=` is vacuous: true when either side has no answer. Written with the strict
+`is`, the law is broken by the shelved book itself —
 
 ```
  1  equation borrow-local
  2    violated in 1 reachable situations   witness:
 ```
 
-— an empty witness, meaning zero moves: the initial situation, where `holder`
-is vacant. A book held by nobody is not breaking a rule about who may hold it.
-Choosing between `=` and `is` in a law is choosing what an empty slot means to
-that law, and it is the same decision as step 5, one level up.
+— an empty witness: the initial situation.
 
-**Declaring a law does not enforce it.** The violating state stays in the model
-and gets reported, with the exact move that reaches it: `lend-ben`. Exit status
-is 1 — a finding. A tool that silently deleted the illegal state could not have
-told you which of your own rules breaks your own law.
-
-Note the two separate lines. *Violated in 1 situations* is a fact about what is
-reachable. *Can be broken by* is a fact about what each move **writes** — a
-capability, listed for every move that touches a slot the law reads, whether or
-not it does break it today.
+A law is checked, not enforced: the violating state stays, reported with the
+move that reaches it, and the exit status is 1. *Violated in* is about what is
+reachable; *can be broken by* lists every move that writes a slot the law
+reads.
 
 ## 8. Own it, or guard it
 
-Two honest answers. Acknowledge the breakage:
+Either acknowledge the breakage:
 
 ```lisp
  1  ;; library.claims
- 2  (accept lend-ben borrow-local)```
+ 2  (accept lend-ben borrow-local)
+```
 
 ```console
  1  $ writ check library.writ --claims library.claims
@@ -421,18 +347,18 @@ Two honest answers. Acknowledge the breakage:
 
 **No new language words — still 22 of 26.**
 
-- `accept` — claims-file vocabulary: "this move is known to be able to break
-  that law." Every move that can break it and is *not* accepted is reported
-  `unadmitted`. The ledger is complete, or it complains.
+- `accept` — claims-file vocabulary: "this move may break that law." Any
+  such move not accepted is reported `unadmitted`.
 
-Or fix the rule, by tightening the guard:
+Or fix the rule by tightening the guard:
 
 ```lisp
  1  (form (lend-to NAME WHO)
  2    (transition NAME
  3         (when (and (is hamlet.status available)
  4                    (is WHO.member-of hamlet.home)))
- 5         (do  (set hamlet.status lent) (set hamlet.holder WHO))))```
+ 5         (do  (set hamlet.status lent) (set hamlet.holder WHO))))
+```
 
 ```console
  1  $ writ check library.writ
@@ -445,19 +371,18 @@ Or fix the rule, by tightening the guard:
  8  0
 ```
 
-The violating state is now unreachable, so there is nothing to report — and the
-model got **smaller**. A constraint that rejects candidates shrinks the search.
-`can be broken by` still lists all three, because that line never was about
-reachability.
+The violating state is now unreachable, and the model got smaller: a
+tighter constraint shrinks the search.
 
 ## 9. Where the rules stop
 
-Some questions the rules simply do not answer. Say so:
+Some questions the rules do not answer. Say so:
 
 ```lisp
  1  (transition lose
  2    (when (is hamlet.status lent))
- 3    (do  (gap "the rules do not say what happens to a lost book")))```
+ 3    (do  (gap "the rules do not say what happens to a lost book")))
+```
 
 ```console
  1  $ writ check library.writ
@@ -474,14 +399,11 @@ Some questions the rules simply do not answer. Say so:
 - `gap` — an effect: end the model here, with a message, instead of inventing
   a successor.
 
-A gap is reported with its message and the shortest route in, and it is *not* a
-dead end: a gap is a declared exit, a dead end is a silence nobody wrote down.
-The tool keeps them apart so you can tell "we decided not to model this" from
-"we missed this".
+A gap is a declared exit; a dead end is a stop nobody wrote down.
 
 ## 10. The trap
 
-One more move — withdrawing a book from circulation, with no way back:
+Withdrawing a book, with no way back:
 
 ```lisp
  1  (type shelf-state (available lent withdrawn))    ; was (available lent)
@@ -526,24 +448,16 @@ One more move — withdrawing a book from circulation, with no way back:
 17    p = ana
 ```
 
-**No new language words — 23 of 26, and that is where the tour ends.**
+**No new language words — 23 of 26, and the tour ends here.**
 
-- `query` — claims-file vocabulary: answer with the satisfying bindings rather
-  than yes or no.
+- `query` — claims-file vocabulary: answer with the satisfying bindings.
 - `where` — binds the variables a query ranges over.
 
-`lendable` still holds — a loan is possible. `always-lendable` **fails**, and
-the gap between those two answers is the whole reason for the tool: one lawful
-move puts the book somewhere no future move can lend it from again. `writ` names
-the move (`withdraw`), the state it strands you in, and prints the empty slot
-as `∅`.
-
-The three words the tour never needed are `or`, `some` and `&rest`. They are in
-the cheat sheet.
+`lendable` holds but `always-lendable` fails: one lawful move strands the book
+where it can never be lent again, and `writ` names it. The unused words, `or`,
+`some` and `&rest`, are in the cheat sheet.
 
 ## The whole model
-
-Assembled, this is what you have been building:
 
 ```lisp
  1  ;; library.writ
@@ -594,9 +508,6 @@ Assembled, this is what you have been building:
 46    (do  (set hamlet.status withdrawn)))
 ```
 
-46 lines of model and 11 of claims, using every idea in the language. The rest
-is the same words applied to bigger worlds.
-
 ---
 
 # Cheat sheet
@@ -613,10 +524,7 @@ is the same words applied to bigger worlds.
 | **Guards**   | `is` `defined` `and` `or` `not` `some`                               | the whole logic — one syntax, used by a move, a law and a claim alike |
 | **Forms**    | `form` `&rest`                                                               | rename and paste, nothing more                                         |
 
-`@` is punctuation, not a word. ALL-CAPS blanks are a convention, not
-syntax. Everything else — ordering, `=`, "for all", entire domain
-vocabularies — is a library of forms written in these 26. The kernel does not
-grow.
+Everything else — `=`, "for all", domain vocabularies — is forms over these.
 
 ## The shape of a file
 
@@ -656,9 +564,7 @@ grow.
 
 ## The claims file
 
-Not part of the language — a separate document the model cannot see. Only the
-words below are claims vocabulary; every `GUARD` in them is the language's own
-(§10.2), the same construct `when` and `equation` take.
+Every `GUARD` is the language's own (§10.2).
 
 ```
  1  (property NAME ["DOC"] (possible GUARD))        ; some reachable state satisfies it
@@ -700,35 +606,20 @@ stale law, a lost guarantee · **2** unreadable input.
 
 ## Things that will catch you once
 
-- **A `some`-binder can only be a chain root**, never the right-hand side of
-  `is`. `(some (p person) (is p.member-of north))` is fine;
-  `(is hamlet.holder p)` is not comparable, and makes the whole property
-  report as `n/a` rather than failing. To ask "is it held at all", use
-  `(defined hamlet.holder)`.
+- **A `some`-binder can only be a chain root.** `(is hamlet.holder p)` is not
+  comparable and reports `n/a`; use `(defined hamlet.holder)`.
 - **Forms are per file.** A `.claims` file using `=` or `all` needs its own
-  `(load "stdlib.writ")`; there is no implicit prelude.
-- **`is` is strict, `=` is vacuous.** `(is X v)` is false when the chain has no
-  answer. `(= A B)` is *true* when either side has none. Both are deliberate;
-  pick by whether an empty slot should break the rule.
-- **Name your transitions**, especially inside forms, or witnesses and law
-  reports have nothing to print.
-- **`writ query` reads the model's sibling `.claims` by default** —
-  `MODEL.writ` → `MODEL.claims`. `--claims FILE` overrides it, and is required
-  with `--stdin`, which has no sibling to find.
-- **A gap is not a dead end.** One is declared silence, the other is silence
-  nobody declared. They are reported separately on purpose.
-- **Slots need exactly one entity.** `(person ana ben)` declares two members;
-  `(person ana (member-of north))` declares one and fills a slot.
-  `(person ana ben (member-of north))` is an error rather than a broadcast —
-  say it twice if you mean it twice.
-- **All of an entity's slots go in one clause.** Entity names are fresh (§7),
-  so an entity is declared exactly once; there is no second clause to add to
-  later.
+  `(load "stdlib.writ")`.
+- **`is` is strict, `=` is vacuous** on an empty slot.
+- **Name your transitions**, or reports have nothing to print.
+- **`writ query` reads `MODEL.claims` by default**; `--claims FILE` overrides
+  it and is required with `--stdin`.
+- **Slots need exactly one entity**: `(person ana ben (member-of north))` is an
+  error.
+- **All of an entity's slots go in one clause** (§7).
 
 ---
 
-Next: [the language design](kernel-spec.md#2-language-design) — why partial,
-why not Turing-complete, why s-expressions — then
-[the spec](kernel-spec.md) as reference, and
-[writ-problems](https://github.com/writ-lang/writ-problems) for worked models
-larger than a book on a shelf.
+Next: [the language design](kernel-spec.md#2-language-design),
+[the spec](kernel-spec.md), and
+[writ-problems](https://github.com/writ-lang/writ-problems) for larger models.

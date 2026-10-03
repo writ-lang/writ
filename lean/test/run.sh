@@ -1,11 +1,8 @@
 #!/bin/sh
 # Copyright (C) 2026 Alex Kunich
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# The checker's own suite, run in the box (`make test`).
-#
-#   1. every proof and example builds — building IS the proof check;
-#   2. every fixture model, certified by the writ in this image, checks clean;
-#   3. every tampered certificate in test/tampered/ is refused (exit 1).
+# The checker's suite (`make test`): proofs build, fixtures certify clean, and
+# every tampered certificate is refused (exit 1).
 set -eu
 lake build
 cert=./.lake/build/bin/writ-cert

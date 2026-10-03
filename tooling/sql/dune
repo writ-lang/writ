@@ -1,27 +1,9 @@
-; The SQL bridge: a relational schema read as an olog, and back.
+; The SQL bridge: a relational schema read as an olog, and back. It is a
+; bridge to a foreign notation, so it lives in tooling/, not core/.
 ;
-; It lives in tooling/ rather than core/, and the line is worth stating because
-; the first cut got it wrong. `core/` is the LANGUAGE — the data model, the
-; front end, and the standard library. Everything that bridges writ to something
-; foreign lives here: `json` and `loadpath`, `lsp` and `mcp`. A PostgreSQL
-; dialect parser is a bridge to a foreign NOTATION exactly as writ_lsp is a
-; bridge to a foreign PROTOCOL, and putting one beside writ_data would assert
-; that SQL is part of what writ IS. It is not; the engine cannot tell this
-; library exists.
-;
-; Flat rather than lib/ + bin/, which is `json`'s and `loadpath`'s shape and not
-; `lsp`'s: those two split because they produce their own executable. `writ sql`
-; is a verb of the one CLI, so there is no second binary to separate from.
-;
-; It depends on [writ_data] and NOTHING ELSE — not the front end, not the
-; interrogator. That is not an accident of what it happens to need: the import
-; direction produces .writ TEXT (so it never builds a model, and a malformed DDL
-; can never reach the engine), and the export direction reads a [Schema.t],
-; which is a data-layer value. Keeping the dependency at one leaf is what makes
-; "the mapping" a thing you can test without a filesystem or a parser.
-;
-; IO-free, like every library here; the `writ sql` verb in tooling/cli/ does the
-; reading and writing.
+; It depends on [writ_data] only: import produces .writ text (so a malformed
+; DDL never reaches the engine) and export reads a [Schema.t]. IO-free; the
+; `writ sql` verb in tooling/cli/ does the reading and writing.
 
 (library
  (name writ_sql)

@@ -1,12 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The JSON rendering (docs/json.md). Every object is serialised and then
-   PARSED BACK, so the test proves two things at once: that what the tool
-   prints is JSON, and that it carries what the prose carries — the verdict,
-   the witness with the situation each step lands in, the stuck situation as
-   an index a reader can hand to `writ show`. Stdlib only; the resolver reads
-   core/stdlib then tests/unit/fixtures, as the compare suite does. *)
+(* The JSON rendering (docs/json.md). Every object is serialised and parsed
+   back. *)
 
 open Writ_data
 open Writ_syntax
@@ -71,7 +67,6 @@ let space m =
       check ("build: " ^ e) false;
       exit 1
 
-(* Serialise, then parse back: the object under test is the TEXT. *)
 let roundtrip (j : Json.t) : Json.t =
   match Json_parse.parse (Json.to_string j) with
   | Ok v -> v
@@ -134,11 +129,8 @@ let () =
   let last = nth (len w - 1) w in
   check "check: a step names its move"
     (String.length (str (get "move" last)) > 0);
-  (* The stuck situation IS where the witness lands: one numbering through the
-     whole tool, so `writ show --at` on either reaches the same situation. *)
   check "check: stuck_at is the witness's last landing"
     (int (get "stuck_at" p) = int (get "to" last));
-  (* The gap fixture: a declared hole, with its message and fewest moves. *)
   let g = nth 0 (get "gaps" j) in
   check "check: a gap carries its move" (str (get "move" g) <> "");
   check "check: a gap carries its message"
@@ -260,8 +252,7 @@ let () =
   check "show: the clause is parsed onto the property"
     (p.Claims.show = [ "captured" ]);
   let oc = Checker.check sp p in
-  (* A never broken at the initial situation: the route is empty, and the
-     situation singled out is #0 — where the query is then answered. *)
+  (* Broken at the initial situation: empty route, query answered at #0. *)
   let rows = Report.shown_rows ~queries:cl.Claims.queries sp p oc in
   check "show: answered at the violating situation"
     (match rows with
@@ -296,7 +287,6 @@ let () =
     (Report.shown_rows ~queries:cl.Claims.queries sp never_holds
        (Checker.check sp never_holds)
     = []);
-  (* A name no query declares is refused when the file is read, at the name. *)
   check "show: an undeclared query name is a read-time error"
     (match Loader.read_claims resolve m "shown_unknown.claims" with
     | Error e ->
@@ -311,8 +301,7 @@ let () =
 
 (* --- the certificate (docs/certificates.md) --------------------------------- *)
 
-(* What a second checker re-derives the answers from: the model, the
-   questions, and the answer — and not the graph, which the checker rebuilds. *)
+(* The certificate carries the model, questions and answers, not the graph. *)
 let () =
   let m = model "captured_trap.writ" in
   let sp = space m in

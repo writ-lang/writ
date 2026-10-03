@@ -1,17 +1,9 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Reading answers out of a [Derive_table.t]: what a relation's columns are, the
-   rows matching a bound query, and the identity of one ground fact. Split from
-   derive_table.ml at the seam between MAINTAINING the store — interning,
-   tables, insert/merge/probe — and INTERROGATING it. The two have different
-   readers: the store is where the fixpoint's cost lives, this is where the
-   command line's questions land. Both sides use the same [probe], which is the
-   point: a bound query is not a second traversal.
-
-   No I/O; every function returns values. How a row is printed is
-   [Report_derive]'s business, and whether an answer is worth exit 2 is the
-   CLI's. *)
+(* Reading answers out of a [Derive_table.t]: a relation's columns, the rows
+   matching a bound query, and one ground fact's identity. No I/O; printing is
+   [Report_derive]'s, exit codes the CLI's. *)
 
 open Writ_data
 
@@ -26,21 +18,9 @@ let relations t : string list =
   List.sort compare
     (Hashtbl.fold (fun k _ acc -> k :: acc) t.Derive_table.rels [])
 
-(* A bound query is the SAME fixpoint plus a filter, and the filter is the same
-   probe the join uses — symmetric in argument position, because the per-column
-   indexes are. That is what makes §2's "backward analysis is free" true rather
-   than aspirational: [(reach X 2)] is not a separate backward traversal, it is
-   [(reach S T)] answered through column 2's index. Rows come back in a
-   deterministic order; how they are printed is the caller's business. *)
-(* [Error (i, sort)] — argument [i] is a constant that column [i], of that sort,
-   can never hold: an atom where a state index belongs, an entity name no roster
-   has, a transition the model does not declare. Reported rather than folded
-   into an empty answer, because the two mean opposite things to the asker. A
-   relation with no matching rows is an answer (§4 makes it exit 0); a constant
-   that cannot appear is a mis-asked question, and answering "0 rows" leaves the
-   author with no way to tell which they got. The .rules file type rejects the
-   same mistake at read time with a position, so a query that let it through was
-   the looser of the two doors into one engine. *)
+(* A bound query through the join's own [probe], sorted. [Error (i, sort)]
+   when constant [i] can never appear in its column: a mis-asked question,
+   distinct from an empty answer (exit 0, §4). *)
 let query t rel (args : string option list) :
     (int array list, int * Rules.sort) result option =
   match Hashtbl.find_opt t.Derive_table.rels rel with
@@ -97,7 +77,6 @@ let fact_id t rel (args : string list) : Rules.fact_id option =
 let fact t (id : Rules.fact_id) : Rules.fact option =
   Hashtbl.find_opt t.Derive_table.by_id id
 
-(* [None] is a LEAF, not a missing entry (§7): an extensional fact read off the
-   space is derived from nothing and has no tree beneath it. *)
+(* [None] is a leaf (§7): an extensional fact has no tree beneath it. *)
 let derivation t (id : Rules.fact_id) : Rules.derivation option =
   Hashtbl.find_opt t.Derive_table.derivs id

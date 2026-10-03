@@ -4,20 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # The reference semantics
 
-What a writ model MEANS (kernel-spec §10, §12, §16.1), written as Lean
-definitions. Nothing here is efficient and nothing here is a certificate: this
-file is the specification the checker is proved against, and it is meant to be
-read beside `runtime/eval.ml` and `runtime/space.ml`, clause by clause.
-
-Names are interned to `Nat` before they reach this file (`WritCert.Import`).
-That is a representation choice, not a semantic one — writ compares names as
-strings and every comparison here is the same comparison on their codes — and it
-is what lets the kernel evaluate a model: `Nat` equality is a GMP comparison in
-the kernel, `String` equality is a walk over characters.
-
-Every recursion below is structural, on purpose: a definition by well-founded
-recursion does not unfold in the kernel, and `by writ` (`WritCert.Tactic`)
-needs the kernel to run these.
+What a writ model means (kernel-spec §10, §12, §16.1), mirroring
+`runtime/eval.ml`. Trusted: the checker is proved against it. Recursion is
+structural so the kernel can unfold it for `by writ`.
 -/
 
 namespace Writ
@@ -65,23 +54,18 @@ structure Transition where
   effects : List Effect
   deriving Repr, Inhabited
 
-/-- An equation (§8.6): a guard over one free root, its subject. `subject` is
-`none` only for a law writ would have rejected; writ reads such a law as holding,
-and so does `eqHolds`. -/
+/-- An equation (§8.6) over its subject; a `none` subject holds, as in writ. -/
 structure Equation where
   name : Name
   subject : Option Name
   body : Guard
   deriving Repr, Inhabited
 
-/-- A model after the front end is done with it: forms expanded, the instance
-split into wiring (`fixed`) and the layout of mutable slots (§8.4, §9). -/
+/-- A model after the front end: wiring (`fixed`) and mutable slots (§8.4, §9). -/
 structure Model where
-  /-- Every type's extent — an enumerated type's values, an open type's roster. -/
   members : List (Name × List Name)
   /-- The mutable slots, as (arrow, source entity), in state order. -/
   layout : List (Name × Name)
-  /-- The wiring: each fixed slot's content. -/
   fixed : List ((Name × Name) × Cell)
   init : State
   transitions : List Transition
@@ -94,20 +78,16 @@ def membersOf (M : Model) (ty : Name) : List Name := (M.members.lookup ty).getD 
 
 end Model
 
-/-- The position of the first `k` in `l`. -/
 def indexOf (k : Name × Name) : List (Name × Name) → Nat → Option Nat
   | [], _ => none
   | x :: xs, i => if x = k then some i else indexOf k xs (i + 1)
 
-/-- Read a slot: a mutable one from the situation, a fixed one from the wiring,
-and anything else as vacant (`State.get`). -/
+/-- A mutable slot from the situation, a fixed one from the wiring, else vacant. -/
 def getCell (M : Model) (s : State) (a src : Name) : Cell :=
   match indexOf (a, src) M.layout 0 with
   | some i => s.getD i none
   | none => (M.fixed.lookup (a, src)).getD none
 
-/-- Walk a chain from an entity (`Eval.eval_path`): an empty slot ends the walk
-with no answer. -/
 def walk (M : Model) (s : State) : Name → List Name → Option Name
   | cur, [] => some cur
   | cur, a :: rest =>
@@ -115,8 +95,7 @@ def walk (M : Model) (s : State) : Name → List Name → Option Name
     | none => none
     | some v => walk M s v rest
 
-/-- A chain's answer. Its root is a `some`-bound variable if `env` binds it,
-and otherwise the entity of that name. -/
+/-- A chain's root is a `some`-bound variable if `env` binds it, else an entity. -/
 def evalPath (M : Model) (s : State) (env : List (Name × Name)) (p : Path) : Option Name :=
   walk M s ((env.lookup p.root).getD p.root) p.steps
 
@@ -146,9 +125,8 @@ def evalAny (M : Model) (s : State) (env : List (Name × Name)) : List Guard →
   | g :: gs => evalGuard M s env g || evalAny M s env gs
 end
 
-/-- Which slot a target chain names: walk all but its last step, then take the
-last as the arrow (`Eval.target_index`). `none` — the effect is a no-op — for a
-chain with no steps, a prefix with no answer, or a slot that is not mutable. -/
+/-- The slot a target chain names (`Eval.target_index`); `none` makes the
+effect a no-op: no steps, a prefix with no answer, or a fixed slot. -/
 def target (M : Model) (s : State) (p : Path) : Option Nat :=
   match p.steps.getLast? with
   | none => none
@@ -166,9 +144,8 @@ inductive Write where
   | write (i : Nat) (c : Cell)
   | gap (msg : Name)
 
-/-- Phase 1 of `Eval.apply`: resolve every effect against the starting
-situation. `none` is `Blocked` — a `set` whose right side has no answer makes
-the whole move absent, and outranks any `gap` (§10.3). -/
+/-- Phase 1 of `Eval.apply`, against the starting situation. A `set` with no
+answer makes the move absent (`none`), outranking any `gap` (§10.3). -/
 def resolve (M : Model) (s : State) : List Effect → Option (List Write)
   | [] => some []
   | .set p r :: rest =>
@@ -194,17 +171,14 @@ def writeAll : State → List Write → State
   | s, .write i c :: ws => writeAll (s.set i c) ws
   | s, .gap _ :: ws => writeAll s ws
 
-/-- What a move does at a situation: nothing (it is absent), a gap, or a next
-situation (§12.2). -/
+/-- What a move does at a situation (§12.2). -/
 inductive Outcome where
   | absent
   | gap (msg : Name)
   | next (s : State)
   deriving DecidableEq, Repr, Inhabited
 
-/-- Phase 2 of `Eval.apply`: the first gap ends the model; otherwise the
-writes, in order, into slots phase 1 already chose — a simultaneous assignment
-(§10.1). -/
+/-- Phase 2: the first gap wins; otherwise a simultaneous assignment (§10.1). -/
 def apply (M : Model) (s : State) (effs : List Effect) : Outcome :=
   match resolve M s effs with
   | none => .absent
@@ -213,7 +187,6 @@ def apply (M : Model) (s : State) (effs : List Effect) : Outcome :=
     | some m => .gap m
     | none => .next (writeAll s ws)
 
-/-- Move `t` at situation `s`: absent where its guard is false (§10.1). -/
 def step (M : Model) (s : State) (t : Nat) : Outcome :=
   match M.transitions[t]? with
   | none => .absent
@@ -221,35 +194,31 @@ def step (M : Model) (s : State) (t : Nat) : Outcome :=
 
 /-! ## The meaning of a model (§12) -/
 
-/-- The reachable situations: the least set holding the initial one and closed
-under successor edges (§12.3). -/
+/-- The reachable situations (§12.3). -/
 inductive Reach (M : Model) : State → Prop where
   | init : Reach M M.init
   | step {s s' : State} {t : Nat} : Reach M s → step M s t = .next s' → Reach M s'
 
-/-- Routes over real edges (gap edges lead nowhere). -/
 inductive Steps (M : Model) : State → State → Prop where
   | refl (s : State) : Steps M s s
   | cons {s s' u : State} {t : Nat} : step M s t = .next s' → Steps M s' u → Steps M s u
 
-/-- A situation satisfies a closed formula. -/
 def Sat (M : Model) (F : Guard) (s : State) : Prop := evalGuard M s [] F = true
 
-/-- Nothing moves on from `s`: no real edge out (a gap is not a move within the
-model, §16.1). -/
+/-- No real edge out of `s`; a gap does not count (§16.1). -/
 def Stopped (M : Model) (s : State) : Prop := ∀ t s', step M s t ≠ .next s'
 
-/-- Move `t` is on offer at `s` — it fires, to a situation or to a gap. -/
+/-- Move `t` fires at `s`, to a situation or a gap. -/
 def Available (M : Model) (s : State) (t : Nat) : Prop := step M s t ≠ .absent
 
-/-- A route from `s` to `u` all of whose situations, both ends included, fail F. -/
+/-- A route that fails F throughout, ends included. -/
 inductive Avoids (M : Model) (F : Guard) : State → State → Prop where
   | refl {s : State} : ¬Sat M F s → Avoids M F s s
   | cons {s s' u : State} {t : Nat} :
       ¬Sat M F s → step M s t = .next s' → Avoids M F s' u → Avoids M F s u
 
-/-- An infinite run from `s` that never meets F and is fair to every move in
-`fair`: a move on offer again and again for ever is taken again and again. -/
+/-- An infinite F-free run, fair: a move offered infinitely often is taken
+infinitely often. -/
 def AvoidsForever (M : Model) (F : Guard) (fair : List Nat) (s : State) : Prop :=
   ∃ (r : Nat → State) (ts : Nat → Nat),
     r 0 = s ∧
@@ -257,8 +226,7 @@ def AvoidsForever (M : Model) (F : Guard) (fair : List Nat) (s : State) : Prop :
     (∀ n, ¬Sat M F (r n)) ∧
     ∀ m ∈ fair, (∀ N, ∃ n, N ≤ n ∧ Available M (r n) m) → ∀ N, ∃ n, N ≤ n ∧ ts n = m
 
-/-- Some maximal run from `s` avoids F: it stops short of F, or it goes on for
-ever without it, fairly. -/
+/-- Some maximal run from `s` avoids F: it stops, or runs forever fairly. -/
 def Escapes (M : Model) (F : Guard) (fair : List Nat) (s : State) : Prop :=
   (∃ u, Avoids M F s u ∧ Stopped M u) ∨ AvoidsForever M F fair s
 
@@ -286,7 +254,6 @@ def Live (M : Model) (F : Guard) : Prop := ∀ s, Reach M s → ∃ u, Steps M s
 def Inevitable (M : Model) (F : Guard) (fair : List Nat) : Prop :=
   ∀ s, Reach M s → ¬Escapes M F fair s
 
-/-- What it means for a property to hold of a model. -/
 def Property.Holds (M : Model) (p : Property) : Prop :=
   match p.modality with
   | .possible => Possible M p.formula
@@ -300,8 +267,6 @@ def evalEach (M : Model) (s : State) (x : Name) (g : Guard) : List Name → Bool
   | [] => true
   | e :: es => evalGuard M s [(x, e)] g && evalEach M s x g es
 
-/-- A law holds at a situation when its guard holds of every member of its
-subject (`Eval.eq_holds`). -/
 def eqHolds (M : Model) (s : State) (eq : Equation) : Bool :=
   match eq.subject with
   | none => true

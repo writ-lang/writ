@@ -3,16 +3,10 @@
 
 open Writ_data
 
-(* Fiber reporting (kernel §17): a model gating its moves on a mode arrow is
-   interrogated per mode value. A fiber is the set of reachable situations in
-   which a cell holds one value; each property is then asked of that set —
-   the dynamics stay whole, only the situations the question is ABOUT narrow
-   — and the report says, per value, holds or FAILS with a witness. The
-   whole-space verdict says a guarantee fails somewhere; the fibers say in
-   which mode.
-
-   A cell is spelled as the report spells it, [SRC.ARROW]. Several cells give
-   the product of their values. *)
+(* Fiber reporting (kernel §17). A fiber is the set of reachable situations in
+   which a cell — spelled [SRC.ARROW] — holds one value; several cells give the
+   product. Each property is asked of every fiber with the dynamics left whole,
+   so the report says in which mode a guarantee fails. *)
 
 type fiber = { cells : (string * int) list; values : string list }
 (** the cells by name and layout index, and one value per cell *)
@@ -32,8 +26,8 @@ let cell_index (sp : Space.t) (spelling : string) : (string * int) option =
 
 let value_text = function Value.Filled v -> v | Value.Vacant -> "∅"
 
-(* The values a cell takes over the reachable situations, in order of first
-   appearance — which is BFS order, so the initial situation's value leads. *)
+(* The values a cell takes, in BFS order of first appearance, so the initial
+   situation's value leads. *)
 let values_of (sp : Space.t) (i : int) : string list =
   let seen = ref [] in
   Array.iter

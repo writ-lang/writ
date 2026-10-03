@@ -1,11 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [writ control] unit tests (TD). Stdlib only: [Control.quiver] on small in-code
-   [Model.t] values, asserting the §17 quiver shape (one edge per transition,
-   self-loops on one node), the §7 fresh-name discipline, and that the emitted
-   library re-parses — through §7 as well as the reader, for the round-trip a
-   model read from source has to survive. *)
+(* [writ control] unit tests: the §17 quiver shape, §7 fresh names, and an
+   emitted library that re-parses. *)
 
 open Writ_data
 open Writ_syntax
@@ -70,10 +67,7 @@ let mk trs : Model.t = { schema; initial = instance; transitions = trs }
 let reparses s =
   match Reader.read_string s with Ok _ -> true | Error _ -> false
 
-(* Re-reading the emitted quiver through §7 as well as the reader. Reading alone
-   only proves the parentheses balance: a quiver whose edge roster names one
-   entity twice reads fine and is then refused by the front end, which is the
-   failure mode the round-trip exists to rule out. *)
+(* Through §7, not just the reader: a duplicate roster entry reads fine. *)
 let reparses_with_fresh_names s =
   match Reader.read_string s with
   | Error _ -> false
@@ -97,8 +91,6 @@ let () =
     (contains ~sub:"(load \"stdlib.writ\")" out);
   check "control: instance is NAME-control"
     (contains ~sub:"(instance ctrlfix-control " out);
-  (* One clause per edge, carrying its own endpoints: two named transitions
-     plus [move-3] for the unnamed one. *)
   check "control: one edge per transition, unnamed -> move-3"
     (contains ~sub:"(edge raise " out
     && contains ~sub:"(edge lower " out
@@ -118,8 +110,7 @@ let () =
   check "control: node dodges a transition named n0"
     (contains ~sub:"(node n0_)" out
     && contains ~sub:"(edge n0 (src n0_) (tgt n0_))" out);
-  (* A real [move-2] forces the synthesised name for the unnamed 2nd move off
-     it, so no two edge entities collide. *)
+  (* A real [move-2] pushes the synthesised name off it. *)
   let m2 =
     mk [ named "move-2" (is "s" "pos" "down") []; anon (is "s" "pos" "up") [] ]
   in
@@ -140,17 +131,8 @@ let () =
 
 (* --- the source → control → source round-trip (gap 6, §10.1 NAME fresh) ------ *)
 
-(* The standing gate `control-emits-reparseable-quiver` uses a fixture whose
-   transitions are uniquely named, so it cannot see the case that broke: two
-   transitions of one name gave one `edge` entity per transition and therefore a
-   roster naming `dup` twice, which §7 refuses —
-
-     writ: q.writ:5:13: entity `dup` is already declared
-
-   so [writ control]'s own output stopped re-parsing. The fix is upstream, in
-   §10.1's freshness rule, so this pins both ends of the chain: the model can no
-   longer be read, and what control emits from a model that CAN be read survives
-   §7 and not merely the reader. *)
+(* Two transitions of one name broke §7 in control's output; §10.1 now refuses
+   the model. Both ends are pinned. *)
 let parses src =
   match Reader.read_string src with
   | Error e -> Error e
@@ -176,8 +158,6 @@ let () =
         "control round-trip: the emitted quiver survives §7, not just the \
          reader"
         (reparses_with_fresh_names out));
-  (* The other end: a duplicate never reaches control at all, and is blamed at
-     the second transition's own name. *)
   match parses (src [ ("dup", "down", "up"); ("dup", "up", "down") ]) with
   | Ok _ ->
       check "control round-trip: a duplicate transition name is refused" false

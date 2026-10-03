@@ -3,24 +3,9 @@
 
 open Writ_data
 
-(* Datums -> the POSITIONED atoms of a rule: terms, paths and guards
-   ([Rules.term], [Rules.gpath], [Rules.gexp]).
-
-   Split out of [Rules_parser] at the seam the whole positioned mirror exists
-   along. Terms live here beside guards rather than with the literals that hold
-   them because they are one type, not two: a guard's free variables ARE the
-   rule's variables (see [Rules.term]), so whatever reads one must read the
-   other the same way.
-
-   Guards are decoded here rather than through [Grammar.guard] — the one choice
-   in this module a future reader is likely to undo. Two reasons, both
-   load-bearing. [Model.guard] carries no positions, and extension §1 requires
-   the error for an unsortable variable to land ON the variable, so a rule's
-   guards must be read into the positioned mirror and lowered only once their
-   variables are bound. And [Grammar.check_guard] needs a variable→type
-   environment up front, which is precisely what the sort fixpoint has yet to
-   compute; calling it here would demand the answer as the price of asking the
-   question. [Claims_parser] defers path resolution for the same reason. *)
+(* Datums -> a rule's positioned terms, paths and guards. Not [Grammar.guard]:
+   errors must land on the variable (extension §1), and sorts are not yet
+   known. *)
 
 let ( let* ) = Result.bind
 
@@ -42,19 +27,15 @@ let term (d : Reader.t) : (Rules.term, Errors.t) result =
   | Reader.List (_, p) ->
       Errors.err ~pos:p "expected a variable or a constant, found a list"
 
-(* The reader hands back one position for a whole dotted atom, so every step of
-   a path is blamed at the path. That is enough for §1: what has to be findable
-   is the variable at the root. *)
+(* A dotted atom has one position, so every step is blamed at the path. *)
 let gpath (d : Reader.t) : (Rules.gpath, Errors.t) result =
   match d with
   | Reader.List (_, p) -> Errors.err ~pos:p "expected a path, found a list"
   | Reader.Atom (s, p) -> (
       match Reader.split_dots s with
       | [] | [ _ ] ->
-          (* [Value.path] permits no steps at all and the evaluator answers
-             [Some (Filled root)], so this would quietly become an equality
-             primitive. Writ has none, and this run does not add one by
-             accident. *)
+          (* A stepless path evaluates to its root, which would make [is] an
+             equality test on atoms. Writ has none. *)
           Errors.err ~pos:p
             ("a rule body needs a path with at least one arrow; `" ^ s
            ^ "` is not an equality test")
@@ -98,9 +79,8 @@ let rec guard (d : Reader.t) : (Rules.gexp, Errors.t) result =
   | Reader.Atom (_, p) ->
       Errors.err ~pos:p "expected a guard clause, found a bare atom"
 
-(* A [some] binder names a KERNEL variable, scoped to its own guard body. An
-   ALL-CAPS one would also read as a rule variable and shadow it, and kernel §7
-   is explicit that Writ has no shadowing — so it is rejected at the binder. *)
+(* A [some] binder is a kernel variable. An ALL-CAPS one would shadow a rule
+   variable, and Writ has no shadowing (kernel §7). *)
 and binder (d : Reader.t) : (string * string * Errors.pos, Errors.t) result =
   match d with
   | Reader.List ([ Reader.Atom (x, xp); Reader.Atom (ty, _) ], _) ->
@@ -112,9 +92,8 @@ and binder (d : Reader.t) : (string * string * Errors.pos, Errors.t) result =
       else Ok (x, ty, xp)
   | _ -> Reader.err_at d "expected a binder shaped (VAR TYPE)"
 
-(* The G of [(holds S G)] is a guard DATUM, never a term (extension §3). A
-   variable written there would otherwise be silently joined against the rest of
-   the body, so it is rejected at the atom rather than passed on. *)
+(* The G of [(holds S G)] is a guard datum, not a term (extension §3); a
+   variable there would be silently joined, so it is rejected. *)
 let holds_guard (d : Reader.t) : (Rules.gexp, Errors.t) result =
   match d with
   | Reader.Atom (s, p) when Rules.is_var s ->

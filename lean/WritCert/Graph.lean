@@ -4,17 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # The graph certificate
 
-A candidate state space: a list of situations and, for every situation and
-every move, what that move does there. `checkGraph` holds every cell of that
-table to `Writ.step`, and `reach_iff` is what passing buys: the listed
-situations are EXACTLY the reachable ones (§12.3) — none missing, none
-invented. Who built the candidate does not matter, which is why the
-certificate writ writes carries none: `WritCert.Generate.explore` builds it.
-
-`parent` names, for each situation after the first, a situation earlier in the
-list with an edge into it. It is what makes "every listed situation is
-reachable" a local check instead of a search; breadth-first order guarantees
-one exists.
+A candidate state space with each move's outcome at each situation.
+`checkGraph` holds every cell to `Writ.step`, and `reach_iff` makes the listed
+situations exactly the reachable ones, so the builder need not be trusted.
+`parent` (an earlier situation with an edge in) makes reachability local.
 -/
 import WritCert.Semantics
 
@@ -45,9 +38,8 @@ end Graph
 
 /-! ## Bounded loops
 
-`List.range` rather than a recursive helper: it unfolds in the kernel, and
-`List.all` compiles to a loop, so the same definition serves `by writ` and a
-200 000-situation certificate. -/
+`List.range` unfolds in the kernel and `List.all` compiles to a loop, so one
+definition serves both `by writ` and large compiled checks. -/
 
 def allBelow (n : Nat) (f : Nat → Bool) : Bool := (List.range n).all f
 def anyBelow (n : Nat) (f : Nat → Bool) : Bool := (List.range n).any f
@@ -62,7 +54,6 @@ theorem anyBelow_iff {n : Nat} {f : Nat → Bool} :
 
 /-! ## The check -/
 
-/-- One cell of the table agrees with the semantics. -/
 def outOK (M : Model) (G : Graph) (i t : Nat) : Bool :=
   match step M (G.st i) t, G.cell i t with
   | .absent, .absent => true
@@ -119,7 +110,6 @@ theorem checkGraph_size (hG : checkGraph M G = true) : 0 < G.size := (parts hG).
 
 theorem checkGraph_init (hG : checkGraph M G = true) : G.st 0 = M.init := (parts hG).2.1
 
-/-- Every cell of the table, at every move index, agrees with `step`. -/
 theorem outOK_all (hG : checkGraph M G = true) {i : Nat} (hi : i < G.size) (t : Nat) :
     (step M (G.st i) t = .absent ∧ G.cell i t = .absent) ∨
     (∃ m, step M (G.st i) t = .gap m ∧ G.cell i t = .gap m) ∨
@@ -141,7 +131,6 @@ theorem outOK_all (hG : checkGraph M G = true) {i : Nat} (hi : i < G.size) (t : 
   · have hge : M.transitions.length ≤ t := by omega
     exact .inl ⟨step_of_ge hge, at_of_ge hrow hge⟩
 
-/-- A `to` cell is a real edge, into a listed situation. -/
 theorem at_to (hG : checkGraph M G = true) {i t j : Nat} (hi : i < G.size)
     (h : G.cell i t = .to j) : j < G.size ∧ step M (G.st i) t = .next (G.st j) := by
   rcases outOK_all hG hi t with ⟨_, h2⟩ | ⟨m, _, h2⟩ | ⟨j', hj', h1, h2⟩
@@ -149,7 +138,6 @@ theorem at_to (hG : checkGraph M G = true) {i t j : Nat} (hi : i < G.size)
   · rw [h] at h2; cases h2
   · rw [h] at h2; cases h2; exact ⟨hj', h1⟩
 
-/-- A real edge out of a listed situation is a `to` cell. -/
 theorem step_next (hG : checkGraph M G = true) {i t : Nat} {s' : State} (hi : i < G.size)
     (h : step M (G.st i) t = .next s') : ∃ j, j < G.size ∧ G.cell i t = .to j ∧ G.st j = s' := by
   rcases outOK_all hG hi t with ⟨h1, _⟩ | ⟨m, h1, _⟩ | ⟨j, hj, h1, h2⟩
@@ -157,12 +145,11 @@ theorem step_next (hG : checkGraph M G = true) {i t : Nat} {s' : State} (hi : i 
   · rw [h] at h1; cases h1
   · rw [h] at h1; cases h1; exact ⟨j, hj, h2, rfl⟩
 
-/-- The table says `absent` exactly where the move is. -/
 theorem at_absent (hG : checkGraph M G = true) {i t : Nat} (hi : i < G.size) :
     G.cell i t = .absent ↔ step M (G.st i) t = .absent := by
   rcases outOK_all hG hi t with ⟨h1, h2⟩ | ⟨m, h1, h2⟩ | ⟨j, _, h1, h2⟩ <;> simp [h1, h2]
 
-/-- Every listed situation is reachable — by its parent, which is earlier. -/
+/-- Every listed situation is reachable, via its parent. -/
 theorem reach_of_listed (hG : checkGraph M G = true) :
     ∀ i, i < G.size → Reach M (G.st i) := by
   intro i
@@ -174,7 +161,6 @@ theorem reach_of_listed (hG : checkGraph M G = true) :
     · have hp : G.par i < G.size := by omega
       exact .step (ih _ hlt hp) (at_to hG hp hat).2
 
-/-- Every reachable situation is listed. -/
 theorem listed_of_reach (hG : checkGraph M G = true) {s : State} (h : Reach M s) :
     ∃ i, i < G.size ∧ G.st i = s := by
   induction h with
@@ -189,7 +175,6 @@ theorem reach_iff (hG : checkGraph M G = true) {s : State} :
     Reach M s ↔ ∃ i, i < G.size ∧ G.st i = s :=
   ⟨listed_of_reach hG, fun ⟨i, hi, h⟩ => h ▸ reach_of_listed hG i hi⟩
 
-/-- A real route out of a listed situation stays among listed ones. -/
 theorem steps_listed (hG : checkGraph M G = true) {s u : State} (h : Steps M s u) :
     ∀ i, i < G.size → G.st i = s → ∃ j, j < G.size ∧ G.st j = u := by
   induction h with

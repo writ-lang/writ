@@ -1,14 +1,10 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* [Cmd_graph] — the [writ graph] verb: the state space as a picture, in D2 by
-   default (the notation the repository's own diagrams are drawn in), DOT or
-   JSON. The picture is the PHASE quotient unless [--states] asks for every
-   situation, which is refused above a cap with the phase count as the
-   suggestion — a drawing of 18 000 nodes is not a drawing.
-
-   [--witness P] lights one property's route. The questions come from the
-   model's sibling [.claims], as [writ query] reads them, or from [--claims]. *)
+(* [writ graph]: the state space as D2 (default), DOT or JSON. It draws the
+   phase quotient; [--states] draws every situation, up to [Graph.cap].
+   [--witness P] highlights a property's route, with P taken from the sibling
+   [.claims] or [--claims]. *)
 
 open Writ_data
 open Writ_runtime

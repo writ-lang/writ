@@ -1,12 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* The state representation (kernel §2): the model is split once into an
-   immutable context and a compact mutable state vector. The context holds the
-   schema, the fixed rosters, the fixed-arrow valuation, and a layout — the
-   canonical ordered array of mutable cells, each with its finite legal-fill
-   domain. A state is just the [Value.cell array] aligned to that layout, so it
-   is small, structurally comparable, and keys a [Map]. *)
+(* States (kernel §2): an immutable context holds everything fixed, and a
+   state is just the mutable cells, as an array aligned to [layout]. *)
 
 type layout = {
   cells : Instance.cellref array;
@@ -22,7 +18,6 @@ type ctx = {
 
 type t = Value.cell array
 
-(* Total order on states — the array of cells, compared cell-wise (Value). *)
 let compare (a : t) (b : t) : int = Value.compare_cells a b
 
 module M = Map.Make (struct
@@ -31,8 +26,7 @@ module M = Map.Make (struct
   let compare = compare
 end)
 
-(* The source entities of a type: an enumerated type's own values, or an open
-   type's roster. These are the entities an arrow out of that type applies to. *)
+(* The entities an arrow out of [ty] applies to: its values or its roster. *)
 let sources (schema : Schema.t) (inst : Instance.t) (ty : string) : string list
     =
   match Schema.type_of schema ty with
@@ -40,9 +34,7 @@ let sources (schema : Schema.t) (inst : Instance.t) (ty : string) : string list
   | Some { flavor = Open; _ } -> Instance.entities_of_type inst ty
   | None -> []
 
-(* A mutable cell's finite domain: the legal fills for the arrow's codomain
-   (enumerated values, or the roster of an open cod), plus [Vacant] iff the
-   arrow is vacatable. *)
+(* A mutable cell's legal fills, plus [Vacant] iff the arrow is vacatable. *)
 let cell_domain (schema : Schema.t) (inst : Instance.t) (a : Schema.arrow) :
     Value.cell array =
   let base =
@@ -57,11 +49,8 @@ let cell_domain (schema : Schema.t) (inst : Instance.t) (a : Schema.arrow) :
   in
   Array.of_list (if a.vacatable then base @ [ Value.Vacant ] else base)
 
-(* Validate the instance against the schema and split the model into an
-   immutable [ctx] and the initial state vector (kernel §2, §4). Fixed arrows
-   are hoisted into [ctx.fixed]; mutable arrows form the layout. Every fixed
-   cell must be set; an unset mutable cell defaults to [Vacant] iff vacatable,
-   else it is an error; a value outside the cell's domain is an error. *)
+(* Validate the instance and split it into [ctx] and the initial state (§2,
+   §4). Unset cells are [Vacant] if vacatable, else an error. *)
 let build_ctx (schema : Schema.t) (inst : Instance.t) : (ctx * t, string) result
     =
   let val_of (cr : Instance.cellref) : Value.cell option =
@@ -72,8 +61,6 @@ let build_ctx (schema : Schema.t) (inst : Instance.t) : (ctx * t, string) result
     go inst.Instance.valuation
   in
   let error = ref None in
-  (* [mutables] accumulates (cellref, domain, initial) reversed; [fixeds] the
-     (cellref, cell) pairs hoisted into [ctx.fixed]. *)
   let mutables = ref [] in
   let fixeds = ref [] in
   let fail msg = if !error = None then error := Some msg in
@@ -117,11 +104,8 @@ let build_ctx (schema : Schema.t) (inst : Instance.t) : (ctx * t, string) result
         }
       in
       let init = Array.of_list (List.map (fun (_, _, v) -> v) cells) in
-      (* Hashed, not an assoc list, and for a measured reason. Every step of a
-         chain through a FIXED arrow lands here, and a model that walks fixed
-         arrows to say what it means — a row ladder's [R.next.next], say —
-         reads this once per step, per conjunct, per guard, per situation. The
-         scan it replaces was O(fixed cells) each time. *)
+      (* Hashed: every step through a fixed arrow, in every guard and
+         situation, reads this. *)
       let fixed_tbl = Hashtbl.create (List.length !fixeds * 2) in
       List.iter (fun (cr, v) -> Hashtbl.replace fixed_tbl cr v) !fixeds;
       let fixed cr =
@@ -131,9 +115,8 @@ let build_ctx (schema : Schema.t) (inst : Instance.t) : (ctx * t, string) result
       in
       Ok ({ schema; layout; fixed; rosters = inst.Instance.rosters }, init)
 
-(* The index of a mutable cell in the layout (hence in the state vector), or
-   [None] for a fixed/unknown cell. The single home for the cellref→index scan
-   that both [get] and the engine's writes rely on. *)
+(* A mutable cell's index in the state vector; [None] for a fixed or unknown
+   cell. *)
 let index_of (ctx : ctx) (cr : Instance.cellref) : int option =
   let cells = ctx.layout.cells in
   let n = Array.length cells in
@@ -142,12 +125,10 @@ let index_of (ctx : ctx) (cr : Instance.cellref) : int option =
   in
   go 0
 
-(* Read a cell by reference: a mutable cell from the state vector, a fixed cell
-   from the hoisted valuation. *)
 let get (ctx : ctx) (st : t) (cr : Instance.cellref) : Value.cell =
   match index_of ctx cr with Some i -> st.(i) | None -> ctx.fixed cr
 
-(* Functional update: the new state shares nothing mutable with the old. *)
+(* Copies: states are shared as map keys and must not be mutated. *)
 let set (st : t) (i : int) (v : Value.cell) : t =
   let st' = Array.copy st in
   st'.(i) <- v;

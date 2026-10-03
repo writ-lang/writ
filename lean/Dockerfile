@@ -1,15 +1,9 @@
 # writ-cert — the Lean checker for writ's certificates, built in a box.
 #
-# Lean is not a thing you apt-get. elan is its toolchain manager and the
-# toolchain is half a gigabyte, so the build happens here and the version is
-# written down in three places that have to agree: this file, lean-toolchain,
-# and docker-compose.yml. Everything is pinned — the base image by digest, elan
-# by tag, Lean by version. The toolchain stage is the same, instruction for
-# instruction, as the other Lean projects on this machine use, so its layers
-# come from the cache.
+# Everything is pinned. The Lean version is written in three places that must
+# agree: this file, lean-toolchain, and docker-compose.yml.
 
-# writ itself, for the stages that run it: the image `make image` builds from
-# the repository above (Debian 12, like this one, so its binary runs here).
+# writ itself, from `make image` in the repository above (also Debian 12).
 ARG WRIT_IMAGE=writ:latest
 FROM ${WRIT_IMAGE} AS writ
 
@@ -18,8 +12,7 @@ FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe6
 ARG ELAN_VERSION=v4.2.4
 ARG LEAN_VERSION=v4.33.1
 
-# Lean shells out to a C compiler for the final link, and lake fetches over
-# https.  git is here because lake wants it even with no dependencies.
+# Lean needs a C compiler to link; lake wants git even with no dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates=20250419~deb12u1 \
       curl=7.88.1-10+deb12u15 \
@@ -43,9 +36,8 @@ WORKDIR /w
 
 # --- the toolchain, with writ beside it --------------------------------------
 #
-# For `make test` and `make corpus`, which write certificates and then check
-# them, and for `writ_model … from "MODEL.writ"`, which runs writ while Lean
-# elaborates. Only these stages need the writ image; `make build` never pulls it.
+# For `make test`, `make corpus` and `writ_model … from`; `make build` never
+# pulls the writ image.
 
 FROM toolchain AS with-writ
 COPY --from=writ /usr/local/bin/writ /usr/local/bin/writ
@@ -53,8 +45,7 @@ COPY --from=writ /usr/local/share/writ/lib /usr/local/share/writ/lib
 
 # --- the checker and its proofs ----------------------------------------------
 #
-# Building IS the proof check: every theorem in WritCert/ is re-checked by the
-# kernel here, and Examples/ discharges real writ properties with `by writ`.
+# Building is the proof check.
 
 FROM toolchain AS build
 COPY lean-toolchain lakefile.toml ./
@@ -65,16 +56,13 @@ RUN lake build
 
 # --- the checker, static ------------------------------------------------------
 #
-# What writ's release tarball ships: every binary in it is statically linked,
-# so it runs on any Linux of its architecture. scripts/static-cc.sh says what
-# that takes. Built FROM build, so it cannot exist unless every proof checked;
-# and refused here, not downstream, if the link came out dynamic after all.
+# What writ's release tarball ships (see scripts/static-cc.sh). Built from
+# `build`, so it exists only if every proof checked; a dynamic link fails here.
 
 FROM build AS static
 COPY scripts/static-cc.sh ./scripts/
-# The build stage linked writ-cert already, dynamically, and lake does not count
-# LEAN_CC among a link's inputs — so without this it would call the old binary
-# up to date and the check below would (rightly) refuse it.
+# lake does not treat LEAN_CC as a link input, so remove the dynamic binary
+# from the build stage or it counts as up to date.
 RUN rm -f .lake/build/bin/writ-cert* \
  && LEAN_CC=/w/scripts/static-cc.sh lake build writ-cert \
  && strip .lake/build/bin/writ-cert \

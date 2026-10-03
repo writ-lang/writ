@@ -1,11 +1,10 @@
 # Certificates
 
 Every `writ check` writes `MODEL.cert.json` beside the model (`--certificate
-FILE` to put it elsewhere, `--no-certificate` to skip it): everything a second
-checker needs to re-derive the report without trusting the engine that
-produced it — and then **hands it to that checker at once**. `writ-cert`,
-compiled from [`lean/`](../lean/) and shipped in writ's image, re-derives every
-answer, and its verdict is the report's last line:
+FILE` to put it elsewhere, `--no-certificate` to skip it) — everything a second
+checker needs to re-derive the report — and hands it at once to `writ-cert`,
+compiled from [`lean/`](../lean/) and shipped in writ's image. Its verdict is
+the report's last line:
 
 ```console
 $ writ check river.writ --claims river.claims
@@ -13,16 +12,13 @@ $ writ check river.writ --claims river.claims
 certified: every answer re-derived from the model (writ-cert)
 ```
 
-A certificate nobody checks protects nobody, which is why the check is not a
-separate step. writ still needs nothing: `writ-cert` is looked for
-(`$WRIT_CERT`, then beside the `writ` executable, then the `PATH`), and where it
-is missing the last line says so — `not certified: writ-cert is not
-installed` — rather than passing over it. If it refutes the report, the line
-is `NOT CERTIFIED`, the refuted answers follow, and the exit status is 1. With
-`--json` the result is the object's `certification` field. [`lean/`](../lean/) is such a
-checker, written and proved in Lean 4.
+`writ-cert` is looked for in `$WRIT_CERT`, then beside the `writ` executable,
+then on the `PATH`; if missing, the line reads `not certified: writ-cert is not
+installed`. If it refutes the report, the line is `NOT CERTIFIED`, the refuted
+answers follow, and the exit status is 1. With `--json` the result is the
+`certification` field.
 
-Run by hand, `writ-cert` prints its line-by-line account:
+Run by hand, `writ-cert` prints a line-by-line account:
 
 ```console
 $ writ-cert river.cert.json
@@ -40,12 +36,10 @@ verdict: every answer certified
 
 ## Why
 
-writ's selling point is the negative answer: *no* reachable situation breaks
-the law, *every* run decides. Until now that rested on one OCaml engine
-saying so. A certificate turns it into a claim another program checks against
-the kernel-spec semantics (§10, §12, §16.1), so a bug in the engine — a
-dropped edge, a wrong fairness deletion, a witness that is not shortest — is
-caught instead of believed.
+writ's negative answers — *no* reachable situation breaks the law, *every* run
+decides — otherwise rest on one OCaml engine. The certificate lets another
+program check them against the kernel-spec semantics (§10, §12, §16.1), so an
+engine bug is caught instead of believed.
 
 ## What is trusted, and what is not
 
@@ -56,11 +50,9 @@ caught instead of believed.
 | the Lean kernel and, for `writ-cert` itself, the Lean compiler | every witness: a real route, landing where writ says, and shortest |
 |                                                  | the counts: states (pairwise distinct), edges, law violations, dead ends, gap sites |
 
-The checker does not trust its own search either. The algorithms that find
-evidence (breadth-first search, Tarjan, Emerson–Lei) are unproved; the
-conditions that evidence must meet are proved sound against the semantics. A
-bug in the search can cost an answer (reported `uncertified`), never produce a
-wrong one.
+The checker's own search (breadth-first, Tarjan, Emerson–Lei) is unproved; only
+the conditions its evidence must meet are proved sound. A search bug can cost
+an answer (`uncertified`), never produce a wrong one.
 
 ## The format (version 2)
 
@@ -95,20 +87,13 @@ One JSON object — the question, and writ's answer:
 - **properties** are the questions, lowered; `applicable` is writ's n/a test.
 - **report** is the answer being certified, unchanged.
 
-**There is no state graph in it, on purpose.** The model determines the graph,
-and the checker's soundness never rested on who built the graph it checks —
-`reach_iff` holds for any candidate that passes. So the checker explores the
-model itself, proves its own graph exact, and holds writ's answer to it: the
-counts, the verdicts, and every situation a witness names by index (the
-checker numbers situations in writ's breadth-first order, so an index means the
-same situation to both). Version 1 carried writ's graph as well; it was 83% of
-the bytes — 43 MB of a 52 MB certificate on a 119 000-situation space — and
-bought only a sharper error message when writ's graph was wrong. Version 2 is
-2.8 MB there, and a few KB for most models. The price is the checker's time:
-it explores the space as writ did.
+The certificate carries no state graph: the model determines it, and
+`reach_iff` holds for any graph that passes the check. The checker explores the
+model itself in writ's breadth-first order, so a situation index means the same
+situation to both. (Version 1 also carried writ's graph, which made
+certificates about 20 times larger.)
 
 ## The checker
 
 See [`lean/README.md`](../lean/README.md): the reference semantics, the
-soundness theorems, `writ-cert`, and `by writ` — writ properties as Lean
-theorems.
+soundness theorems, `writ-cert`, and `by writ`.

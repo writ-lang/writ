@@ -1,7 +1,5 @@
-; no_prelude.writ — uses stdlib's `toggle` form WITHOUT (load "stdlib.writ").
-; There is no implicit prelude, so `toggle` is never brought into scope; it
-; survives expansion as an unknown top-level datum and the parser rejects it
-; with a positioned "unknown" error. `writ check no_prelude.writ` exits non-zero.
+; Uses `toggle` without loading stdlib: there is no implicit prelude, so the
+; parser rejects it with a positioned "unknown" error.
 
 (schema tiny
   (type flag (lo hi))

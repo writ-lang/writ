@@ -1,10 +1,7 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Engine unit tests (TD). Stdlib only, no framework: each [check] counts a pass
-   or aborts. Models are built directly as [Model.t] values, exercising BFS
-   enumeration, shortest paths, the three modalities with witnesses,
-   gap-vs-deadlock, equation observation, and query rows. *)
+(* Engine unit tests over [Model.t] values built in code. *)
 
 open Writ_data
 open Writ_runtime
@@ -105,9 +102,8 @@ let () =
 
 (* --- gap vs deadlock (the gate distinction) --------------------------------- *)
 
-(* [blow] fires from BOTH b and c with the same message — two gap edges the
-   report dedups to ONE site, at the fewest moves; a gap-firing state has an
-   enabled (gap) edge, so it is NOT a dead end (M1). *)
+(* [blow] fires from b and c with one message: one gap site, at the fewest
+   moves. A gap-firing state is not a dead end (M1). *)
 let is_gap (e : Space.edge) = match e.dst with `Gap _ -> true | _ -> false
 
 let gap_model =
@@ -169,8 +165,6 @@ let () =
 
 let () =
   let sp = build_ok capture_model in
-  (* live FAILS: capture traps; the finding carries the route AND the stuck
-     state (for [stuck at:]). never FAILS with a route but no stuck state. *)
   (match Checker.check sp (prop "acc" Live (is "s" "pos" "safe")) with
   | Checker.Fails { route = [ "capture" ]; stuck = Some _ } ->
       check "live fails: witness [capture] with a stuck state" true
@@ -179,7 +173,6 @@ let () =
   | Checker.Fails { route = [ "capture" ]; stuck = None } ->
       check "never fails: witness is [capture]" true
   | _ -> check "never fails: expected witness [capture]" false);
-  (* possible-holds carries the SOLUTION path: captured is reached via [capture]. *)
   check "possible holds: solution route to captured = [capture]"
     (Checker.check sp (prop "p" Possible (is "s" "pos" "captured"))
     = Checker.Holds [ "capture" ]);
@@ -189,15 +182,11 @@ let () =
     (contains ~sub:"fails  acc" s
     && contains ~sub:"stuck at:" s
     && contains ~sub:"witness:  1. capture" s);
-  (* Each step says where it lands and what it changed, in the model's own
-     cell names; the stuck line leads with the same index, so `writ show --at`
-     can be run on either without counting. *)
+  (* The stuck line uses the step index, so `writ show --at` works on either. *)
   check "report: a witness step carries its landing and its delta"
     (contains ~sub:"1. capture   → #1   s.pos: safe → captured" s);
   check "report: stuck at leads with the situation's index"
     (contains ~sub:"stuck at: #1 (" s);
-  (* A property with a description prints it under the verdict; one without
-     prints nothing extra, so a bare verdict line stays exactly as it was. *)
   let described =
     { (prop "acc" Live (is "s" "pos" "safe")) with Claims.text = "stays safe" }
   in
@@ -210,13 +199,11 @@ let () =
 (* --- regime: measured, not guessed --------------------------------------- *)
 
 let () =
-  (* The toggle flips back: both of its situations lie on a cycle. *)
   let sp = build_ok toggle in
   check "regime: a toggle is reversible, entirely" (Space.recurrent_count sp = 2);
   check "regime: the build report says so, with the count"
     (contains ~sub:"regime: reversible — 2 of 2 situations lie on cycles"
        (Report.build sp));
-  (* One latch and nothing else: no situation returns to itself. *)
   let sp = build_ok capture_model in
   check "regime: a latch alone is committing" (Space.recurrent_count sp = 0);
   check "regime: the build report says committing"
@@ -232,8 +219,7 @@ let () =
   check "fiber: an unknown cell is not" (Fiber.cell_index sp "s.nope" = None);
   check "fiber: the values in order of first appearance"
     (Fiber.values_of sp 0 = [ "down"; "up" ]);
-  (* `never up` fails in the up fiber and holds in the down one: the question
-     narrows to the situations the fiber holds, the dynamics do not. *)
+  (* A fiber narrows the question, not the dynamics. *)
   let never_up = prop "n" Never (is "s" "pos" "up") in
   let fs = Fiber.outcomes sp [ cell ] never_up in
   check "fiber: one outcome per value" (List.length fs = 2);
@@ -250,40 +236,26 @@ let () =
   check "fiber: a failing fiber says FAILS with its witness"
     (contains ~sub:"fiber s.pos=up" (List.nth lines 1)
     && contains ~sub:"FAILS   witness: 1. raise → #1" (List.nth lines 1));
-  (* `live down`: from the up fiber the toggle can still lower, so it holds
-     there too — the dynamics stayed whole. *)
+  (* The dynamics stay whole: from up the toggle can still lower. *)
   let live_down = prop "l" Live (is "s" "pos" "down") in
   check "fiber: live asks reachability through the whole space"
     (List.for_all
        (fun (_, o) -> match o with Checker.Holds _ -> true | _ -> false)
        (Fiber.outcomes sp [ cell ] live_down));
-  (* two cells: the product of their values *)
   let both = Fiber.outcomes sp [ cell; cell ] never_up in
   check "fiber: several cells give the product" (List.length both = 4)
 
 (* --- inevitable: the gap between "can still" and "cannot avoid" ------------- *)
 
-(* A cycle does not refute [inevitable] by existing — only one that stays off
-   the goal does. The toggle loops forever between two situations, and `up` is
-   one of them, so every run reaches it: [inevitable] HOLDS over a cyclic space,
-   which is the case a "reject anything with a loop" implementation gets
-   wrong. *)
+(* A cycle through the goal does not refute [inevitable]. *)
 let () =
   let sp = build_ok toggle in
   check "inevitable holds: every run of the toggle passes through up"
     (Checker.check sp (prop "i" (Inevitable []) (is "s" "pos" "up"))
     = Checker.Holds [])
 
-(* The pair the whole modality exists for, at three situations. `wander` and
-   `back` are a loop that never touches `home`, and `arrive` leaves it for
-   `home`, which is where the model stops. So `home` is always still reachable
-   — [live] holds — and a run can decline to take it forever — [inevitable]
-   fails. This is two-phase commit with a retransmitting network, reduced until
-   it can be counted by hand: three situations, three edges.
-
-   The counterexample is the INITIAL situation, and its route is therefore
-   empty: the run that avoids `home` is available from the start, and a
-   shortest witness to that is no moves at all. *)
+(* [live] holds and [inevitable] fails: the `wander`/`back` loop never reaches
+   `home`. The counterexample is the initial situation, with an empty route. *)
 let detour =
   mk
     [
@@ -306,10 +278,7 @@ let () =
   | _ ->
       check "inevitable fails: expected the initial situation, no moves" false
 
-(* Stopping refutes as well as looping: a run that ends where the model ends,
-   without the goal, has avoided it. capture is one-way into a dead end, so a
-   run that takes it never comes back to `safe` — and [inevitable] reports the
-   same route [live] does, since here the trap and the escape are one move. *)
+(* Stopping short of the goal refutes [inevitable] too. *)
 let () =
   let sp = build_ok capture_model in
   match Checker.check sp (prop "i" (Inevitable []) (is "s" "pos" "safe")) with
@@ -317,11 +286,7 @@ let () =
       check "inevitable fails at a dead end that is not the goal" true
   | _ -> check "inevitable fails: expected witness [capture]" false
 
-(* [inevitable] implies [live], because a state has at least one run and a run
-   that reaches F witnesses that F is reachable. So of the four combinations
-   only three can occur, and this asserts the missing one is missing across
-   every model and goal this file builds — the property is about the pair, so
-   testing it on one fixture would prove nothing. *)
+(* [inevitable] implies [live], across every model and goal in this file. *)
 let () =
   let goals =
     [ "up"; "down"; "safe"; "captured"; "home"; "away"; "home-able" ]
@@ -342,11 +307,7 @@ let () =
 
 (* --- fairness: which runs the question is about ----------------------------- *)
 
-(* The detour's loop is a run that never arrives, and `arrive` is on offer at
-   every turn of it and never taken. Assuming that move is not starved for ever
-   deletes the loop, and there is nothing else to escape by — so the same model
-   and the same goal answer differently to the two questions, which is the whole
-   reason the assumption belongs to the question. *)
+(* Assuming `arrive` fair deletes the detour loop, so the goal now holds. *)
 let () =
   let sp = build_ok detour in
   let goal ms = prop "i" (Inevitable ms) (is "s" "pos" "home") in
@@ -355,26 +316,19 @@ let () =
     (not (holds (Checker.check sp (goal []))));
   check "fair: assuming arrive is not starved, every run arrives"
     (holds (Checker.check sp (goal [ "arrive" ])));
-  (* A move the cycle DOES take is not starved by it, so assuming it fair
-     changes nothing — the loop takes `wander` every time round. *)
   check "a move the loop takes is already fair to it"
     (not (holds (Checker.check sp (goal [ "wander" ]))));
-  (* Naming a move the model does not have is neither a pass nor a failure, the
-     same treatment a formula naming a missing arrow gets. *)
+  (* A missing move is n/a, like a missing arrow. *)
   (match Checker.check sp (goal [ "sprint" ]) with
   | Checker.Not_applicable _ -> check "n/a: an unknown move is n/a" true
   | _ -> check "n/a: an unknown move must be n/a" false);
-  (* The assumption is printed with the verdict, both ways: a verdict that could
-     be quoted without it would be a different claim from the one checked. *)
   let s =
     Report.outcome sp (goal [ "arrive" ]) (Checker.check sp (goal [ "arrive" ]))
   in
   check "report: a holding inevitable names what it assumed"
     (contains ~sub:"holds  i" s && contains ~sub:"assuming fair: arrive" s)
 
-(* No assumption about scheduling rescues a model that stops. capture is
-   one-way into a dead end, and a run that takes it is FINITE — nothing is on
-   offer for ever in it, so there is no starvation to rule out. *)
+(* Fairness cannot rescue a model that stops: a finite run starves nothing. *)
 let () =
   let sp = build_ok capture_model in
   let goal ms = prop "i" (Inevitable ms) (is "s" "pos" "safe") in
@@ -383,8 +337,6 @@ let () =
     (fails (Checker.check sp (goal []))
     && fails (Checker.check sp (goal [ "capture" ])))
 
-(* The fairness clause, through the real reader and the real claims parser, so
-   the spelling in the spec is the spelling that decodes. *)
 let () =
   let sch = sw_schema [ "down"; "up" ] and inst = sw_instance "down" in
   let parse src =
@@ -422,8 +374,7 @@ let () =
 
 (* --- one situation, addressed by index -------------------------------------- *)
 
-(* What `writ show` prints. Counted by hand off the fixtures above: the toggle is
-   0 = down (initial) and 1 = up, one move each way. *)
+(* What `writ show` prints; the toggle is 0 = down (initial), 1 = up. *)
 let () =
   let sp = build_ok toggle in
   let a = Report.situation sp 0 and b = Report.situation sp 1 in
@@ -440,9 +391,7 @@ let () =
     (contains ~sub:"moves:   raise → 1" a
     && contains ~sub:"moves:   lower → 0" b)
 
-(* A dead end says so, and a GAP situation does not — §15's distinction, which a
-   reader of this output should be able to see rather than infer. gap_model is
-   a → b → c with `blow` firing a gap at both b and c. *)
+(* A dead end says so and a gap situation does not (§15). *)
 let () =
   let dead = build_ok deadlock_model in
   check "show: a situation with no move says it is a dead end"
@@ -454,10 +403,7 @@ let () =
   check "show: …and a situation that only exits by a gap is not a dead end"
     (contains ~sub:"climb → 2" b && not (contains ~sub:"a dead end" b))
 
-(* The cells come from ONE formatter, which is the reason [cells_line] was split
-   out of the stuck line rather than copied: a failing property and this verb
-   print the same situation, and two layouts would eventually disagree about
-   what a model's state is. *)
+(* [show] and the stuck line share one cell formatter. *)
 let () =
   let sp = build_ok capture_model in
   let p = prop "acc" Live (is "s" "pos" "safe") in

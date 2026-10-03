@@ -3,30 +3,12 @@
 
 open Writ_data
 
-(* Extension §3 — sorts, by a program-wide least fixpoint over
-   [(relation, column) → sort], seeded by built-in positions, by a typed
-   relation declaration, by an unambiguous arrow name's [dom], and by the [cod]
-   of a path's last arrow for an [(is PATH V)] value.
-
-   Why a FIXPOINT and not left-to-right first use, which is what §1's prose
-   sounds like: in §1's own transitive closure the recursive rule's [Y] occurs
-   only in the head and in a sort-transparent relation literal, so nothing in
-   that rule can type it. It is typed by [subordinate]'s second column, which is
-   learned from the OTHER rule. A per-rule pass cannot see that; a program-wide
-   relaxation can, and it is the only reading under which the specification's
-   own example is legal.
-
-   Why chain resolution lives INSIDE the loop: the dom of a path's first arrow
-   seeds its root, but only when the arrow name is owned by exactly one type —
-   [river.writ] gives [at] to both [traveler] and [cargo]. An ambiguous name does
-   not seed, and the variable waits for another occurrence, possibly in another
-   rule and possibly only after a column it feeds has itself been learned.
-   Resolution and inference are therefore one fixpoint, not two phases — which
-   is also why [Grammar.check_guard] is unusable here: it wants the
-   variable→type environment up front, and that is the answer being computed.
-   Path type-checking runs afterwards, in [Rules_paths], and so does the check
-   that a CONSTANT inhabits its column: constants never seed, so a relation of
-   pure constants carries no model content and is unwritable — §3's price. *)
+(* Extension §3: sorts, by a program-wide least fixpoint over
+   [(relation, column) -> sort], seeded by built-ins, typed declarations, an
+   unambiguous arrow's [dom] and a path's codomain. It must span rules: in §1's
+   transitive closure the recursive rule's [Y] is typed only by the other
+   rule. Chain resolution is inside the loop, since an ambiguous arrow seeds
+   nothing until the root is typed elsewhere. *)
 
 let ( let* ) = Result.bind
 
@@ -36,8 +18,7 @@ let col_why = Rules_terms.col_why
 
 (* ── The tables the fixpoint relaxes ─────────────────────────────────────── *)
 
-(* Each entry keeps the position and the reason that forced it: §3 asks a
-   conflict to name BOTH occurrences, and a sort with no provenance cannot. *)
+(* Each entry keeps what forced it, so a conflict can name both sides (§3). *)
 type seed = { srt : Rules.sort; at : Errors.pos; why : string }
 
 type st = {
@@ -47,8 +28,7 @@ type st = {
   mutable changed : bool;
 }
 
-(* What the fixpoint settled. Variables are keyed by rule, because a rule's
-   variables are scoped to it: the [X] of one rule is not the [X] of the next. *)
+(* What the fixpoint settled. Variables are keyed by rule, their scope. *)
 type t = {
   columns : ((string * int) * Rules.sort) list;
   variables : ((Rules.rule_id * string) * Rules.sort) list;
@@ -60,9 +40,7 @@ let var_sort (s : t) (rid : Rules.rule_id) (x : string) : Rules.sort option =
 let col_sort (s : t) (rel : string) (i : int) : Rules.sort option =
   List.assoc_opt (rel, i) s.columns
 
-(* A conflict is blamed at the SECOND occurrence and names the first's position:
-   the second is what the author is free to change, the first is the evidence
-   for why they must. *)
+(* A conflict is blamed at the second occurrence, citing the first. *)
 let put st tbl key what (s : seed) : (unit, Errors.t) result =
   match Hashtbl.find_opt tbl key with
   | Some old when old.srt = s.srt -> Ok ()
@@ -85,9 +63,7 @@ let seed_var st rid (t : Rules.term) (srt : Rules.sort) (why : string) =
   | Rules.Var (x, at) ->
       put st st.tvars (rid, x) ("`" ^ x ^ "`") { srt; at; why }
 
-(* A column and the term written in it teach each other whichever of them is
-   known. That two-way flow, across rules, is what carries [subordinate]'s
-   second column from the base rule to the recursive one. *)
+(* A column and its term each teach the other whichever sort is known. *)
 let seed_arg st rid rel i (t : Rules.term) =
   let* () =
     match Hashtbl.find_opt st.tcols (rel, i) with
@@ -114,8 +90,7 @@ let seed_args st rid rel ts =
 
 (* ── Chain resolution ────────────────────────────────────────────────────── *)
 
-(* Arrow names are dom-scoped (kernel §7), so a name may be owned by several
-   types. Exactly one owner is a seed; more than one is silence. *)
+(* The types owning an arrow name (kernel §7); only a single owner seeds. *)
 let arrow_doms (s : Schema.t) (name : string) : string list =
   List.sort_uniq String.compare
     (List.filter_map
@@ -130,8 +105,7 @@ let rec walk (s : Schema.t) (cur : string) = function
       | None -> None
       | Some a -> walk s a.Schema.cod rest)
 
-(* The type a path is rooted at, if it is known YET. [None] is not a failure —
-   it tells the fixpoint to come back next round. *)
+(* The path's root type if known yet; [None] means try next round. *)
 let root_type st rid (benv : (string * string) list) (p : Rules.gpath) =
   match p.Rules.root with
   | Rules.Const (c, _) -> (
@@ -150,8 +124,7 @@ let seed_root st rid (p : Rules.gpath) =
       | [ dom ] ->
           seed_var st rid p.Rules.root (Rules.Entity dom)
             ("the root of the path `" ^ Rules_terms.path_str p ^ "`")
-      (* Ambiguous, or no such arrow at all: seed nothing, and let another
-         occurrence sort it. A missing arrow is [Rules_paths]' error to make. *)
+      (* Ambiguous or missing: seed nothing ([Rules_paths] reports missing). *)
       | _ -> Ok ())
   | _ -> Ok ()
 
@@ -174,10 +147,8 @@ let rec seed_guard st rid benv (g : Rules.gexp) =
 
 (* ── Seeds ───────────────────────────────────────────────────────────────── *)
 
-(* The per-position sorts come from [Rules_terms.builtin_cols] — the one table
-   [Rules_paths] also checks constants against, so the two cannot drift. G is
-   not among them: it is not a term, and is never sorted. Its CONTENTS are
-   seeded exactly as a bare guard's are. *)
+(* Seeds from [Rules_terms.builtin_cols]; a [holds] guard's contents are
+   seeded like a bare guard's. *)
 let seed_builtin st rid (b : Rules.builtin) =
   let name, cols = Rules_terms.builtin_cols b in
   let rec go i = function
@@ -269,9 +240,8 @@ let infer (m : Model.t) (p : Rules_parser.t) : (t, Errors.t) result =
     { m; tcols = Hashtbl.create 32; tvars = Hashtbl.create 64; changed = true }
   in
   let* () = iter_r (seed_decl st) p.Rules_parser.relations in
-  (* A round that changes anything fills at least one table entry, and the two
-     tables have finitely many keys, so this terminates. The bound is written
-     down rather than trusted: one round per key that could ever be filled. *)
+  (* Each changing round fills a table entry, so this terminates; the bound
+     (one round per possible key) makes that explicit. *)
   let bound =
     List.fold_left
       (fun n r -> n + Rules_terms.arity_of r)
@@ -290,9 +260,8 @@ let infer (m : Model.t) (p : Rules_parser.t) : (t, Errors.t) result =
     end
   in
   let* () = loop 0 in
-  (* The variable comes first: §1 asks for an error AT the variable, and an
-     unsortable variable always leaves the column it feeds unsorted too, so
-     reporting the column would bury the answer one indirection away. *)
+  (* Report unsorted variables before columns: §1 wants the error at the
+     variable, and its column is unsorted as a consequence. *)
   let* () = iter_r (unsorted_var st) p.Rules_parser.rules in
   let* () = iter_r (unsorted_cols st) p.Rules_parser.relations in
   let entries tbl = Hashtbl.fold (fun k v acc -> (k, v.srt) :: acc) tbl [] in

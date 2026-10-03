@@ -1,29 +1,15 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Claims data: the questions the interrogator answers. It lives in core (not
-   syntax) so the engine can consume it without ever touching the front end;
-   syntax merely parses into it. *)
+(* Claims: the questions the engine answers. Kept in core so the engine never
+   depends on the front end. *)
 
-(* [Inevitable] is AF: not "can still reach" but "cannot avoid". It is the
-   fourth of CTL's basic operators, joining the three already here, and the one
-   a model with independent parties asks — a protocol that CAN still finish
-   from everywhere is not a protocol that DOES.
-
-   It carries the moves the question assumes are not starved for
-   ever. The list belongs to the QUESTION and not to the model, which is what
-   keeps one model answerable to both suites: "does this terminate whatever the
-   network does" and "does it terminate if delivery is not refused for ever"
-   are two questions about one protocol, and a model that carried the answer to
-   the second could not be asked the first. Empty is the plain reading, over
-   every run there is. *)
+(* [Inevitable] is AF, with the moves assumed never starved (empty: every
+   run). Fairness belongs to the question, not the model. *)
 type modality = Never | Possible | Live | Inevitable of string list
 
-(* [show] names queries to evaluate at the situation a verdict singles out —
-   the stuck situation of a failing [live] or [inevitable], the violating one
-   of a failing [never], the satisfying one of a holding [possible]. A witness
-   says how the world got there; the queries say who is affected once it has.
-   Empty is the ordinary case. *)
+(* [show] names queries to evaluate at the situation a verdict singles out
+   (the stuck, violating or satisfying one), saying who is affected there. *)
 type property = {
   name : string;
   text : string;

@@ -1,16 +1,6 @@
-; compare_old.writ — a tiny recoverable machine. `mode` walks working -> broken
-; -> working (via `restore`) -> safe (via `finish`). Because `restore` lets a
-; broken machine climb back to working and then finish, EVERY reachable
-; situation can still reach `safe`, so the `live` property `still-safe`
-; (compare_old.claims) HOLDS.
-;
-; compare_new.writ is this model MINUS `restore`: broken then becomes a trap that
-; can never reach `safe`, so `still-safe` FAILS there. `writ compare` reports the
-; guarantee LOST and exits 1. (Mirrors the any_model/captured_trap trap at small
-; scale: delete the recovery move, lose the liveness guarantee.)
-;
-; `shadow` is a second, never-written arrow so the schema carries a real
-; `mode-tracks-shadow` equation; identical in old and new, it reports preserved.
+; A tiny recoverable machine: working -> broken -> working (`restore`) -> safe
+; (`finish`), so `still-safe` holds. compare_new.writ drops `restore`.
+; `shadow` is never written, giving an equation that compare reports preserved.
 
 (load "stdlib.writ")   ; `=` is a stdlib form (§8.6); there is no implicit prelude
 
