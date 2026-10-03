@@ -1,13 +1,21 @@
-# Keep the build context small and reproducible. The build stage compiles
-# tooling/cli/writ.exe from core/ + runtime/ + tooling/cli/; the runtime stage
-# builds writ from source; the worked examples live in a repository of their own.
+# Keep the build context small and reproducible.
+#
+# TWO Dockerfiles share this context, and the classic builder has no
+# per-Dockerfile ignore file, so this list serves both:
+#
+#   Dockerfile             the runtime image. Its build stage COPYs a
+#                          hand-written list of directories, so what is in the
+#                          context beyond that list never reaches it.
+#   downstream/Dockerfile  the downstream regression image. It builds the WHOLE
+#                          tree and runs `make test`, so the suites (tests/),
+#                          the language server (tooling/lsp) and the toolchain
+#                          wrapper the Makefile calls (scripts/) must be here.
+#
+# What stays out is what neither needs: build output, the docs, git metadata.
 _build
+_opam
 dist
 .git
-tooling/lsp
 docs
-scripts
-tests/unit
-tests/models
 **/*.install
 **/.DS_Store
