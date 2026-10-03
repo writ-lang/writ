@@ -1,7 +1,7 @@
 # What makes a domain tractable by Writ
 
-The test for whether Writ can hold a new domain. The
-[README](../README.md#language-design) says why the language refuses what it
+The test for whether Writ can hold a new domain.
+[Kernel spec §2](kernel-spec.md#2-language-design) says why the language refuses what it
 does; [Appendix G](kernel-spec.md#appendix-g--problems-tractable-with-writ)
 lists domains that fit.
 

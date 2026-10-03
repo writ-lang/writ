@@ -196,7 +196,7 @@ let () =
     "(rule (p S) (phase S))";
   rejected "built-in: phase-step takes two" ~sub:"(phase-step P Q)"
     "(rule (p P) (phase-step P Q R))";
-  (* The quotient is the interrogator's to compute (extension §5). *)
+  (* The quotient is the interrogator's to compute (extension §2). *)
   rejected "relation: phase cannot be redeclared" ~sub:"built-in"
     "(relation phase 2)";
   rejected "rule: phase-step cannot be a head" ~sub:"cannot define"

@@ -1,4 +1,4 @@
-; Extension §4: `X` appears only under `(not …)`, so it is never bound.
+; Extension §1: `X` appears only under `(not …)`, so it is never bound.
 ; Rejected at the variable; columns are sorted so only range restriction
 ; fails.
 

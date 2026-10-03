@@ -1,4 +1,4 @@
-; Extension §5: recursion through negation has no stratum order. Rejected at
+; Extension §1: recursion through negation has no stratum order. Rejected at
 ; the `(not …)`, naming the whole cycle; bodies are range-restricted so only
 ; stratification fails.
 

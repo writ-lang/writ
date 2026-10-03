@@ -3,7 +3,7 @@
 Versions follow `dune-project`: what opam publishes, `writ --version` prints and
 `make release` names the tarball with.
 
-## Unreleased
+## 0.3.0 — 2026-10-03
 
 **Certificates, checked by a checker proved sound in Lean.** `writ check`
 writes `MODEL.cert.json` beside the model (`--certificate FILE` elsewhere,
@@ -78,7 +78,7 @@ The first released version. It is 0.2.0 because `v0.1.0` and
 `ghcr.io/writ-lang/writ:0.1.0` already name an older commit, and re-cutting
 that tag would move it under anyone who pinned it.
 
-**The language.** The kernel words: `schema` / `type` / `arrow` with its
+**The language.** Its twenty-six kernel words: `schema` / `type` / `arrow` with its
 qualifiers, `instance`, `initial`, `use`, `transition` with `when` / `do`,
 `equation`, `gap`, `form`, `load`. Forms are hygienic, non-recursive macros, so
 expansion terminates and errors point at real source.

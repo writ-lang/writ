@@ -1,5 +1,5 @@
 ; ALL-CAPS element names: fine in .writ, but a .rules file reads them as
-; variables (extension §9). caps_collision.rules trips the §3 diagnostic.
+; variables (extension §1). caps_collision.rules trips that diagnostic.
 
 (schema caps
   (type kind-t (KNIGHT KNAVE))

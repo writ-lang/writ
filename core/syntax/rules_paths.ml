@@ -3,7 +3,7 @@
 
 open Writ_data
 
-(* Extension §2/§3, after sorting: every path walks the schema and every
+(* Extension §1/§2, after sorting: every path walks the schema and every
    constant lies in its domain. A bare guard has no situation, so its steps
    must be [fixed] arrows; inside [(holds S G)] mutable ones are fine. *)
 

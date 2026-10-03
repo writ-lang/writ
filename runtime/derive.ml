@@ -4,7 +4,7 @@
 open Writ_data
 open Derive_table
 
-(* Extension §6 — the stratified, semi-naive least fixpoint over [Space.t];
+(* Extension §1 — the stratified, semi-naive least fixpoint over [Space.t];
    the tables are [Derive_table]. [Rules_check] has already sorted, stratified
    and range-restricted the program, so the engine checks nothing. Cost (§6):
    joins are indexed, but an unbound guard root enumerates its roster every

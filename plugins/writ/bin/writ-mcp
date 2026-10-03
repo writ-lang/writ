@@ -14,7 +14,7 @@
 set -eu
 
 # Pinned so the tools match what the plugin's skill describes.
-WRIT_IMAGE=${WRIT_IMAGE:-ghcr.io/writ-lang/writ:0.2.0}
+WRIT_IMAGE=${WRIT_IMAGE:-ghcr.io/writ-lang/writ:0.3.0}
 
 native() {
   if command -v writ-mcp >/dev/null 2>&1; then

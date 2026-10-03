@@ -1,8 +1,8 @@
 (* Copyright (C) 2026 Alex Kunich *)
 (* SPDX-License-Identifier: AGPL-3.0-or-later *)
 
-(* Rules checking: [Rules_check]'s read-time rejections (extension §2, §4,
-   §5) other than sort inference. *)
+(* Rules checking: [Rules_check]'s read-time rejections (extension §1, §2)
+   other than sort inference. *)
 
 open Writ_data
 open Writ_syntax

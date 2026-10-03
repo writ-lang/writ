@@ -19,8 +19,26 @@ employer owns what you write at work, you need their sign-off (section 4).
 ## Sending a patch
 
 - Work on a branch; one concern per pull request.
-- Run the tests before you open it (see the README's "Building from source").
+- Run the tests before you open it (`make test` and `make lint`).
 - New source files need the two-line header every other file carries — a
   copyright line and an `SPDX-License-Identifier`. Copy them from a neighbour.
 - Write the commit message for someone reading it in a year: what changed, and
   why.
+
+## Releasing
+
+The version lives in one place, `(version …)` in `dune-project`; the tag only
+starts the release workflows. Bump first, then tag:
+
+```sh
+$EDITOR dune-project                       # (version 0.4.0)
+make build                                 # regenerates writ.opam
+sh scripts/check-versions.sh               # the plugin's copies must agree
+git commit -am "writ 0.4.0"
+sh scripts/check-release-tag.sh v0.4.0
+git tag -a v0.4.0 -m "what this release is for, in one line"
+git push origin main v0.4.0
+```
+
+The tag builds and tests the tarballs (x86_64, aarch64) and publishes them as a
+GitHub release, and pushes the image to `ghcr.io/writ-lang/writ`.

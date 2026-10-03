@@ -56,7 +56,7 @@ let check_uses rels (r : Rules.rule) =
 
 (* ── ALL-CAPS collisions ─────────────────────────────────────────────────── *)
 
-(* A term is a variable iff ALL-CAPS (§9), even quoted. A model's ALL-CAPS
+(* A term is a variable iff ALL-CAPS (extension §1), even quoted. A model's ALL-CAPS
    element or entity (e.g. [KNIGHT]) would be misread as a variable in every
    rule, so such a use is diagnosed. *)
 let caps_names (m : Model.t) : (string * string) list =
@@ -92,7 +92,7 @@ let check_caps names (r : Rules.rule) =
                ^ "; rename one")))
     (Rules_terms.terms_of_rule r)
 
-(* ── Stratification (extension §5) ───────────────────────────────────────── *)
+(* ── Stratification (extension §1) ───────────────────────────────────────── *)
 
 type dep = { src : string; dst : string; neg : Errors.pos option }
 
