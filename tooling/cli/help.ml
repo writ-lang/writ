@@ -35,7 +35,8 @@ let verbs =
       summary = "build the model and report its size, gaps, dead ends and laws";
       usage =
         [
-          "writ check    MODEL.writ [--claims FILE.claims]";
+          "writ check    MODEL.writ [--claims FILE.claims] [--certificate F | \
+           --no-certificate]";
           "writ check    --stdin [--claims FILE.claims]";
         ];
       body =
@@ -50,7 +51,14 @@ whether a move can break the law and where it is violated. With
   n/a   NAME   — the property names structure the schema lacks
 A property with a (show QUERY…) clause also answers those queries at the
 situation its verdict singles out — the affected entities, named.
-Then query answers and law acknowledgments (unadmitted / stale).|};
+Then query answers and law acknowledgments (unadmitted / stale).
+
+Every check also writes MODEL.cert.json beside the model — the same
+answers with the model they are about — and hands it to writ-cert, a
+checker proved sound in Lean, which re-derives them. Its verdict is the
+last line: certified, NOT CERTIFIED (exit 1), or not certified when no
+writ-cert is installed ($WRIT_CERT, beside writ, or the PATH).
+--no-certificate skips both (docs/certificates.md).|};
       options =
         [
           "--claims FILE    the questions to ask (properties, queries, accepts)";
@@ -58,6 +66,9 @@ Then query answers and law acknowledgments (unadmitted / stale).|};
           "--json           the same answer as one JSON object (docs/json.md)";
           "--fiber CELL     also answer each property per value of CELL \
            (SRC.ARROW), the §17 fibers; repeatable for a product";
+          "--certificate F  write the certificate to F instead of beside the \
+           model (MODEL.cert.json, written by default) (docs/certificates.md)";
+          "--no-certificate do not write one";
         ];
       examples =
         [

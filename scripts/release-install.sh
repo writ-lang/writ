@@ -16,7 +16,7 @@
 # as the machine that built it — see the note printed at the end.
 #
 # Uninstall is the inverse and equally plain:
-#     rm -f  <prefix>/bin/writ <prefix>/bin/writ-lsp <prefix>/bin/writ-mcp
+#     rm -f  <prefix>/bin/writ <prefix>/bin/writ-lsp <prefix>/bin/writ-mcp <prefix>/bin/writ-cert
 #     rm -rf <prefix>/share/writ
 set -eu
 
@@ -36,7 +36,8 @@ mkdir -p "$prefix/bin" "$prefix/share/writ/lib"
 
 # rm first: an already-installed writ is read-only (mode 555), so a plain cp over
 # it fails with EACCES.
-for exe in writ writ-lsp writ-mcp; do
+# writ-cert goes beside writ, which is where `writ check` looks for it first.
+for exe in writ writ-lsp writ-mcp writ-cert; do
   [ -f "$here/bin/$exe" ] || continue
   rm -f "$prefix/bin/$exe"
   cp "$here/bin/$exe" "$prefix/bin/$exe"
@@ -53,6 +54,7 @@ echo "installed:"
 echo "  $prefix/bin/writ"
 [ -f "$prefix/bin/writ-lsp" ] && echo "  $prefix/bin/writ-lsp  (language server)"
 [ -f "$prefix/bin/writ-mcp" ] && echo "  $prefix/bin/writ-mcp  (MCP server)"
+[ -f "$prefix/bin/writ-cert" ] && echo "  $prefix/bin/writ-cert  (certificate checker — every \`writ check\` runs it)"
 echo "  $prefix/share/writ/lib/"
 
 case ":${PATH:-}:" in

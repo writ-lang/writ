@@ -1,0 +1,13 @@
+name = "writ-cert"
+version = "0.1.0"
+defaultTargets = ["WritCert", "writ-cert", "Examples"]
+
+[[lean_lib]]
+name = "WritCert"
+
+[[lean_lib]]
+name = "Examples"
+
+[[lean_exe]]
+name = "writ-cert"
+root = "Main"

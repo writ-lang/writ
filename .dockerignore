@@ -13,6 +13,7 @@
 #
 # What stays out is what neither needs: build output, the docs, git metadata.
 _build
+lean/.lake
 _opam
 dist
 .git

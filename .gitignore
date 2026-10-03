@@ -45,6 +45,13 @@ bisect*.coverage
 __pycache__/
 *.py[cod]
 
+# ── Certificates ─────────────────────────────────────────────
+# `writ check` writes MODEL.cert.json beside every model it checks
+# (docs/certificates.md). Regenerated on every run; the ones lean/Examples
+# reads are fixtures, kept so its proofs build without a writ.
+*.cert.json
+!/lean/Examples/*.cert.json
+
 # ── Merge and patch leftovers ────────────────────────────────
 # Never intentional, and easy to commit by accident during a conflict.
 *.orig

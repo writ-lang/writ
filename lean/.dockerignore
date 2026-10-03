@@ -1,0 +1,2 @@
+# The build happens inside the image; nothing built outside it goes in.
+.lake

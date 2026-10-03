@@ -309,6 +309,41 @@ let () =
         go 0
     | Ok _ -> false)
 
+(* --- the certificate (docs/certificates.md) --------------------------------- *)
+
+(* What a second checker re-derives the answers from: the model, the
+   questions, and the answer — and not the graph, which the checker rebuilds. *)
+let () =
+  let m = model "captured_trap.writ" in
+  let sp = space m in
+  let cl = claims m "captured_trap.claims" in
+  let props =
+    List.map (fun (p : Claims.property) -> (p, Checker.check sp p)) cl.props
+  in
+  let report =
+    Report_json.check ~queries:[] ~sp ~unadmitted:[] ~stale:[] ~props
+      ~answered:[] ~exit:1
+  in
+  let j =
+    roundtrip
+      (Certify_json.certificate ~version:"test" ~sp ~model_:m ~claims:(Some cl)
+         ~report)
+  in
+  check "certificate: format" (str (get "format" j) = "writ-certificate");
+  check "certificate: version" (int (get "version" j) = 2);
+  let n = Array.length sp.Space.states in
+  let ntr = List.length sp.Space.transitions in
+  check "certificate: no state graph — the checker builds its own"
+    (Json.member "space" j = None);
+  check "certificate: the layout is the state width"
+    (len (get "layout" (get "model" j)) = Array.length sp.Space.initial);
+  check "certificate: every move is exported"
+    (len (get "transitions" (get "model" j)) = ntr);
+  check "certificate: every property is exported"
+    (len (get "properties" j) = List.length cl.Claims.props);
+  check "certificate: the report rides along"
+    (int (get "states" (get "report" j)) = n)
+
 let () =
   print_string
     ("test_report_json: " ^ string_of_int !passed ^ " checks passed\n")

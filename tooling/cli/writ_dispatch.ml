@@ -49,3 +49,16 @@ let take_claims (args : string list) : string option * string list =
     | a :: rest -> go (a :: acc) rest
   in
   go [] args
+
+(* [--certificate FILE] comes out the same way [--claims FILE] does, and for
+   the same reason: a flag with a value must leave before the positionals are
+   counted. *)
+let take_certificate (args : string list) : string option * string list =
+  let rec go acc = function
+    | [] -> (None, List.rev acc)
+    | "--certificate" :: file :: rest -> (Some file, List.rev_append acc rest)
+    | a :: rest -> go (a :: acc) rest
+  in
+  go [] args
+
+let take_no_certificate = take_flag "--no-certificate"

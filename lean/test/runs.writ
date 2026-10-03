@@ -1,0 +1,24 @@
+; runs.writ — every kind of `inevitable` certificate in one small model.
+;
+; A lamp that can be flipped back and forth, and finished from `on`; a second
+; dial that can spin between two settings for ever and never offer `finish`.
+;
+;   off ⇄ on → done          (flip / flip-back / finish)
+;   off → spin-a ⇄ spin-b    (wander / spin / spin-back)
+
+(schema runs
+  (type phase (off on done spin-a spin-b))
+  (type lamp (arrow at (to phase))))
+
+(instance start runs
+  (lamp l (at off)))
+
+(use runs)
+(initial start)
+
+(transition flip      (when (is l.at off))    (do (set l.at on)))
+(transition flip-back (when (is l.at on))     (do (set l.at off)))
+(transition finish    (when (is l.at on))     (do (set l.at done)))
+(transition wander    (when (is l.at off))    (do (set l.at spin-a)))
+(transition spin      (when (is l.at spin-a)) (do (set l.at spin-b)))
+(transition spin-back (when (is l.at spin-b)) (do (set l.at spin-a)))

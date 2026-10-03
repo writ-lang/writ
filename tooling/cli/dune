@@ -21,6 +21,7 @@
  (wrapped false)
  (modules
   cli_io
+  certifier
   cmd_check
   cmd_query
   cmd_compare
