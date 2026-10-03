@@ -61,16 +61,50 @@ let resolve_for (base : string) : Writ_syntax.Loader.resolve =
   in
   first (Load_path.candidates ~base name)
 
-(* `writ-mcp [--claims-dir DIR]`. With DIR, every claims file is read from
-   there by basename, whatever path a tool call names, so the agent editing the
-   model cannot also edit its questions. *)
-let pinned =
-  match Array.to_list Sys.argv with
-  | [ _ ] -> None
-  | [ _; "--claims-dir"; dir ] -> Some dir
-  | _ ->
-      prerr_endline "usage: writ-mcp [--claims-dir DIR]";
-      exit 2
+(* `writ-mcp [--claims-dir DIR] [--root DIR]`.
+
+   --claims-dir: every claims file is read from DIR by basename, whatever path
+   a tool call names, so the agent editing the model cannot also edit its
+   questions.
+
+   --root (or $WRIT_MCP_ROOT): the directory relative paths resolve against.
+   A client may start the server anywhere — Claude Desktop through WSL starts
+   it in C:\Windows\System32 — so the server moves there before it reads a
+   line. Paths given on the command line are taken relative to where it was
+   started. *)
+let usage () =
+  prerr_endline "usage: writ-mcp [--claims-dir DIR] [--root DIR]";
+  exit 2
+
+let absolute d =
+  if Filename.is_relative d then Filename.concat (Sys.getcwd ()) d else d
+
+let pinned, root =
+  let rec go pinned root = function
+    | [] -> (pinned, root)
+    | "--claims-dir" :: d :: rest -> go (Some (absolute d)) root rest
+    | "--root" :: d :: rest -> go pinned (Some (absolute d)) rest
+    | _ -> usage ()
+  in
+  let pinned, root = go None None (List.tl (Array.to_list Sys.argv)) in
+  let root =
+    match root with
+    | Some _ -> root
+    | None -> (
+        match Sys.getenv_opt "WRIT_MCP_ROOT" with
+        | Some d when d <> "" -> Some (absolute d)
+        | _ -> None)
+  in
+  (pinned, root)
+
+let () =
+  Option.iter
+    (fun d ->
+      try Sys.chdir d
+      with Sys_error e ->
+        prerr_endline ("writ-mcp: --root: " ^ e);
+        exit 2)
+    root
 
 (* One line in, at most one line out; a line that is not JSON gets a JSON-RPC
    parse error rather than silence. *)

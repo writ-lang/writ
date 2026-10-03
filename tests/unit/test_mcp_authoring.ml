@@ -907,6 +907,34 @@ let () =
   check "compare: no laws reads `equations:   none`"
     (contains ~sub:"equations:   none" out)
 
+(* ── claims not checked while the model is broken, and said so ─────────── *)
+
+let () =
+  let broken =
+    Writ_mcp.Diagnose.replace base
+      [ ("(set a.stage running)", "(set a.stage runing)") ]
+  in
+  let err, out =
+    tool "writ_validate"
+      [
+        ("model_source", s broken);
+        ("claims_source", s "(property p \"x\" (possible (is a.stage don)))");
+        ("rules_source", s "(relation r 1)");
+      ]
+  in
+  check "broken model: its error is reported"
+    (err && contains ~sub:"error E_UNKNOWN_VALUE in model" out);
+  check "broken model: claims are said to be not checked"
+    (contains ~sub:"note E_NOT_CHECKED in claims" out);
+  check "broken model: so are rules"
+    (contains ~sub:"note E_NOT_CHECKED in rules" out);
+  let _, out = tool "writ_validate" [ ("model_source", s broken) ] in
+  check "broken model alone: no note" (not (contains ~sub:"E_NOT_CHECKED" out));
+  let _, out = tool "writ_check" [ ("model", s "rel/x.writ") ] in
+  check "relative missing path: names the working directory and --root"
+    (contains ~sub:"resolves against the server's working directory" out
+    && contains ~sub:"--root" out)
+
 (* ── a bare (set …) outside (do …) is an error, not a silent no-op ───────── *)
 
 let () =
