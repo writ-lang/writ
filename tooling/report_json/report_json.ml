@@ -155,6 +155,13 @@ let check ~(queries : Claims.query list) ~(sp : Space.t)
     [
       ("states", int (Array.length sp.Space.states));
       ("edges", int (List.length sp.Space.edges));
+      ( "regime",
+        let k = Space.recurrent_count sp in
+        Json.Assoc
+          [
+            ("kind", str (if k = 0 then "committing" else "reversible"));
+            ("recurrent", int k);
+          ] );
       ("gaps", gaps sp);
       ("dead_ends", dead_ends sp);
       ("equations", laws sp);

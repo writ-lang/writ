@@ -120,6 +120,11 @@ let () =
   check "check: edges is the edge count"
     (int (get "edges" j) = List.length sp.Space.edges);
   check "check: exit carried" (int (get "exit" j) = 1);
+  let r = get "regime" j in
+  check "check: the regime is named" (str (get "kind" r) = "reversible");
+  check "check: with how much of the space lies on cycles"
+    (int (get "recurrent" r) > 0
+    && int (get "recurrent" r) <= int (get "states" j));
   let p = nth 0 (get "properties" j) in
   check "check: property named" (str (get "name" p) = "accountability");
   check "check: modality spelled" (str (get "modality" p) = "live");

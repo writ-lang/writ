@@ -14,7 +14,10 @@ Reach for this when the honest answer needs a **proof over all cases** rather
 than an argument. It is the right tool for deadlock, reachability, "can this
 ever happen", scheduling feasibility and optimality on small instances, and
 "can this policy be broken". It is the wrong tool for anything numeric,
-recursive or unbounded — Writ has no arithmetic by design.
+recursive or unbounded — Writ has no arithmetic by design. The test for a
+new domain is `docs/tractability.md` in the writ repository: a fixed cast;
+quantities compared against constants, never against each other; moves that
+set a slot to a named value; an answer set small enough to want.
 
 ## The loop
 

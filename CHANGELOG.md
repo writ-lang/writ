@@ -5,6 +5,16 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**`regime:` in the build report**, under the size line: `committing — no
+move can be undone`, or `reversible — 36 of 36 situations lie on cycles`.
+Measured from the space's phase partition, not guessed from the syntax; it
+is the line that says whether adding vocabulary is free. `--json` carries it
+as `regime`. The argument is **`docs/tractability.md`**, new: the four
+conditions under which a domain fits Writ, and where the line falls — a
+quantity compared against a constant is fine at any range, one compared
+against another varying quantity is not. Linked from the README and the
+Claude skill. Recommendations Gap #4.
+
 **`writ graph`** draws the state space — in D2 by default, the notation the
 repository's own diagrams use, or DOT, or JSON. The picture is the PHASE
 quotient: one node per class of mutually reachable situations (the

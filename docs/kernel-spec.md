@@ -1407,6 +1407,10 @@ reader and form expander of Part II and never alter a model's meaning.
 On any successful build, an interrogator reports:
 
 - **size** — reachable situations and edges;
+- **regime** — whether any situation can return to itself: `committing`
+  when none can (every situation is a prefix of a design, and adding
+  vocabulary costs nothing), else `reversible` with how many lie on
+  cycles;
 - **gaps** — every gap edge, with message and minimal route in;
 - **dead ends** — situations where no move is enabled (gap edges do not
   count as moves out — they are exits from the model, not moves within

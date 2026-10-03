@@ -173,6 +173,13 @@ construct ever needed an operator or a precedence rule, guards included; the
 notation states its own structure; and every worked model's properties are read
 twice — once in branching time, once relationally — by two engines that agree.
 
+Whether a *particular* domain fits is a test, not a feeling:
+[docs/tractability.md](docs/tractability.md) states it in four conditions — a
+fixed cast; thresholds, not comparisons; settling, not computing; an answer
+set you would read — and says precisely where the line falls (a quantity
+compared against a constant is fine at any range; one compared against
+another varying quantity is not).
+
 ## What an answer costs
 
 Enumerating *every* situation invites one question ahead of all others: how big
@@ -234,6 +241,11 @@ in 94 — each the formula's exact prediction.
 farmer can row back, so a crossing can be undone and made again, and no move
 settles anything for good. There the product of the cells is real, and 36 is
 what it costs.
+
+`writ check` says which kind a model is, under its size line — `regime:
+committing — no move can be undone`, or `regime: reversible — 36 of 36
+situations lie on cycles` — measured from the space rather than guessed from
+the syntax, so the author knows at once whether adding vocabulary is free.
 
 ## The CLI
 

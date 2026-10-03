@@ -207,6 +207,22 @@ let () =
   check "report: no description, no extra line"
     (contains ~sub:"fails  acc\n  stuck at:" s)
 
+(* --- regime: measured, not guessed --------------------------------------- *)
+
+let () =
+  (* The toggle flips back: both of its situations lie on a cycle. *)
+  let sp = build_ok toggle in
+  check "regime: a toggle is reversible, entirely" (Space.recurrent_count sp = 2);
+  check "regime: the build report says so, with the count"
+    (contains ~sub:"regime: reversible — 2 of 2 situations lie on cycles"
+       (Report.build sp));
+  (* One latch and nothing else: no situation returns to itself. *)
+  let sp = build_ok capture_model in
+  check "regime: a latch alone is committing" (Space.recurrent_count sp = 0);
+  check "regime: the build report says committing"
+    (contains ~sub:"regime: committing — no move can be undone"
+       (Report.build sp))
+
 (* --- inevitable: the gap between "can still" and "cannot avoid" ------------- *)
 
 (* A cycle does not refute [inevitable] by existing — only one that stays off

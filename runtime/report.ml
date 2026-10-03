@@ -17,6 +17,18 @@ let size (sp : Space.t) : string =
   ^ "   edges: "
   ^ string_of_int (List.length sp.Space.edges)
 
+(* Which regime the model is in (docs/tractability.md §6), measured rather
+   than guessed from the syntax: committing when no situation can return to
+   itself, reversible otherwise, with how much of the space the product
+   reaches. It is the line that says whether adding vocabulary is free. *)
+let regime (sp : Space.t) : string =
+  match Space.recurrent_count sp with
+  | 0 -> "regime: committing — no move can be undone"
+  | k ->
+      "regime: reversible — " ^ string_of_int k ^ " of "
+      ^ string_of_int (Array.length sp.Space.states)
+      ^ " situations lie on cycles"
+
 let gaps (sp : Space.t) : string =
   match Space.reachable_gaps sp with
   | [] -> "gaps: none"
@@ -70,7 +82,7 @@ let laws (sp : Space.t) : string =
   String.concat "\n" (List.map one (Observe.laws sp))
 
 let build (sp : Space.t) : string =
-  let parts = [ size sp; gaps sp; dead_ends sp ] in
+  let parts = [ size sp; regime sp; gaps sp; dead_ends sp ] in
   let lw = laws sp in
   String.concat "\n" (if lw = "" then parts else parts @ [ lw ])
 
