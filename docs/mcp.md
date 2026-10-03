@@ -112,7 +112,9 @@ Every file argument is a path **or** inline text: `model_source`,
 at most 256 KB each, so an assistant in a chat app that cannot write to your
 disk can still author. Give inline models a `model_name` to keep revision
 history per name (for as long as the server runs); errors cite the source
-as `inline:NAME.writ`, a name no `(load …)` can reach. Under
+as `inline:NAME.writ`, a name no `(load …)` can reach. An inline model's own
+`(load …)` is looked up as a path model's is: the server's working directory
+first, then the library path. Under
 `--claims-dir`, inline claims are refused.
 
 Every tool takes `json: true` for the same answer as one JSON object

@@ -720,6 +720,50 @@ let () =
   check "timeout: a long search stops at the clock"
     (err && contains ~sub:"stopped at timeout" out)
 
+(* ── how an inevitable failure avoids F; long dead-end routes ──────────── *)
+
+let () =
+  let consumer =
+    List.assoc "consumer-fixed.writ"
+      (List.filter_map
+         (fun (info, b) -> Option.map (fun f -> (f, b)) (kv info "file"))
+         (blocks (guide_topic "examples.consumer")))
+  in
+  let _, out =
+    tool "writ_check"
+      [
+        ("model_source", s consumer);
+        ( "claims_source",
+          s "(property f \"x\" (inevitable (is m.stage acked) (fair deliver)))"
+        );
+      ]
+  in
+  check "fair inevitable: names the region a fair run circles in"
+    (contains ~sub:"loops among: #2 #4 #5, taking every fair move offered there"
+       out);
+  (* a 40-step ladder: its dead end's route is shortened in the middle *)
+  let n = 40 in
+  let steps = List.init n (fun i -> "t" ^ string_of_int i) in
+  let ladder =
+    "(schema l (type tick (arrow next (to tick) fixed vacatable)) (type c \
+     (arrow at (to tick))))\n\
+     (instance i l (tick " ^ String.concat " " steps ^ ") (next "
+    ^ String.concat " "
+        (List.mapi
+           (fun i t ->
+             if i = n - 1 then "(" ^ t ^ " vacant)"
+             else "(" ^ t ^ " t" ^ string_of_int (i + 1) ^ ")")
+           steps)
+    ^ ") (c k (at t0)))\n\
+       (use l)\n\
+       (initial i)\n\
+       (transition step (when (defined k.at.next)) (do (set k.at k.at.next)))\n"
+  in
+  let err, out = tool "writ_check" [ ("model_source", s ladder) ] in
+  if err then print_string out;
+  check "dead ends: a long route is shortened"
+    (contains ~sub:"… 19 more moves …" out)
+
 (* ── a bare (set …) outside (do …) is an error, not a silent no-op ───────── *)
 
 let () =

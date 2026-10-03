@@ -35,16 +35,40 @@ let gaps (sp : Space.t) : string =
       in
       String.concat "\n" (head :: List.map line gs)
 
+(* A long route keeps its ends: the start says how it began, the end what
+   led into the dead end; the middle is counted, not printed. *)
+let route_cap = 24
+
+let elide (r : string list) : string =
+  let n = List.length r in
+  if n <= route_cap then String.concat ", " r
+  else
+    let keep = (route_cap / 2) - 2 in
+    String.concat ", " (List.filteri (fun i _ -> i < keep) r)
+    ^ ", … "
+    ^ string_of_int (n - (2 * keep))
+    ^ " more moves …, "
+    ^ String.concat ", " (List.filteri (fun i _ -> i >= n - keep) r)
+
+(* So many dead ends are a pattern, not a list to read. *)
+let dead_end_cap = 20
+
 let dead_ends (sp : Space.t) : string =
   match Space.dead_ends sp with
   | [] -> "dead ends: none"
   | des ->
-      let head = "dead ends: " ^ string_of_int (List.length des) in
+      let n = List.length des in
+      let head = "dead ends: " ^ string_of_int n in
       let line (_, route) =
-        "  reached by: "
-        ^ match route with [] -> "(initial)" | r -> String.concat ", " r
+        "  reached by: " ^ match route with [] -> "(initial)" | r -> elide r
       in
-      String.concat "\n" (head :: List.map line des)
+      let shown = List.filteri (fun i _ -> i < dead_end_cap) des in
+      String.concat "\n"
+        ((head :: List.map line shown)
+        @
+        if n > dead_end_cap then
+          [ "  … and " ^ string_of_int (n - dead_end_cap) ^ " more" ]
+        else [])
 
 (* Inline numbered route: [1. m1 2. m2 …] on one line. *)
 let inline_route (route : string list) : string =
@@ -111,6 +135,46 @@ let cells_line (sp : Space.t) (s : State.t) : string =
     cr.Instance.src ^ "." ^ cr.Instance.arrow ^ "=" ^ v
   in
   "(" ^ String.concat " " (Array.to_list (Array.mapi cell cells)) ^ ")"
+
+(* How a run from a failing [inevitable]'s stuck situation avoids F for ever:
+   it stops there, or it loops. Without fairness the loop is a concrete
+   shortest cycle; with it, a cycle may starve a fair move, so the honest
+   answer is the region a fair run circles in. *)
+let avoids (sp : Space.t) (prop : Claims.property) (fair : string list)
+    (s : State.t) : string option =
+  match State.M.find_opt s sp.Space.index with
+  | None -> None
+  | Some i -> (
+      let ctx = sp.Space.ctx in
+      let sat st = Eval.guard_holds ctx st [] prop.formula in
+      let a = Space.avoidance ~fair sp sat in
+      let idx = "#" ^ string_of_int i in
+      if a.Space.stopped.(i) then
+        Some ("  avoids:   the run stops at " ^ idx ^ ": no move is left")
+      else
+        match Space.avoid_loop a sp i with
+        | None -> None
+        | Some (members, loop) ->
+            if fair = [] then
+              Some
+                ("  loop:     "
+                ^ String.concat "   "
+                    (List.mapi
+                       (fun k (via, d) ->
+                         string_of_int (k + 1)
+                         ^ ". " ^ via ^ " → #" ^ string_of_int d)
+                       loop)
+                ^ "   (and again, for ever)")
+            else
+              let n = List.length members in
+              let shown = List.filteri (fun k _ -> k < 12) members in
+              Some
+                ("  loops among: "
+                ^ String.concat " "
+                    (List.map (fun j -> "#" ^ string_of_int j) shown)
+                ^ (if n > 12 then " … (" ^ string_of_int n ^ " situations)"
+                   else "")
+                ^ ", taking every fair move offered there"))
 
 (* The index leads so `writ show --at N` can be run on it directly. *)
 let stuck_line (sp : Space.t) (s : State.t) : string =
@@ -263,6 +327,12 @@ let outcome ?(queries : Claims.query list = []) (sp : Space.t)
       (match route with
       | [] -> ()
       | _ -> parts := witness_block sp route :: !parts);
+      (match (prop.modality, stuck) with
+      | Claims.Inevitable fair, Some s -> (
+          match avoids sp prop fair s with
+          | Some l -> parts := l :: !parts
+          | None -> ())
+      | _ -> ());
       String.concat "\n" (List.rev !parts @ shown)
 
 (* --- §17 fibers ------------------------------------------------------------ *)

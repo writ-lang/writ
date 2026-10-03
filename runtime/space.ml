@@ -358,7 +358,18 @@ let enabled_names (t : t) : string list array =
    takes it is removed, repeatedly (Emerson–Lei). Stops are unaffected.
    Not closed backward: the closure gives the same verdict but its shortest
    witness would usually be the empty route. *)
-let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
+(* The region a run can stay in for ever without F: the non-F situations on
+   a cycle that survives the fairness deletions, plus the non-F dead ends.
+   [escape.(i)] marks them; [comp] numbers the surviving cycles' components,
+   so a reader can be shown the loop itself. *)
+type avoidance = {
+  escape : bool array;
+  alive : bool array;
+  comp : int array;
+  stopped : bool array;
+}
+
+let avoidance ?(fair = []) (t : t) (sat : State.t -> bool) : avoidance =
   let n = Array.length t.states in
   let f = Array.init n (fun i -> sat t.states.(i)) in
   let all = succs t in
@@ -436,11 +447,69 @@ let escapes_f ?(fair = []) (t : t) (sat : State.t -> bool) : bool array =
   Array.iteri
     (fun i k -> if alive.(i) && k >= 0 then size.(k) <- size.(k) + 1)
     c;
-  Array.init n (fun i ->
-      (not f.(i))
-      && ((* stopped: no real move out of the model at all *)
-          all.(i) = []
-         || (alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)))))
+  let cyclic i = alive.(i) && (size.(c.(i)) > 1 || List.mem i sub.(i)) in
+  (* stopped: no real move out of the model at all *)
+  let stopped = Array.init n (fun i -> (not f.(i)) && all.(i) = []) in
+  {
+    escape = Array.init n (fun i -> stopped.(i) || ((not f.(i)) && cyclic i));
+    alive = Array.init n cyclic;
+    comp = c;
+    stopped;
+  }
+
+let escapes_f ?fair (t : t) (sat : State.t -> bool) : bool array =
+  (avoidance ?fair t sat).escape
+
+(* The situations of [i]'s avoiding cycle, and a shortest loop from [i] back
+   to itself inside it: (move, landing index) steps. [None] for a dead end. *)
+let avoid_loop (a : avoidance) (t : t) (i : int) :
+    (int list * (string * int) list) option =
+  if (not a.alive.(i)) || a.stopped.(i) then None
+  else
+    let k = a.comp.(i) in
+    let inside j = a.alive.(j) && a.comp.(j) = k in
+    let members =
+      List.filter inside (List.init (Array.length t.states) Fun.id)
+    in
+    let out = Array.make (Array.length t.states) [] in
+    List.iter
+      (fun e ->
+        match e.dst with
+        | `To s' -> (
+            match
+              (State.M.find_opt e.src t.index, State.M.find_opt s' t.index)
+            with
+            | Some si, Some di when inside si && inside di ->
+                out.(si) <- (e.via, di) :: out.(si)
+            | _ -> ())
+        | `Gap _ -> ())
+      t.edges;
+    Array.iteri (fun j l -> out.(j) <- List.rev l) out;
+    (* BFS from i until an edge leads back into i. [parent] maps a reached
+       situation to the move and situation it was first reached from. *)
+    let parent = Hashtbl.create 16 in
+    let q = Queue.create () in
+    Queue.add i q;
+    let rec path_to d acc =
+      if d = i then acc
+      else
+        let via, from = Hashtbl.find parent d in
+        path_to from ((via, d) :: acc)
+    in
+    let found = ref None in
+    while !found = None && not (Queue.is_empty q) do
+      let u = Queue.pop q in
+      List.iter
+        (fun (via, d) ->
+          if !found = None then
+            if d = i then found := Some (path_to u [] @ [ (via, i) ])
+            else if not (Hashtbl.mem parent d) then begin
+              Hashtbl.replace parent d (via, u);
+              Queue.add d q
+            end)
+        out.(u)
+    done;
+    Option.map (fun loop -> (members, loop)) !found
 
 (* The edges out of a state, gap edges included — so a gap-firing state is not
    a dead end (§15: a gap is a declared boundary, listed separately). *)

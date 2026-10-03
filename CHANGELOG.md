@@ -31,6 +31,14 @@ error: a bare `(set …)` outside `(do …)` used to be dropped silently, leavin
 move that changed nothing. No model in writ, writ-problems, writ-arch or
 writ-scheduling-verification has one.
 
+**A failing `inevitable` says how a run avoids the goal.** Under the witness,
+`avoids: the run stops at #N` when no move is left, or `loop:` a shortest cycle
+back to the stuck situation; under `(fair …)`, `loops among:` the situations a
+fair run circles in. Prose only: `--json` and certificates are unchanged.
+
+**Long dead-end lists are readable.** A route over 24 moves keeps its first and
+last ten and counts the rest; past 20 dead ends the report says how many more.
+
 ## 0.4.0 — 2026-10-03
 
 **Upgrading:** `writ check` now exits 1 when a property is `n/a`. A pipeline

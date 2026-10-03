@@ -51,7 +51,7 @@ After an edit, a property that became `n/a` counts as LOST. Never make a check p
 
 ## 8. Witnesses
 
-The space is built breadth-first, so every route printed is a shortest one (fewest moves). Among equally short routes, writ reports the first found: moves are tried in the order they are declared, situations in index order. A `fails` for `never` shows the route to the violating situation; for `live` and `inevitable` it shows `stuck at:` the nearest situation from which F is unreachable (`live`) or avoidable for ever (`inevitable`), with the route *to* it. That route is empty when the stuck situation is `#0`, and it does not show the loop that avoids F: `writ_show` the stuck situation and follow its moves, or ask `.rules` (`recurrent` in `ct.rules`). A holding `possible` shows the route to the nearest F situation: that route is the answer to "is there a way".
+The space is built breadth-first, so every route printed is a shortest one (fewest moves). Among equally short routes, writ reports the first found: moves are tried in the order they are declared, situations in index order. A `fails` for `never` shows the route to the violating situation; for `live` and `inevitable` it shows `stuck at:` the nearest situation from which F is unreachable (`live`) or avoidable for ever (`inevitable`), with the route *to* it. That route is empty when the stuck situation is `#0`. A failing `inevitable` then says how a run avoids F from there: `avoids: the run stops at #N` (no move left), `loop:` a shortest cycle back to it, or, under `(fair …)`, `loops among:` the situations a fair run circles in. A holding `possible` shows the route to the nearest F situation: that route is the answer to "is there a way".
 
 ## 9. Indices
 

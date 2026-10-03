@@ -57,6 +57,7 @@ fails  finishes
             5. process   → #6   m.stage: delivered → processed, acct.charges: c1 → c2
             6. timeout   → #8   m.stage: processed → queued
             7. deliver   → #9   m.stage: queued → delivered
+  avoids:   the run stops at #9: no move is left
 fails  finishes-fairly
   "it does, if an offered ack is not refused for ever"
   assuming fair: ack
@@ -68,6 +69,7 @@ fails  finishes-fairly
             5. process   → #6   m.stage: delivered → processed, acct.charges: c1 → c2
             6. timeout   → #8   m.stage: processed → queued
             7. deliver   → #9   m.stage: queued → delivered
+  avoids:   the run stops at #9: no move is left
 ```
 
 `charged-once` fails: process, lose the ack, redeliver, process again. Both termination properties fail too, stuck at `#9`, where the message is delivered but `process` cannot fire because the ladder has ended (`acct.charges.next` has no answer). That dead end is the **bound**, not the system: the ladder only counts to `c2`. Read it as such.
@@ -115,6 +117,7 @@ fails  finishes
   stuck at: #2 (m.stage=processed m.key-seen=yes acct.charges=c1)
   witness:  1. deliver   → #1   m.stage: queued → delivered
             2. process   → #2   m.stage: delivered → processed, m.key-seen: no → yes, acct.charges: c0 → c1
+  loop:     1. timeout → #4   2. deliver → #5   3. process-again → #2   (and again, for ever)
 holds  finishes-fairly
   "it does, if an offered ack is not refused for ever"
   assuming fair: ack
