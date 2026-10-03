@@ -56,21 +56,39 @@ let fair_of (d : Reader.t) : (string list, Errors.t) result =
           moves
   | _ -> Reader.err_at d "expected (fair MOVE…) after an inevitable formula"
 
+(* The optional trailing clause of any property: the queries to answer at the
+   situation the verdict singles out (§16.1). Names only, each kept with its
+   position so that a name no query in the file declares can be blamed where
+   it was written — and that check waits until the whole file is read, since a
+   query may be declared after the property that shows it. *)
+let show_of (d : Reader.t) : ((string * Errors.pos) list, Errors.t) result =
+  match d with
+  | Reader.List (Reader.Atom ("show", sp) :: names, _) ->
+      if names = [] then
+        Errors.err ~pos:sp "(show …) needs at least one query name"
+      else
+        map_r
+          (function
+            | Reader.Atom (q, p) -> Ok (q, p)
+            | d -> Reader.err_at d "(show …) names queries")
+          names
+  | _ -> Reader.err_at d "expected (show QUERY…) after the modality"
+
 let binder_of (d : Reader.t) : (string * string, Errors.t) result =
   match d with
   | Reader.List ([ Reader.Atom (x, _); Reader.Atom (ty, _) ], _) -> Ok (x, ty)
   | _ -> Reader.err_at d "expected a binder shaped (VAR TYPE)"
 
-let decode_property (d : Reader.t) : (Claims.property, Errors.t) result =
+let decode_property (d : Reader.t) :
+    (Claims.property * (string * Errors.pos) list, Errors.t) result =
   match d with
   | Reader.List
-      ( [
-          Reader.Atom ("property", _);
-          Reader.Atom (name, _);
-          Reader.Atom (text, _);
-          formula;
-        ],
-        _ ) -> (
+      ( Reader.Atom ("property", _)
+        :: Reader.Atom (name, _)
+        :: Reader.Atom (text, _)
+        :: formula :: tail,
+        _ )
+    when List.length tail <= 1 -> (
       match formula with
       | Reader.List (Reader.Atom (m, mp) :: f :: rest, _)
         when List.length rest <= 1 -> (
@@ -93,11 +111,23 @@ let decode_property (d : Reader.t) : (Claims.property, Errors.t) result =
               (* Shape only — path/arrow/value resolution is the checker's, so an
                  unknown one surfaces as n/a, not a parse error (kernel §8). *)
               let* g = Grammar.guard f in
-              Ok { Claims.name; text; modality; formula = g })
+              let* shows =
+                match tail with [] -> Ok [] | s :: _ -> show_of s
+              in
+              Ok
+                ( {
+                    Claims.name;
+                    text;
+                    modality;
+                    formula = g;
+                    show = List.map fst shows;
+                  },
+                  shows ))
       | _ -> Reader.err_at formula "a property needs (MODALITY FORMULA)")
   | _ ->
       Reader.err_at d
-        "malformed property: (property NAME \"text\" (MODALITY FORMULA))"
+        "malformed property: (property NAME \"text\" (MODALITY FORMULA) [(show \
+         QUERY…)])"
 
 let decode_query (schema : Schema.t) (d : Reader.t) :
     (Claims.query, Errors.t) result =
@@ -136,8 +166,19 @@ let parse (schema : Schema.t) (inst : Instance.t) (datums : Reader.t list) :
      file is parsed, so the names come off it rather than from a second scan;
      [Names] states the rule for both. *)
   let* () = Names.check_binders (Names.taken_in schema inst) datums in
-  let rec go props queries accepts = function
+  let rec go props queries accepts shows = function
     | [] ->
+        (* Every shown name must be a query of this file. Checked last, so a
+           query may be declared below the property that shows it. *)
+        let declared = List.map (fun (q : Claims.query) -> q.name) queries in
+        let* () =
+          match
+            List.find_opt (fun (q, _) -> not (List.mem q declared)) shows
+          with
+          | Some (q, pos) ->
+              Errors.err ~pos ("(show " ^ q ^ ") names no query in this file")
+          | None -> Ok ()
+        in
         Ok
           {
             Claims.props = List.rev props;
@@ -147,18 +188,18 @@ let parse (schema : Schema.t) (inst : Instance.t) (datums : Reader.t list) :
     | d :: rest -> (
         match d with
         | Reader.List (Reader.Atom ("property", _) :: _, _) ->
-            let* p = decode_property d in
-            go (p :: props) queries accepts rest
+            let* p, s = decode_property d in
+            go (p :: props) queries accepts (s @ shows) rest
         | Reader.List (Reader.Atom ("query", _) :: _, _) ->
             let* q = decode_query schema d in
-            go props (q :: queries) accepts rest
+            go props (q :: queries) accepts shows rest
         | Reader.List (Reader.Atom ("accept", _) :: _, _) ->
             let* a = decode_accepts d in
-            go props queries (List.rev_append a accepts) rest
+            go props queries (List.rev_append a accepts) shows rest
         | Reader.List (Reader.Atom ("schema", _) :: _, _)
         | Reader.List (Reader.Atom ("instance", _) :: _, _) ->
             (* declarations a loaded library brought in — not questions *)
-            go props queries accepts rest
+            go props queries accepts shows rest
         | other -> Reader.err_at other "unknown claims declaration")
   in
-  go [] [] [] datums
+  go [] [] [] [] datums

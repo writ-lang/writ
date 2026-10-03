@@ -6,6 +6,7 @@
 #   make lint      # format check + warnings-as-errors typecheck
 #   make run FILE=tests/models/any_model.writ
 #   make image     # the runtime image, tagged writ:latest
+#   make downstream  # this checkout against every repository that uses it
 #
 # The worked scenarios and the editor client are their own repositories now —
 # github.com/writ-lang/writ-problems and .../writ-vscode — so there is no target
@@ -26,7 +27,7 @@
 
 DUNE = scripts/with-ocaml.sh dune
 
-.PHONY: build dev test lint fmt run image check-versions \
+.PHONY: build dev test lint fmt run image downstream check-versions \
         install-writ uninstall-writ opam-install opam-uninstall release \
         clean
 build:
@@ -195,6 +196,15 @@ image:
 	@echo
 	@echo "built writ:$(VERSION) (also tagged writ:latest)"
 	@echo "  try it:  docker run --rm writ:latest --version"
+
+# The downstream regression image: this working tree, uncommitted changes and
+# all, built and tested, then writ-problems, writ-arch,
+# writ-scheduling-verification and mgtt2writ run against it. The build is the
+# test, and it fails on the first suite that does. Pin a repository elsewhere
+# with e.g. PROBLEMS_REF=my-branch; see downstream/Dockerfile for the rest.
+# `docker run --rm writ-downstream [SUITE]` reruns the suites without a rebuild.
+downstream:
+	sh downstream/build.sh
 
 clean:
 	$(DUNE) clean

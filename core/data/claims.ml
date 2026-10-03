@@ -19,11 +19,17 @@
    every run there is. *)
 type modality = Never | Possible | Live | Inevitable of string list
 
+(* [show] names queries to evaluate at the situation a verdict singles out —
+   the stuck situation of a failing [live] or [inevitable], the violating one
+   of a failing [never], the satisfying one of a holding [possible]. A witness
+   says how the world got there; the queries say who is affected once it has.
+   Empty is the ordinary case. *)
 type property = {
   name : string;
   text : string;
   modality : modality;
   formula : Model.guard;
+  show : string list;
 }
 
 type query = {

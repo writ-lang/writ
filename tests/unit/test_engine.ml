@@ -44,7 +44,7 @@ let cr a s : Instance.cellref = { arrow = a; src = s }
 let fill a s v = (cr a s, Value.Filled v)
 
 let prop name modality formula : Claims.property =
-  { name; text = ""; modality; formula }
+  { name; text = ""; modality; formula; show = [] }
 
 let build_ok m =
   match Space.build m with Ok sp -> sp | Error e -> failwith ("build: " ^ e)

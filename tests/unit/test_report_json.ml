@@ -112,7 +112,8 @@ let () =
   in
   let j =
     roundtrip
-      (Report_json.check ~sp ~unadmitted:[] ~stale:[] ~props ~queries:[] ~exit:1)
+      (Report_json.check ~queries:[] ~sp ~unadmitted:[] ~stale:[] ~props
+         ~answered:[] ~exit:1)
   in
   check "check: states is the space's count"
     (int (get "states" j) = Array.length sp.Space.states);
@@ -156,9 +157,9 @@ let () =
   let sp = space m in
   let j =
     roundtrip
-      (Report_json.check ~sp
+      (Report_json.check ~queries:[] ~sp
          ~unadmitted:[ ("m", "law") ]
-         ~stale:[] ~props:[] ~queries:[] ~exit:1)
+         ~stale:[] ~props:[] ~answered:[] ~exit:1)
   in
   check "laws: an equation is listed" (len (get "equations" j) >= 1);
   let u = nth 0 (get "unadmitted" j) in
@@ -225,6 +226,65 @@ let () =
     (Route.deltas sp s1 s1 = []);
   check "route: a move changes at least one cell"
     (Route.deltas sp sp.Space.initial s1 <> [])
+
+(* --- (show QUERY…) ----------------------------------------------------------- *)
+
+let () =
+  let m = model "query_rows.writ" in
+  let sp = space m in
+  let cl = claims m "shown.claims" in
+  let p = List.hd cl.Claims.props in
+  check "show: the clause is parsed onto the property"
+    (p.Claims.show = [ "captured" ]);
+  let oc = Checker.check sp p in
+  (* A never broken at the initial situation: the route is empty, and the
+     situation singled out is #0 — where the query is then answered. *)
+  let rows = Report.shown_rows ~queries:cl.Claims.queries sp p oc in
+  check "show: answered at the violating situation"
+    (match rows with
+    | [ (_, 0, [ [ ("b", "watchdog") ] ]) ] -> true
+    | _ -> false);
+  let prose = Report.outcome ~queries:cl.Claims.queries sp p oc in
+  check "show: the prose carries the query block under the verdict"
+    (let needle = "  captured  (at state 0)\n    b = watchdog" in
+     let ls = String.length needle and lp = String.length prose in
+     let rec go i =
+       i + ls <= lp && (String.sub prose i ls = needle || go (i + 1))
+     in
+     go 0);
+  let j = roundtrip (Report_json.property ~queries:cl.Claims.queries sp p oc) in
+  let shown = nth 0 (get "show" j) in
+  check "show: the JSON carries the answered query"
+    (str (get "name" shown) = "captured");
+  check "show: at the same situation" (int (get "at" shown) = 0);
+  check "show: with its rows"
+    (str (get "b" (nth 0 (get "rows" shown))) = "watchdog");
+  (* A holding never singles out no situation, so nothing is shown. *)
+  let never_holds =
+    {
+      p with
+      Claims.formula =
+        Model.Is
+          ( { Value.root = "watchdog"; steps = [ "independence" ] },
+            Model.Lit "independent" );
+    }
+  in
+  check "show: a holding never shows nothing"
+    (Report.shown_rows ~queries:cl.Claims.queries sp never_holds
+       (Checker.check sp never_holds)
+    = []);
+  (* A name no query declares is refused when the file is read, at the name. *)
+  check "show: an undeclared query name is a read-time error"
+    (match Loader.read_claims resolve m "shown_unknown.claims" with
+    | Error e ->
+        let s = Errors.to_string e in
+        let needle = "names no query" in
+        let ls = String.length needle and lp = String.length s in
+        let rec go i =
+          i + ls <= lp && (String.sub s i ls = needle || go (i + 1))
+        in
+        go 0
+    | Ok _ -> false)
 
 let () =
   print_string

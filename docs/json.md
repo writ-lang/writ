@@ -47,6 +47,10 @@ Three conventions hold everywhere:
 - `stuck_at` is the index of the situation a failing `live` or `inevitable`
   is stuck at, and `null` otherwise. It equals the last `to` of the witness.
 - `fair` lists the moves an `inevitable` assumed are not starved.
+- `show` carries the answers of the property's `(show QUERY…)` queries at
+  the situation the verdict singles out, each shaped as a query object
+  (`{"name", "at", "rows"}`); empty when the property shows nothing or the
+  verdict singles out no situation.
 - Without `--claims`, `unadmitted`, `stale`, `properties` and `queries` are
   empty lists.
 

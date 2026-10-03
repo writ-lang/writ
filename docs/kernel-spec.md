@@ -1435,7 +1435,8 @@ forms.
 
 ### 16.1 Properties
 
-- **Syntax** — `(property NAME ["DOC"] MODALITY)` with MODALITY one of:
+- **Syntax** — `(property NAME ["DOC"] MODALITY [(show QUERY…)])` with
+  MODALITY one of:
 
 | Modality         | Holds when                                                        |
 | ---------------- | ----------------------------------------------------------------- |
@@ -1481,6 +1482,14 @@ forms.
   witness.
 - A property naming structure the schema lacks is **n/a** — never a
   pass.
+- **`(show QUERY…)`** names queries of the same file (§16.2) to answer at
+  the situation the verdict singles out: the stuck situation of a failing
+  `live` or `inevitable`, the violating situation of a failing `never`, the
+  satisfying situation of a holding `possible`. The witness says how the
+  world got there; the queries say who is affected once it has. A verdict
+  that singles out no situation — a holding `never`, `live` or
+  `inevitable`; an `n/a` — answers none of them. A name no query in the
+  file declares is an error at the name.
 
 *Example.*
 

@@ -88,8 +88,21 @@ let modality = function
 
 let fair = function Claims.Inevitable ms -> ms | _ -> []
 
-let property (sp : Space.t) (p : Claims.property) (oc : Checker.outcome) :
-    Json.t =
+let query_rows (q : Claims.query) (idx : int)
+    (rows : (string * string) list list) : Json.t =
+  Json.Assoc
+    [
+      ("name", str q.Claims.name);
+      ("at", int idx);
+      ( "rows",
+        Json.List
+          (List.map
+             (fun r -> Json.Assoc (List.map (fun (k, v) -> (k, str v)) r))
+             rows) );
+    ]
+
+let property ?(queries : Claims.query list = []) (sp : Space.t)
+    (p : Claims.property) (oc : Checker.outcome) : Json.t =
   let head =
     [
       ("name", str p.Claims.name);
@@ -120,30 +133,24 @@ let property (sp : Space.t) (p : Claims.property) (oc : Checker.outcome) :
           ("stuck_at", opt int (Option.bind stuck (index_of sp)));
         ]
   in
-  Json.Assoc (head @ tail)
+  let shown =
+    Json.List
+      (List.map
+         (fun (q, idx, rows) -> query_rows q idx rows)
+         (Report.shown_rows ~queries sp p oc))
+  in
+  Json.Assoc (head @ tail @ [ ("show", shown) ])
 
 let ack (tr, eq) = Json.Assoc [ ("move", str tr); ("law", str eq) ]
 
-let query_rows (q : Claims.query) (idx : int)
-    (rows : (string * string) list list) : Json.t =
-  Json.Assoc
-    [
-      ("name", str q.Claims.name);
-      ("at", int idx);
-      ( "rows",
-        Json.List
-          (List.map
-             (fun r -> Json.Assoc (List.map (fun (k, v) -> (k, str v)) r))
-             rows) );
-    ]
-
 (* The whole of `writ check`, in the order the prose prints it. [exit] is in
    the object because a consumer reading a pipe has no exit status to read. *)
-let check ~(sp : Space.t) ~(unadmitted : (string * string) list)
-    ~(stale : (string * string) list)
+let check ~(queries : Claims.query list) ~(sp : Space.t)
+    ~(unadmitted : (string * string) list) ~(stale : (string * string) list)
     ~(props : (Claims.property * Checker.outcome) list)
-    ~(queries : (Claims.query * int * (string * string) list list) list)
+    ~(answered : (Claims.query * int * (string * string) list list) list)
     ~(exit : int) : Json.t =
+  let defined = queries in
   Json.Assoc
     [
       ("states", int (Array.length sp.Space.states));
@@ -153,9 +160,11 @@ let check ~(sp : Space.t) ~(unadmitted : (string * string) list)
       ("equations", laws sp);
       ("unadmitted", Json.List (List.map ack unadmitted));
       ("stale", Json.List (List.map ack stale));
-      ("properties", Json.List (List.map (fun (p, o) -> property sp p o) props));
+      ( "properties",
+        Json.List
+          (List.map (fun (p, o) -> property ~queries:defined sp p o) props) );
       ( "queries",
-        Json.List (List.map (fun (q, i, rows) -> query_rows q i rows) queries)
+        Json.List (List.map (fun (q, i, rows) -> query_rows q i rows) answered)
       );
       ("exit", int exit);
     ]

@@ -60,7 +60,9 @@ let check ~resolve ~model ~claims =
         add (Report.acks (Observe.unadmitted sp cl) (Observe.stale sp cl));
         List.iter
           (fun (p : Claims.property) ->
-            add (Report.outcome sp p (Checker.check sp p)))
+            add
+              (Report.outcome ~queries:cl.Claims.queries sp p
+                 (Checker.check sp p)))
           cl.Claims.props;
         List.iter
           (fun (q : Claims.query) ->

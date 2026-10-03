@@ -5,6 +5,16 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**`(show QUERY…)` on a property.** A property may name queries of its
+file to answer at the situation its verdict singles out — the stuck
+situation of a failing `live` or `inevitable`, the violating one of a
+failing `never`, the satisfying one of a holding `possible`. The witness
+says how the world got there; the queries say who is affected once it has:
+the affected accounts under a failed access property, in one run. A name no
+query declares is refused when the file is read. Rendered under the verdict
+in prose and as `show` in `--json`; the editor completes and documents the
+word. Kernel §16.1.
+
 **Witnesses say where they land and what they changed.** Each step of a
 witness now carries the index of the situation it lands in and the cells it
 wrote — `1. grant-breakglass-admin   → #2   mallory.role: user → admin` — in

@@ -29,9 +29,9 @@ let run ?(json = false) (model : string) (claims_path : string option) =
          (fun (l : Observe.law) -> l.violation <> None)
          (Observe.laws sp))
   in
-  let unadmitted, stale, props, queries =
+  let unadmitted, stale, props, queries, defined =
     match claims_path with
-    | None -> ([], [], [], [])
+    | None -> ([], [], [], [], [])
     | Some c ->
         let claims = read_claims resolve m c in
         let unadmitted = Observe.unadmitted sp claims in
@@ -50,19 +50,19 @@ let run ?(json = false) (model : string) (claims_path : string option) =
             (fun (q : Claims.query) -> (q, 0, Query.run sp q ()))
             claims.Claims.queries
         in
-        (unadmitted, stale, props, queries)
+        (unadmitted, stale, props, queries, claims.Claims.queries)
   in
   let exit_code = if !failed then 1 else 0 in
   if json then
     say
       (Json.to_string
-         (Report_json.check ~sp ~unadmitted ~stale ~props ~queries
-            ~exit:exit_code))
+         (Report_json.check ~queries:defined ~sp ~unadmitted ~stale ~props
+            ~answered:queries ~exit:exit_code))
   else begin
     say (Report.build sp);
     let acks = Report.acks unadmitted stale in
     if acks <> "" then say acks;
-    List.iter (fun (p, o) -> say (Report.outcome sp p o)) props;
+    List.iter (fun (p, o) -> say (Report.outcome ~queries:defined sp p o)) props;
     List.iter (fun (q, i, rows) -> say (Report.query_rows q i rows)) queries
   end;
   flush stdout;

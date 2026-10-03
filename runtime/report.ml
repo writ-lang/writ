@@ -155,8 +155,64 @@ let witness_block (sp : Space.t) (route : string list) : string =
 let description_line (prop : Claims.property) : string list =
   if prop.Claims.text = "" then [] else [ "  \"" ^ prop.Claims.text ^ "\"" ]
 
-let outcome (sp : Space.t) (prop : Claims.property) (oc : Checker.outcome) :
-    string =
+(* --- §16.2 queries --------------------------------------------------------- *)
+
+let query_rows (q : Claims.query) (idx : int)
+    (rows : (string * string) list list) : string =
+  let header = q.Claims.name ^ "  (at state " ^ string_of_int idx ^ ")" in
+  let row r =
+    "  " ^ String.concat ", " (List.map (fun (k, v) -> k ^ " = " ^ v) r)
+  in
+  String.concat "\n" (header :: List.map row rows)
+
+(* The situation a verdict singles out, if it singles one out: where a failing
+   [live] / [inevitable] is stuck, where a failing [never] is violated, where a
+   holding [possible] is satisfied. The other verdicts are about every
+   situation or none, so there is nothing to show them at. An empty route is
+   the initial situation — a [never] broken before any move. *)
+let singled_out (sp : Space.t) (prop : Claims.property) (oc : Checker.outcome) :
+    State.t option =
+  let end_of route =
+    match List.rev (Route.walk sp route) with
+    | k :: _ -> Some sp.Space.states.(k)
+    | [] -> Some sp.Space.initial
+  in
+  match (oc, prop.Claims.modality) with
+  | Checker.Not_applicable _, _ -> None
+  | Checker.Holds route, Claims.Possible -> end_of route
+  | Checker.Holds _, _ -> None
+  | Checker.Fails { stuck = Some s; _ }, _ -> Some s
+  | Checker.Fails { stuck = None; _ }, Claims.Possible -> None
+  | Checker.Fails { stuck = None; route }, _ -> end_of route
+
+(* The property's [(show …)] queries, answered at that situation: who is
+   affected, once the witness has said how the world got there. [queries] are
+   the claims file's; a name among them that the file did not declare was
+   refused when the file was read. *)
+let shown_rows ?(queries : Claims.query list = []) (sp : Space.t)
+    (prop : Claims.property) (oc : Checker.outcome) :
+    (Claims.query * int * (string * string) list list) list =
+  match singled_out sp prop oc with
+  | None -> []
+  | Some st ->
+      let idx = State.M.find st sp.Space.index in
+      List.filter_map
+        (fun name ->
+          match
+            List.find_opt
+              (fun (q : Claims.query) -> q.Claims.name = name)
+              queries
+          with
+          | Some q -> Some (q, idx, Query.run sp q ~at:st ())
+          | None -> None)
+        prop.Claims.show
+
+let indent_block (s : string) : string =
+  String.concat "\n"
+    (List.map (fun l -> "  " ^ l) (String.split_on_char '\n' s))
+
+let outcome ?(queries : Claims.query list = []) (sp : Space.t)
+    (prop : Claims.property) (oc : Checker.outcome) : string =
   (* A fairness assumption is printed with the verdict, both ways, so that a
      verdict cannot be quoted without it. "This protocol always terminates" and
      "this protocol always terminates unless the network refuses to deliver for
@@ -168,6 +224,11 @@ let outcome (sp : Space.t) (prop : Claims.property) (oc : Checker.outcome) :
     | _ -> []
   in
   let described = description_line prop in
+  let shown =
+    List.map
+      (fun (q, idx, rows) -> indent_block (query_rows q idx rows))
+      (shown_rows ~queries sp prop oc)
+  in
   match oc with
   | Checker.Holds route ->
       (* A holding [possible] carries its solution path; show it as the witness
@@ -175,7 +236,8 @@ let outcome (sp : Space.t) (prop : Claims.property) (oc : Checker.outcome) :
       String.concat "\n"
         ((("holds  " ^ prop.name) :: described)
         @ assumed
-        @ match route with [] -> [] | _ -> [ witness_block sp route ])
+        @ (match route with [] -> [] | _ -> [ witness_block sp route ])
+        @ shown)
   | Checker.Not_applicable _ ->
       String.concat "\n" (("n/a  " ^ prop.name) :: described)
   | Checker.Fails { route; stuck } ->
@@ -188,7 +250,7 @@ let outcome (sp : Space.t) (prop : Claims.property) (oc : Checker.outcome) :
       (match route with
       | [] -> ()
       | _ -> parts := witness_block sp route :: !parts);
-      String.concat "\n" (List.rev !parts)
+      String.concat "\n" (List.rev !parts @ shown)
 
 (* --- §16.3 acknowledgments ------------------------------------------------- *)
 
@@ -197,16 +259,6 @@ let acks (unadmitted : (string * string) list) (stale : (string * string) list)
   let u (tr, eq) = "unadmitted  " ^ tr ^ " may break " ^ eq in
   let s (tr, eq) = "stale  " ^ tr ^ " cannot break " ^ eq in
   String.concat "\n" (List.map u unadmitted @ List.map s stale)
-
-(* --- §16.2 queries --------------------------------------------------------- *)
-
-let query_rows (q : Claims.query) (idx : int)
-    (rows : (string * string) list list) : string =
-  let header = q.Claims.name ^ "  (at state " ^ string_of_int idx ^ ")" in
-  let row r =
-    "  " ^ String.concat ", " (List.map (fun (k, v) -> k ^ " = " ^ v) r)
-  in
-  String.concat "\n" (header :: List.map row rows)
 
 (* --- one situation, addressed by index ------------------------------------- *)
 

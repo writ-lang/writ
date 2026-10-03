@@ -1,0 +1,5 @@
+; shown_unknown.claims — (show …) naming a query the file never declares is
+; refused when the file is read, at the name.
+(property no-capture "no bureau is ever captured"
+  (never (some (b bureau) (is b.independence captured)))
+  (show nobody-declared-this))

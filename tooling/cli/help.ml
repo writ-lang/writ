@@ -48,7 +48,9 @@ whether a move can break the law and where it is violated. With
                  shortest satisfying route: the solution/example)
   fails NAME   — with `stuck at:` and a numbered witness route
   n/a   NAME   — the property names structure the schema lacks
-plus query answers and law acknowledgments (unadmitted / stale).|};
+A property with a (show QUERY…) clause also answers those queries at the
+situation its verdict singles out — the affected entities, named.
+Then query answers and law acknowledgments (unadmitted / stale).|};
       options =
         [
           "--claims FILE    the questions to ask (properties, queries, accepts)";
