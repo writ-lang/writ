@@ -526,8 +526,19 @@ The client finds the server on `PATH` with nothing to configure.
 ### From an AI assistant
 
 `writ-mcp` is an MCP server over the same engine, exposing `writ_check`,
-`writ_query` and `writ_derive` — so an assistant can model a problem and get an
-answer with a **witness route** rather than a plausible guess.
+`writ_show`, `writ_compare`, `writ_query` and `writ_derive` — so an assistant
+can model a problem and get an answer with a **witness route** rather than a
+plausible guess, read back the situation a witness names, and price its own
+edit before calling it done. Every tool takes `json: true`.
+
+Two things make it a verifier an assistant cannot argue with. Start it with
+`writ-mcp --claims-dir DIR` and every claims file is read from DIR by its
+basename, whatever path a call names: the model is the assistant's, the
+questions are yours. And the server remembers the last model checked against
+each claims file, so every `writ_check` ends with a `revision:` block naming
+the guarantees this model **LOST** against the previous one — an edit that
+makes one property pass by losing another, or by making its question `n/a`,
+is reported in the same reply.
 
 ```jsonc
 // .mcp.json — this repository ships one already

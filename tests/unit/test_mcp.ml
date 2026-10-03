@@ -56,14 +56,33 @@ let model_src =
 let claims_src =
   "(property reachable \"hi is reachable\" (possible (is b.f hi)))\n"
 
-let files = [ ("tiny.writ", model_src); ("tiny.claims", claims_src) ]
+(* The same world with the move deleted: `reachable` becomes unreachable,
+   which is what a revision check must call LOST. *)
+let stuck_src =
+  "(schema tiny\n\
+  \  (type flag (lo hi))\n\
+  \  (type box (arrow f (to flag))))\n\
+   (instance i tiny  (box b (f lo))  )\n\
+   (use tiny)\n\
+   (initial i)\n"
+
+let files =
+  [
+    ("tiny.writ", model_src);
+    ("tiny.claims", claims_src);
+    ("stuck.writ", stuck_src);
+    ("stuck.claims", claims_src);
+  ]
 
 let resolve _base name : (string, Errors.t) result =
   match List.assoc_opt name files with
   | Some s -> Ok s
   | None -> Error { Errors.pos = None; msg = "no such file: " ^ name }
 
-let handle msg = Writ_mcp.Server.handle ~resolve ~version:"test" msg
+let memory : Writ_mcp.Tools.memory = Hashtbl.create 4
+
+let handle ?(pinned = None) msg =
+  Writ_mcp.Server.handle ~resolve ~pinned ~memory ~version:"test" msg
 
 (* --- message helpers ------------------------------------------------------ *)
 
@@ -206,6 +225,103 @@ let () =
   check "an unknown method is a JSON-RPC error"
     (Option.bind (handle (req "nosuch/method" None)) (Json.member "error")
     <> None)
+
+(* --- the verifier an agent cannot argue with ------------------------------- *)
+
+let tool ?(id = 9) ?pinned name args =
+  result
+  @@ handle ?pinned
+       (req ~id "tools/call"
+          (Some
+             (Json.Assoc
+                [ ("name", Json.String name); ("arguments", Json.Assoc args) ])))
+
+let () =
+  (* show: a situation by index, and an index the model lacks is a tool error *)
+  let r =
+    tool "writ_show"
+      [ ("model", Json.String "tiny.writ"); ("at", Json.List [ Json.Int 1 ]) ]
+  in
+  check "writ_show: answers" (not (is_error r));
+  check "writ_show: names the situation"
+    (contains ~sub:"situation 1 of 2" (content r));
+  let r =
+    tool "writ_show"
+      [ ("model", Json.String "tiny.writ"); ("at", Json.List [ Json.Int 7 ]) ]
+  in
+  check "writ_show: an index the model lacks is an isError" (is_error r);
+  (* json: the object `writ … --json` prints, as the text *)
+  let r =
+    tool "writ_check"
+      [
+        ("model", Json.String "tiny.writ");
+        ("claims", Json.String "tiny.claims");
+        ("json", Json.Bool true);
+      ]
+  in
+  check "json: the reply parses as JSON"
+    (match Json_parse.parse (content r) with
+    | Ok (Json.Assoc _) -> true
+    | _ -> false);
+  check "json: and carries the verdict"
+    (contains ~sub:"\"verdict\":\"holds\"" (content r));
+  (* compare: the edit that deletes the move LOSES the guarantee *)
+  let r =
+    tool "writ_compare"
+      [
+        ("old_model", Json.String "tiny.writ");
+        ("new_model", Json.String "stuck.writ");
+      ]
+  in
+  check "writ_compare: answers" (not (is_error r));
+  check "writ_compare: the deleted move loses reachable"
+    (contains ~sub:"reachable" (content r) && contains ~sub:"LOST" (content r));
+  (* revision: the second check against the same claims says what was lost *)
+  Hashtbl.reset memory;
+  let r1 =
+    tool "writ_check"
+      [
+        ("model", Json.String "tiny.writ"); ("claims", Json.String "tiny.claims");
+      ]
+  in
+  check "revision: the first check has nothing to compare against"
+    (not (contains ~sub:"revision:" (content r1)));
+  let r2 =
+    tool "writ_check"
+      [
+        ("model", Json.String "stuck.writ");
+        ("claims", Json.String "tiny.claims");
+      ]
+  in
+  check "revision: the second check reports the loss"
+    (contains
+       ~sub:
+         "revision: against the previous model checked with tiny.claims — a \
+          guarantee was LOST"
+       (content r2)
+    && contains ~sub:"reachable" (content r2));
+  let r3 =
+    tool "writ_check"
+      [
+        ("model", Json.String "stuck.writ");
+        ("claims", Json.String "tiny.claims");
+        ("json", Json.Bool true);
+      ]
+  in
+  check "revision: in JSON it is the compare object"
+    (contains ~sub:"\"revision\":{" (content r3)
+    && contains ~sub:"nothing lost" (content r3) = false);
+  (* pinned: the claims path is taken by basename under the pinned directory,
+     and the reply says which file was read *)
+  let r =
+    tool ~pinned:(Some "the-humans") "writ_check"
+      [
+        ("model", Json.String "tiny.writ");
+        ("claims", Json.String "/anywhere/the/agent/likes/tiny.claims");
+      ]
+  in
+  check "pinned: the claims are read from the pinned directory"
+    (contains ~sub:"claims: the-humans/tiny.claims   (pinned)" (content r))
 
 let () =
   print_string ("mcp tests: " ^ string_of_int !passed ^ " checks passed\n")

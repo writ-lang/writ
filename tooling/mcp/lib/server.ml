@@ -81,6 +81,11 @@ let p name ty desc =
     Json.Assoc [ ("type", Json.String ty); ("description", Json.String desc) ]
   )
 
+let json_p =
+  p "json" "boolean"
+    "Answer as the JSON object `writ … --json` prints (docs/json.md) instead \
+     of prose: witnesses carry the situation each move lands in."
+
 let descriptors =
   [
     ( "writ_check",
@@ -89,15 +94,55 @@ let descriptors =
        broken. With a .claims file it also answers every property — `holds` \
        with a shortest witness route, `fails` with the shortest counterexample \
        — and runs every query. This is the verb to reach for first; the \
-       witness under a holding `possible` IS a solution.",
+       witness under a holding `possible` IS a solution. A property reported \
+       `n/a` names structure the model lacks: treat it as a FAILURE, never a \
+       pass. When the same claims file was checked before, the answer ends \
+       with a `revision:` block saying which guarantees this model LOST \
+       against the previous one — an edit that makes one property pass by \
+       losing another is reported in the same reply.",
       obj
         [
           p "model" "string" "Path to the .writ model.";
           p "claims" "string"
             "Optional path to a .claims file of properties and queries to \
-             answer.";
+             answer. If the server was started with --claims-dir, the file is \
+             read from that directory by its basename, whatever path is given.";
+          json_p;
         ]
         [ "model" ] );
+    ( "writ_show",
+      "Print what a situation IS, by the index a witness step, a derived row \
+       or a `stuck at:` line names: its cells, the fewest moves to it, and \
+       every move out. Follow a witness with this rather than guessing what \
+       `#17` holds.",
+      obj
+        [
+          p "model" "string" "Path to the .writ model.";
+          ( "at",
+            Json.Assoc
+              [
+                ("type", Json.String "array");
+                ("items", Json.Assoc [ ("type", Json.String "integer") ]);
+                ( "description",
+                  Json.String
+                    "Situation indices to show; omit for the initial situation."
+                );
+              ] );
+          json_p;
+        ]
+        [ "model" ] );
+    ( "writ_compare",
+      "Which guarantees an edit kept, LOST and gained: the old model's sibling \
+       .claims put to both models. Price your own edit with this before \
+       calling it done — a LOST row carries the route through the new model \
+       that breaks the guarantee.",
+      obj
+        [
+          p "old_model" "string" "Path to the model before the edit.";
+          p "new_model" "string" "Path to the model after it.";
+          json_p;
+        ]
+        [ "old_model"; "new_model" ] );
     ( "writ_query",
       "Run ONE named query from the model's sibling .claims file, optionally \
        at a situation other than the initial one. Use when writ_check's full \
@@ -109,6 +154,7 @@ let descriptors =
           p "at" "integer"
             "Optional index into the enumerated space; defaults to the initial \
              situation (0).";
+          json_p;
         ]
         [ "model"; "name" ] );
     ( "writ_derive",
@@ -133,6 +179,7 @@ let descriptors =
                      to leave all of them open." );
               ] );
           p "why" "boolean" "Return the derivation tree instead of the rows.";
+          json_p;
         ]
         [ "model"; "rules"; "relation" ] );
   ]
@@ -155,30 +202,51 @@ let tool_list =
 
 (* ── dispatch ────────────────────────────────────────────────────────────── *)
 
-let call ~resolve name (a : Json.t) =
+(* Indices for [writ_show]: a list, or a single integer for a caller that
+   sent one. *)
+let ints_of j k =
+  match Json.member k j with
+  | Some (Json.List xs) -> List.filter_map Json.to_int_opt xs
+  | Some (Json.Int i) -> [ i ]
+  | _ -> []
+
+let call ~resolve ?(pinned = None) ?(memory = Tools.remember) name (a : Json.t)
+    =
   let need k =
     match str a k with Some s -> Ok s | None -> Error ("missing `" ^ k ^ "`")
   in
+  let json = Option.value (bool_ a "json") ~default:false in
   let ( let* ) = Result.bind in
   match name with
   | "writ_check" ->
       let* model = need "model" in
-      Tools.check ~resolve ~model ~claims:(str a "claims")
+      Tools.check ~json ~pinned ~memory ~resolve ~model ~claims:(str a "claims")
+        ()
+  | "writ_show" ->
+      let* model = need "model" in
+      Tools.show ~json ~resolve ~model ~at:(ints_of a "at") ()
+  | "writ_compare" ->
+      let* old_model = need "old_model" in
+      let* new_model = need "new_model" in
+      Tools.compare ~json ~pinned ~resolve ~old_model ~new_model ()
   | "writ_query" ->
       let* model = need "model" in
       let* n = need "name" in
-      Tools.query ~resolve ~model ~name:n ~at:(int_ a "at")
+      Tools.query ~json ~pinned ~resolve ~model ~name:n ~at:(int_ a "at") ()
   | "writ_derive" ->
       let* model = need "model" in
       let* rules = need "rules" in
       let* relation = need "relation" in
-      Tools.derive ~resolve ~model ~rules ~relation ~args:(args_of a "args")
+      Tools.derive ~json ~resolve ~model ~rules ~relation
+        ~args:(args_of a "args")
         ~why:(Option.value (bool_ a "why") ~default:false)
+        ()
   (* Unreachable: [handle] rejects an unknown name before getting here, so
      this arm exists only to make the match total. *)
   | _ -> Error ("no such tool: " ^ name)
 
-let handle ~resolve ~version (msg : Json.t) : Json.t option =
+let handle ~resolve ?(pinned = None) ?(memory = Tools.remember) ~version
+    (msg : Json.t) : Json.t option =
   let id = Option.value (Json.member "id" msg) ~default:Json.Null in
   match str msg "method" with
   | Some "initialize" ->
@@ -214,7 +282,7 @@ let handle ~resolve ~version (msg : Json.t) : Json.t option =
               (Json.member "arguments" params)
               ~default:(Json.Assoc [])
           in
-          match call ~resolve name a with
+          match call ~resolve ~pinned ~memory name a with
           | Ok s -> ok id (text s)
           (* A tool that failed still answers: see the header. *)
           | Error e -> ok id (text ~is_error:true e)))

@@ -5,7 +5,7 @@
 
 (library
  (name writ_mcp)
- (libraries writ_data writ_syntax writ_runtime writ_json))
+ (libraries writ_data writ_syntax writ_runtime writ_json writ_report_json))
 
 ; The same generated version the CLI reports, for `initialize`'s serverInfo: a
 ; client that asks which writ it is talking to must not get a hand-kept copy.

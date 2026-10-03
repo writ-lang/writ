@@ -5,6 +5,18 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**The MCP server as a verifier an agent cannot argue with.** Two new tools,
+`writ_show` (a situation by the index a witness names) and `writ_compare`
+(what an edit kept, LOST and gained); `json: true` on every tool answers as
+the object `writ … --json` prints. `writ-mcp --claims-dir DIR` pins the
+questions: every claims file is read from DIR by its basename whatever path
+a call names, and the reply says which file it read — the model is the
+agent's, the claims are the human's. And the server remembers the last model
+checked against each claims file, so every `writ_check` ends with a
+`revision:` block naming the guarantees this model LOST against the previous
+one; a property that became `n/a` counts as lost, and the skill tells the
+agent so. Recommendations: the AI-agent loop.
+
 **`writ sql` cuts a column by the constants its `CHECK`s mention.** `CHECK
 (qty < 500)` used to be declined as arithmetic; now `orders-qty-range` becomes the
 enumerated domain `(below-500 exactly-500 above-500)` and the law a
