@@ -15,8 +15,9 @@ certified: every answer re-derived from the model (writ-cert)
 `writ-cert` is looked for in `$WRIT_CERT`, then beside the `writ` executable,
 then on the `PATH`; if missing, the line reads `not certified: writ-cert is not
 installed`. If it refutes the report, the line is `NOT CERTIFIED`, the refuted
-answers follow, and the exit status is 1. With `--json` the result is the
-`certification` field.
+answers follow, and the exit status is 1. When every property is `n/a` and
+there is no query, only the situation count was re-derived, and the line says
+so. With `--json` the result is the `certification` field.
 
 Run by hand, `writ-cert` prints a line-by-line account:
 

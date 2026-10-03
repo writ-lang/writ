@@ -39,6 +39,12 @@ fair run circles in. Prose only: `--json` and certificates are unchanged.
 **Long dead-end lists are readable.** A route over 24 moves keeps its first and
 last ten and counts the rest; past 20 dead ends the report says how many more.
 
+**`certified` no longer reads as if n/a claims were checked.** When every
+property is `n/a` and no query was asked, the last line is `certified: the
+situation count only — every property is n/a, so no claim was checked`, in
+`writ check` and `writ_check` alike. The `certification` JSON field is
+unchanged.
+
 ## 0.4.0 — 2026-10-03
 
 **Upgrading:** `writ check` now exits 1 when a property is `n/a`. A pipeline

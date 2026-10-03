@@ -412,7 +412,16 @@ let check ?(json = false) ?(pinned = None) ?(memory = remember) ?memory_key
         List.iter (fun (q, i, rows) -> add (Report.query_rows q i rows)) queries;
         List.iter add (na_notes sp.Space.ctx m props));
     (match rev with Some (text, _) -> add text | None -> ());
-    Option.iter (fun v -> add (Certify_json.verdict_line v)) certified;
+    let nothing_decided =
+      match parts with
+      | Some (_, _, _, _, props, queries) ->
+          Certify_json.nothing_decided (List.map snd props)
+            ~queries:(List.length queries)
+      | None -> false
+    in
+    Option.iter
+      (fun v -> add (Certify_json.verdict_line ~nothing_decided v))
+      certified;
     Ok (Buffer.contents b)
   end
 

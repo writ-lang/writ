@@ -178,7 +178,18 @@ let verdict_of_run ~(code : int) ~(output : string list) : verdict =
   | 126 | 127 -> Absent
   | _ -> Failed (String.concat " " (List.filter (( <> ) "") output))
 
-let verdict_line : verdict -> string = function
+(* Every property n/a and no query: writ-cert re-derived only the count, so
+   the line must not read as if the claims were checked. *)
+let nothing_decided (outcomes : Checker.outcome list) ~(queries : int) =
+  queries = 0 && outcomes <> []
+  && List.for_all
+       (function Checker.Not_applicable _ -> true | _ -> false)
+       outcomes
+
+let verdict_line ?(nothing_decided = false) : verdict -> string = function
+  | Certified when nothing_decided ->
+      "certified: the situation count only — every property is n/a, so no \
+       claim was checked (writ-cert)"
   | Certified -> "certified: every answer re-derived from the model (writ-cert)"
   | Disagrees ls ->
       String.concat "\n"

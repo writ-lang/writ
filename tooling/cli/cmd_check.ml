@@ -198,7 +198,14 @@ let run ?(json = false) ?(fibers = []) ?(certificate = Off) ?(version = "")
         List.iter say (Report.fiber_lines sp fs))
       props;
     List.iter (fun (q, i, rows) -> say (Report.query_rows q i rows)) a.queries;
-    Option.iter (fun v -> say (Certify_json.verdict_line v)) certified
+    let nothing_decided =
+      Certify_json.nothing_decided
+        (List.map (fun (_, o, _) -> o) props)
+        ~queries:(List.length a.queries)
+    in
+    Option.iter
+      (fun v -> say (Certify_json.verdict_line ~nothing_decided v))
+      certified
   end;
   flush stdout;
   exit exit_code
