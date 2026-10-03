@@ -25,7 +25,17 @@ type guard = Guard.t =
    refused — and it is what lets a value be MOVED rather than only assigned by
    name, so a ladder no longer needs one transition per destination. *)
 type effect = Set of Value.path * rhs | Vacate of Value.path | Gap of string
-type transition = { name : string option; when_ : guard; effects : effect list }
+
+(* [origin] is where the move came from, when a tool said: the text of a
+   `; writ:origin …` pragma above its datum (docs/bridges.md). The language
+   gives it no meaning; a report echoes it beside the move, so a witness
+   through a generated model names the source line that produced each step. *)
+type transition = {
+  name : string option;
+  when_ : guard;
+  effects : effect list;
+  origin : string option;
+}
 
 type t = {
   schema : Schema.t;

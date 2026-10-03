@@ -1,0 +1,16 @@
+; The JSON rendering of every answer the tool gives — one module, so that the
+; command line and the MCP server emit the same object for the same question
+; and neither can drift from the other. It depends on the engine and on the
+; JSON value type, and on nothing with I/O: it turns values into a [Json.t],
+; and whoever asked prints it.
+;
+; Its own library rather than a module of [writ_runtime], because the runtime
+; depends on [writ_data] ONLY and that is a layering the build enforces; and
+; not a module of [writ_cli], because the MCP server wants it too and must not
+; link the command line to get it. UNWRAPPED, as its neighbours are, so the
+; module is [Report_json] and nothing else.
+
+(library
+ (name writ_report_json)
+ (wrapped false)
+ (libraries writ_data writ_runtime writ_json))

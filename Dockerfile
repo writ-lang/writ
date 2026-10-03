@@ -62,6 +62,7 @@ COPY --chown=opam:opam tooling/cli ./tooling/cli
 COPY --chown=opam:opam tooling/loadpath ./tooling/loadpath
 COPY --chown=opam:opam tooling/json ./tooling/json
 COPY --chown=opam:opam tooling/sql ./tooling/sql
+COPY --chown=opam:opam tooling/report_json ./tooling/report_json
 COPY --chown=opam:opam tooling/mcp ./tooling/mcp
 RUN opam install -y dune \
  && opam exec -- dune build tooling/cli/writ.exe tooling/mcp/bin/writ_mcp.exe \

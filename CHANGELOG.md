@@ -3,6 +3,111 @@
 Versions are the one in `dune-project`: what opam publishes, what `writ
 --version` prints, and what `make release` names the tarball with.
 
+## Unreleased
+
+**Positioning.** The README now says in its second paragraph what the tool
+is for, in domain words — a model checker for finite business and
+governance systems whose negative answer is a census — and where the bound
+comes from (the schema, not a scope the user chose), against the
+neighbours; and lists Appendix G's domains with the worked scenario beside
+each, so a reader who knows TLA+ can say after one screen what writ refuses
+and what it gets for refusing it. Recommendations Gap #5.
+
+**Fiber reporting (§17), built.** `writ check … --fiber gov.regime` answers
+every property once per value the cell takes — `fiber gov.regime=normal
+holds` / `fiber gov.regime=emergency   FAILS   witness: …` under the
+whole-space verdict — the question narrowed to the situations holding that
+value, the dynamics left whole. Repeatable for a product of cells; a
+failing fiber is a finding; `--json` carries them as `fibers`. The checker
+gained a `within` predicate and nothing else: a fiber is the same four
+questions asked of fewer situations.
+
+**The MCP server as a verifier an agent cannot argue with.** Two new tools,
+`writ_show` (a situation by the index a witness names) and `writ_compare`
+(what an edit kept, LOST and gained); `json: true` on every tool answers as
+the object `writ … --json` prints. `writ-mcp --claims-dir DIR` pins the
+questions: every claims file is read from DIR by its basename whatever path
+a call names, and the reply says which file it read — the model is the
+agent's, the claims are the human's. And the server remembers the last model
+checked against each claims file, so every `writ_check` ends with a
+`revision:` block naming the guarantees this model LOST against the previous
+one; a property that became `n/a` counts as lost, and the skill tells the
+agent so. Recommendations: the AI-agent loop.
+
+**`writ sql` cuts a column by the constants its `CHECK`s mention.** `CHECK
+(qty < 500)` used to be declined as arithmetic; now `orders-qty-range` becomes the
+enumerated domain `(below-500 exactly-500 above-500)` and the law a
+membership test, which is exact rather than conservative — nothing in the
+schema could tell two values in one region apart (`docs/tractability.md`
+§3). Several constants cut finer; an integral column has no piece between
+adjacent integers; a seed row's number lands in its piece. A `CHECK`
+comparing two columns stays declined, as does one against a non-numeric
+column, by name. `UNIQUE` stays declined too, and the reason is now
+recorded in `sql.md`'s successor below rather than only argued: the rules
+language has no inequality on atoms either, so "two DISTINCT rows agree"
+has no spelling there — `(dup X Y)` would match every row against itself.
+Recommendations Gap #4, as a tool feature.
+
+**Provenance pragmas, and the bridge contract.** A `; writ:origin TEXT`
+comment above a `transition` or `equation` — or above a form invocation,
+for every move it expands into — attaches TEXT to what the datum declares,
+and every report echoes it in brackets beside the move or law
+(`[orders.sql:14]`), `--json` as `origin`. A comment is nothing to the
+language; the model means the same with every pragma deleted. `writ sql`
+emits one above every law it reads from a `CHECK`, so a violation names the
+DDL line. **`docs/bridges.md`** is the contract the four existing bridges
+converged on — cut each quantity by the constants the rules mention; decline
+out loud and say which way the loss runs; name every move; reserve the
+names; say where each came from — written down so the fifth bridge starts
+from it. Recommendations Gap #1.
+
+**`regime:` in the build report**, under the size line: `committing — no
+move can be undone`, or `reversible — 36 of 36 situations lie on cycles`.
+Measured from the space's phase partition, not guessed from the syntax; it
+is the line that says whether adding vocabulary is free. `--json` carries it
+as `regime`. The argument is **`docs/tractability.md`**, new: the four
+conditions under which a domain fits Writ, and where the line falls — a
+quantity compared against a constant is fine at any range, one compared
+against another varying quantity is not. Linked from the README and the
+Claude skill. Recommendations Gap #4.
+
+**`writ graph`** draws the state space — in D2 by default, the notation the
+repository's own diagrams use, or DOT, or JSON. The picture is the PHASE
+quotient: one node per class of mutually reachable situations (the
+`phase` the interrogator already computes), labelled by its representative
+and its size; edges labelled by the one-way moves that cross; gaps as
+dashed exits; a phase nothing leads out of double-bordered. It is acyclic
+by construction and stays readable where the raw space does not; `--states`
+draws every situation and is refused above 400 with the phase count as the
+suggestion. `--witness P` lights a property's route through the picture.
+Recommendations Gap #3.
+
+**`(show QUERY…)` on a property.** A property may name queries of its
+file to answer at the situation its verdict singles out — the stuck
+situation of a failing `live` or `inevitable`, the violating one of a
+failing `never`, the satisfying one of a holding `possible`. The witness
+says how the world got there; the queries say who is affected once it has:
+the affected accounts under a failed access property, in one run. A name no
+query declares is refused when the file is read. Rendered under the verdict
+in prose and as `show` in `--json`; the editor completes and documents the
+word. Kernel §16.1.
+
+**Witnesses say where they land and what they changed.** Each step of a
+witness now carries the index of the situation it lands in and the cells it
+wrote — `1. grant-breakglass-admin   → #2   mallory.role: user → admin` — in
+the model's own vocabulary, which is the domain's; the `stuck at:` line leads
+with the same index, and a law's inline witness ends with its landing. A
+property's description is printed under its verdict. The move name stays
+first after its number, so a script that found a move by name finds it where
+it was; writ-problems' 222 checks and writ-arch's 74 pass unchanged.
+
+**`--json`** on `check`, `query`, `compare`, `show` and `derive`: the same
+answer as one JSON object, rendered from the same engine values as the prose
+by `tooling/report_json/`, so the two cannot drift. A witness carries the
+situation each move lands in, a vacant cell is `null`, and the exit status
+travels inside the object as `exit`. The schema is `docs/json.md`. The prose
+is unchanged and stays the default.
+
 ## 0.2.0 — 2026-09-06
 
 The first RELEASED version, and it is 0.2.0 rather than 0.1.0 because 0.1.0 is

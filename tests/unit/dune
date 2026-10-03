@@ -53,6 +53,32 @@
  (name test_stdin)
  (libraries writ_cli))
 
+; The JSON rendering of every answer. It links [writ_report_json] and the JSON
+; parser, because the assertion is on the TEXT: serialise, parse back, read the
+; members. Its own stanza for [test_stdin]'s reason — the library is unwrapped.
+
+(test
+ (name test_origin)
+ (deps
+  (glob_files fixtures/*.{writ,claims,rules}))
+ (libraries writ_data writ_syntax writ_runtime writ_json writ_report_json))
+
+(test
+ (name test_graph)
+ (deps
+  (glob_files fixtures/*.{writ,claims,rules})
+  (glob_files %{workspace_root}/tests/models/*.{writ,claims})
+  (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
+ (libraries writ_data writ_syntax writ_runtime))
+
+(test
+ (name test_report_json)
+ (deps
+  (glob_files fixtures/*.{writ,claims,rules})
+  (glob_files %{workspace_root}/tests/models/*.{writ,claims})
+  (glob_files %{workspace_root}/core/stdlib/*.{writ,rules}))
+ (libraries writ_data writ_syntax writ_runtime writ_json writ_report_json))
+
 ; The language-server tests drive [Server.handle] (pure: JSON in, JSON out), so
 ; they link the [writ_lsp] library alongside the engine. No I/O — the resolver
 ; serves fixture text from an in-memory map.

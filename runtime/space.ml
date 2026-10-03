@@ -264,6 +264,35 @@ let tarjan (n : int) (succ : int list array) : int array =
   done;
   comp
 
+(* How many situations lie on a cycle: in a phase of more than one, or with a
+   move back to themselves. Zero is the COMMITTING regime — no move can be
+   undone, every situation is a prefix of a design, and adding vocabulary is
+   free; anything else is the reversible regime, where the product of the
+   cells is real. docs/tractability.md §6 is the argument; this is the
+   measurement, from the same partition `writ graph` draws. *)
+let recurrent_count (t : t) : int =
+  let comp = tarjan (Array.length t.states) (succs t) in
+  let n = Array.length t.states in
+  let size = Array.make n 0 in
+  Array.iter (fun r -> size.(r) <- size.(r) + 1) comp;
+  let self_loop = Array.make n false in
+  List.iter
+    (fun (e : edge) ->
+      match e.dst with
+      | `To d -> (
+          match
+            (State.M.find_opt e.src t.index, State.M.find_opt d t.index)
+          with
+          | Some s, Some d when s = d -> self_loop.(s) <- true
+          | _ -> ())
+      | `Gap _ -> ())
+    t.edges;
+  let c = ref 0 in
+  for i = 0 to n - 1 do
+    if size.(comp.(i)) > 1 || self_loop.(i) then incr c
+  done;
+  !c
+
 let phases (t : t) : int array * (int * int) list =
   let comp = tarjan (Array.length t.states) (succs t) in
   let steps =

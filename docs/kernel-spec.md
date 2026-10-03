@@ -1407,6 +1407,10 @@ reader and form expander of Part II and never alter a model's meaning.
 On any successful build, an interrogator reports:
 
 - **size** — reachable situations and edges;
+- **regime** — whether any situation can return to itself: `committing`
+  when none can (every situation is a prefix of a design, and adding
+  vocabulary costs nothing), else `reversible` with how many lie on
+  cycles;
 - **gaps** — every gap edge, with message and minimal route in;
 - **dead ends** — situations where no move is enabled (gap edges do not
   count as moves out — they are exits from the model, not moves within
@@ -1417,6 +1421,14 @@ On any successful build, an interrogator reports:
 - **laws** — for every (move, equation) pair, whether the move *can*
   break the law (guard-and-effect analysis); and every reachable
   situation violating an equation, with a minimal route.
+- **provenance** — a `; writ:origin TEXT` comment on the line above a
+  `transition` or `equation` datum (or above a form invocation, for every
+  move it expands into) attaches TEXT to what the datum declares, and the
+  interrogator echoes it in brackets wherever that move or law is named.
+  A comment is nothing to the language (§5): the model means the same with
+  every pragma deleted. It is how a model generated from a foreign artifact
+  names the source line each step and each law came from
+  ([docs/bridges.md](bridges.md)).
 
 ```
 states: 12   edges: 31
@@ -1425,7 +1437,7 @@ gaps: 1
 dead ends: none
 equation same-agency
   can be broken by: capture-watchdog, restore-watchdog   (acknowledge in claims)
-  violated in 4 reachable situations   witness: 1. capture-watchdog
+  violated in 4 reachable situations   witness: 1. capture-watchdog → #3
 ```
 
 ## 16. Claims files
@@ -1435,7 +1447,8 @@ forms.
 
 ### 16.1 Properties
 
-- **Syntax** — `(property NAME ["DOC"] MODALITY)` with MODALITY one of:
+- **Syntax** — `(property NAME ["DOC"] MODALITY [(show QUERY…)])` with
+  MODALITY one of:
 
 | Modality         | Holds when                                                        |
 | ---------------- | ----------------------------------------------------------------- |
@@ -1470,13 +1483,25 @@ forms.
   can always still arrive and need never do it — the river, where the farmer
   may row back and forth for ever.
 - A failing property is reported with a **shortest witness** — a route,
-  printed as numbered moves.
+  printed as numbered moves, each with the index of the situation it lands
+  in and the cells it changed (`SRC.ARROW: before → after`, `∅` for a
+  vacant side). A `stuck at:` line leads with that same index. One numbering
+  runs through the whole tool, so a witness can be followed with `writ show
+  --at N` without counting.
 - A holding **`possible`** also carries a witness: the shortest route to a
   satisfying situation — the example the question asked for (Appendix C's
   solvable river prints its crossing). The other three hold with no single
   witness.
 - A property naming structure the schema lacks is **n/a** — never a
   pass.
+- **`(show QUERY…)`** names queries of the same file (§16.2) to answer at
+  the situation the verdict singles out: the stuck situation of a failing
+  `live` or `inevitable`, the violating situation of a failing `never`, the
+  satisfying situation of a holding `possible`. The witness says how the
+  world got there; the queries say who is affected once it has. A verdict
+  that singles out no situation — a holding `never`, `live` or
+  `inevitable`; an `n/a` — answers none of them. A name no query in the
+  file declares is an error at the name.
 
 *Example.*
 
@@ -1496,9 +1521,11 @@ and no restoration for it:*
 
 ```
 holds  conviction-possible
+  "the docket can conclude"
 fails  accountability
-  stuck at: (prosecutions.independence=captured docket.stage=open …)
-  witness:  1. capture-prosecutions
+  "the docket can always still conclude"
+  stuck at: #4 (prosecutions.independence=captured docket.stage=open …)
+  witness:  1. capture-prosecutions   → #4   prosecutions.independence: independent → captured
 ```
 
 *Capture is a trap: one move, and no continuation ever concludes the

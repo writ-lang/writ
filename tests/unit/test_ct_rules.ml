@@ -287,6 +287,7 @@ let cross label src goal =
         text = "";
         modality = Claims.Inevitable [];
         formula = g;
+        show = [];
       }
   in
   check

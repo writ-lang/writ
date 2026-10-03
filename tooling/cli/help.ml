@@ -48,16 +48,22 @@ whether a move can break the law and where it is violated. With
                  shortest satisfying route: the solution/example)
   fails NAME   — with `stuck at:` and a numbered witness route
   n/a   NAME   — the property names structure the schema lacks
-plus query answers and law acknowledgments (unadmitted / stale).|};
+A property with a (show QUERY…) clause also answers those queries at the
+situation its verdict singles out — the affected entities, named.
+Then query answers and law acknowledgments (unadmitted / stale).|};
       options =
         [
           "--claims FILE    the questions to ask (properties, queries, accepts)";
           "--stdin          read the model from stdin instead of a path";
+          "--json           the same answer as one JSON object (docs/json.md)";
+          "--fiber CELL     also answer each property per value of CELL \
+           (SRC.ARROW), the §17 fibers; repeatable for a product";
         ];
       examples =
         [
           "writ check   tests/models/any_model.writ --claims \
            tests/models/any_model.claims";
+          "writ check   model.writ --claims model.claims --fiber gov.regime";
         ];
     };
     {
@@ -84,6 +90,7 @@ has no sibling to find.|};
           "--stdin          read the model from stdin instead of a path";
           "--claims FILE    where the questions live (default: the model's \
            sibling .claims; required with --stdin)";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [
@@ -113,6 +120,7 @@ file (`git show REV:MODEL`).|};
           "--map MAP.writ    `(map X => Y)` renames when two schemas differ";
           "--git R1 R2 M    compare git revisions R1 and R2 of model M";
           "--stdin          the NEW model comes from stdin; follows OLD.writ";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [
@@ -187,7 +195,10 @@ Nothing is loaded; the emitted model is kernel-only.
 
 WHAT DOES NOT. Everything the DDL says that an olog cannot hold is
 reported on stderr by line and reason, aggregated, never dropped in
-silence — UNIQUE, arithmetic in a CHECK, DEFAULT, indexes, triggers.
+silence — UNIQUE, a CHECK comparing two columns, DEFAULT, indexes,
+triggers. A CHECK comparing a numeric column against constants crosses:
+the constants cut the column into regions, which become an enumerated
+domain, and the CHECK becomes a membership test — losing nothing.
 UNIQUE is declined as UNSAYABLE rather than unimplemented: a law
 ranges over one entity of its subject type and a bare `some` binder
 is not comparable, so "two distinct rows agree" has no spelling.
@@ -250,6 +261,7 @@ rooted in an arrow name that two types share.|};
         [
           "--why \"(R A…)\"   print one fact's derivation tree instead of rows";
           "--stdin          read the model from stdin instead of a path";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [
@@ -289,12 +301,54 @@ already has.|};
         [
           "--at STATE       a situation's index; repeatable (default: 0)";
           "--stdin          read the model from stdin instead of a path";
+          "--json           the same answer as one JSON object (docs/json.md)";
         ];
       examples =
         [
           "writ show    model.writ --at 17";
           "writ show    model.writ --at 17 --at 19";
         ];
+    };
+    {
+      name = "graph";
+      summary = "draw the state space — by phase, with a witness lit";
+      usage =
+        [
+          "writ graph    MODEL.writ [--claims F] [--d2|--dot|--json] \
+           [--witness P]… [--states]";
+          "writ graph    --stdin --claims F […]";
+        ];
+      body =
+        {|Emit the reachable state space as a picture. By default the PHASE
+quotient: one node per class of mutually reachable situations — inside
+one nothing has been spent, and a step between two can never be walked
+back — labelled by its least-indexed situation and its size; edges
+labelled by the moves that cross; gaps as dashed exits; a phase nothing
+leads out of double-bordered. That graph is acyclic by construction and
+stays readable where the raw space does not. --states draws every
+situation instead, and is refused above a cap with the phase count as
+the suggestion.
+
+--witness P lights P's route — the solution of a holding `possible`, the
+counterexample of a failing property — as it runs through the picture.
+The questions come from the model's sibling .claims, or --claims.
+
+D2 is the default because the repository's own diagrams are drawn in it;
+`d2` is not a dependency, the text is:
+
+  writ graph oversight.writ --witness accountability | d2 - out.svg
+  writ graph oversight.writ --dot | dot -Tsvg > out.svg|};
+      options =
+        [
+          "--claims FILE    where the questions live (default: the sibling \
+           .claims)";
+          "--witness P      light property P's route; repeatable";
+          "--states         every situation, not the phase quotient (cap 200)";
+          "--d2 | --dot | --json   the notation (default: D2)";
+          "--stdin          read the model from stdin instead of a path";
+        ];
+      examples =
+        [ "writ graph   tests/models/any_model.writ --witness accountability" ];
     };
   ]
 

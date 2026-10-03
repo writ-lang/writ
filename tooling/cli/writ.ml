@@ -87,29 +87,42 @@ let () =
      sentinel [Cli_io.stdin_name] goes into the model slot the verb already
      has — no verb, and nothing in the engine, learns that stdin exists. *)
   | _ :: "check" :: rest -> (
+      let json, rest = Writ_dispatch.take_json rest in
+      let fibers, rest = Writ_dispatch.take_fibers rest in
       let stdin_, rest = Writ_dispatch.take_stdin rest in
       match (stdin_, rest) with
-      | true, [] -> Cmd_check.run Cli_io.stdin_name None
-      | true, [ "--claims"; c ] -> Cmd_check.run Cli_io.stdin_name (Some c)
-      | false, [ model ] -> Cmd_check.run model None
-      | false, [ model; "--claims"; c ] -> Cmd_check.run model (Some c)
+      | true, [] -> Cmd_check.run ~json ~fibers Cli_io.stdin_name None
+      | true, [ "--claims"; c ] ->
+          Cmd_check.run ~json ~fibers Cli_io.stdin_name (Some c)
+      | false, [ model ] -> Cmd_check.run ~json ~fibers model None
+      | false, [ model; "--claims"; c ] ->
+          Cmd_check.run ~json ~fibers model (Some c)
       | _ -> die 2 usage)
   | _ :: "query" :: rest -> (
+      let json, rest = Writ_dispatch.take_json rest in
       let stdin_, rest = Writ_dispatch.take_stdin rest in
       let claims, rest = Writ_dispatch.take_claims rest in
       match (stdin_, rest) with
-      | true, [ name ] -> Cmd_query.run ~claims Cli_io.stdin_name name None
+      | true, [ name ] ->
+          Cmd_query.run ~json ~claims Cli_io.stdin_name name None
       | true, [ name; "--at"; s ] ->
-          Cmd_query.run ~claims Cli_io.stdin_name name (Some s)
-      | false, [ model; name ] -> Cmd_query.run ~claims model name None
+          Cmd_query.run ~json ~claims Cli_io.stdin_name name (Some s)
+      | false, [ model; name ] -> Cmd_query.run ~json ~claims model name None
       | false, [ model; name; "--at"; s ] ->
-          Cmd_query.run ~claims model name (Some s)
+          Cmd_query.run ~json ~claims model name (Some s)
       | _ -> die 2 usage)
   | _ :: "show" :: rest -> (
+      let json, rest = Writ_dispatch.take_json rest in
       let stdin_, rest = Writ_dispatch.take_stdin rest in
       match (stdin_, rest) with
-      | true, flags -> Cmd_show.run Cli_io.stdin_name flags
-      | false, model :: flags -> Cmd_show.run model flags
+      | true, flags -> Cmd_show.run ~json Cli_io.stdin_name flags
+      | false, model :: flags -> Cmd_show.run ~json model flags
+      | false, [] -> die 2 usage)
+  | _ :: "graph" :: rest -> (
+      let stdin_, rest = Writ_dispatch.take_stdin rest in
+      match (stdin_, rest) with
+      | true, flags -> Cmd_graph.run Cli_io.stdin_name flags
+      | false, model :: flags -> Cmd_graph.run model flags
       | false, [] -> die 2 usage)
   | _ :: "control" :: rest -> (
       let stdin_, rest = Writ_dispatch.take_stdin rest in
@@ -133,17 +146,20 @@ let () =
           ~with_data:(List.mem "--with-data" rest)
           ~strict:(List.mem "--strict" rest)
   | _ :: "derive" :: rest -> (
+      let json, rest = Writ_dispatch.take_json rest in
       let stdin_, rest = Writ_dispatch.take_stdin rest in
       match (stdin_, rest) with
       | true, [ rules; q ] ->
-          Cmd_derive.run Cli_io.stdin_name rules ~why:false q
+          Cmd_derive.run ~json Cli_io.stdin_name rules ~why:false q
       | true, [ rules; "--why"; q ] ->
-          Cmd_derive.run Cli_io.stdin_name rules ~why:true q
-      | false, [ model; rules; q ] -> Cmd_derive.run model rules ~why:false q
+          Cmd_derive.run ~json Cli_io.stdin_name rules ~why:true q
+      | false, [ model; rules; q ] ->
+          Cmd_derive.run ~json model rules ~why:false q
       | false, [ model; rules; "--why"; q ] ->
-          Cmd_derive.run model rules ~why:true q
+          Cmd_derive.run ~json model rules ~why:true q
       | _ -> die 2 usage)
   | _ :: "compare" :: rest -> (
+      let json, rest = Writ_dispatch.take_json rest in
       match rest with
       (* revisions are read from git, so there is no stdin to take *)
       | "--git" :: r1 :: r2 :: model :: mrest -> (
@@ -151,8 +167,8 @@ let () =
             die 2 "compare --git takes no --stdin\n"
           else
             match mrest with
-            | [] -> Cmd_compare.run_git r1 r2 model None
-            | [ "--map"; mp ] -> Cmd_compare.run_git r1 r2 model (Some mp)
+            | [] -> Cmd_compare.run_git ~json r1 r2 model None
+            | [ "--map"; mp ] -> Cmd_compare.run_git ~json r1 r2 model (Some mp)
             | _ -> die 2 usage)
       (* the one rule: --stdin fills the NEW side, so it must FOLLOW the old
          model. `writ compare --stdin baseline.writ` and `writ compare
@@ -165,12 +181,12 @@ let () =
       | old_p :: mrest -> (
           let stdin_, mrest = Writ_dispatch.take_stdin mrest in
           match (stdin_, mrest) with
-          | true, [] -> Cmd_compare.run old_p Cli_io.stdin_name None
+          | true, [] -> Cmd_compare.run ~json old_p Cli_io.stdin_name None
           | true, [ "--map"; mp ] ->
-              Cmd_compare.run old_p Cli_io.stdin_name (Some mp)
-          | false, [ new_p ] -> Cmd_compare.run old_p new_p None
+              Cmd_compare.run ~json old_p Cli_io.stdin_name (Some mp)
+          | false, [ new_p ] -> Cmd_compare.run ~json old_p new_p None
           | false, [ new_p; "--map"; mp ] ->
-              Cmd_compare.run old_p new_p (Some mp)
+              Cmd_compare.run ~json old_p new_p (Some mp)
           | _ -> die 2 usage)
       | _ -> die 2 usage)
   | _ -> die 2 usage

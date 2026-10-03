@@ -45,6 +45,17 @@ let resolve_for (base : string) : Writ_syntax.Loader.resolve =
 (* One line in, at most one line out. A line that is not JSON gets a JSON-RPC
    parse error rather than silence: a client that sent something malformed is
    entitled to be told, and a server that answers nothing looks hung. *)
+(* `writ-mcp [--claims-dir DIR]`. With DIR, every claims file is read from
+   there by its basename, whatever path a tool call names: the questions are
+   the human's, and the agent editing the model cannot also edit them. *)
+let pinned =
+  match Array.to_list Sys.argv with
+  | [ _ ] -> None
+  | [ _; "--claims-dir"; dir ] -> Some dir
+  | _ ->
+      prerr_endline "usage: writ-mcp [--claims-dir DIR]";
+      exit 2
+
 let respond line =
   match Json_parse.parse line with
   | Error e ->
@@ -61,8 +72,8 @@ let respond line =
                  ] );
            ])
   | Ok msg ->
-      Writ_mcp.Server.handle ~resolve:resolve_for ~version:Writ_mcp.Version.v
-        msg
+      Writ_mcp.Server.handle ~resolve:resolve_for ~pinned
+        ~version:Writ_mcp.Version.v msg
 
 let () =
   set_binary_mode_in stdin true;

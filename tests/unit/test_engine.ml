@@ -38,13 +38,13 @@ let ind a = path "case" [ a; "independence" ] (* total: strict = Kleene *)
 let set e a v = Model.Set (path e [ a ], Model.Lit v)
 
 let tr name g effs : Model.transition =
-  { name = Some name; when_ = g; effects = effs }
+  { name = Some name; when_ = g; effects = effs; origin = None }
 
 let cr a s : Instance.cellref = { arrow = a; src = s }
 let fill a s v = (cr a s, Value.Filled v)
 
 let prop name modality formula : Claims.property =
-  { name; text = ""; modality; formula }
+  { name; text = ""; modality; formula; show = [] }
 
 let build_ok m =
   match Space.build m with Ok sp -> sp | Error e -> failwith ("build: " ^ e)
@@ -188,7 +188,78 @@ let () =
   check "report: failing live shows fails + stuck at + witness"
     (contains ~sub:"fails  acc" s
     && contains ~sub:"stuck at:" s
-    && contains ~sub:"witness:  1. capture" s)
+    && contains ~sub:"witness:  1. capture" s);
+  (* Each step says where it lands and what it changed, in the model's own
+     cell names; the stuck line leads with the same index, so `writ show --at`
+     can be run on either without counting. *)
+  check "report: a witness step carries its landing and its delta"
+    (contains ~sub:"1. capture   → #1   s.pos: safe → captured" s);
+  check "report: stuck at leads with the situation's index"
+    (contains ~sub:"stuck at: #1 (" s);
+  (* A property with a description prints it under the verdict; one without
+     prints nothing extra, so a bare verdict line stays exactly as it was. *)
+  let described =
+    { (prop "acc" Live (is "s" "pos" "safe")) with Claims.text = "stays safe" }
+  in
+  check "report: the description is printed under the verdict"
+    (contains ~sub:"fails  acc\n  \"stays safe\"\n"
+       (Report.outcome sp described oc));
+  check "report: no description, no extra line"
+    (contains ~sub:"fails  acc\n  stuck at:" s)
+
+(* --- regime: measured, not guessed --------------------------------------- *)
+
+let () =
+  (* The toggle flips back: both of its situations lie on a cycle. *)
+  let sp = build_ok toggle in
+  check "regime: a toggle is reversible, entirely" (Space.recurrent_count sp = 2);
+  check "regime: the build report says so, with the count"
+    (contains ~sub:"regime: reversible — 2 of 2 situations lie on cycles"
+       (Report.build sp));
+  (* One latch and nothing else: no situation returns to itself. *)
+  let sp = build_ok capture_model in
+  check "regime: a latch alone is committing" (Space.recurrent_count sp = 0);
+  check "regime: the build report says committing"
+    (contains ~sub:"regime: committing — no move can be undone"
+       (Report.build sp))
+
+(* --- fibers: the same question, per value of a cell ------------------------ *)
+
+let () =
+  let sp = build_ok toggle in
+  let cell = Option.get (Fiber.cell_index sp "s.pos") in
+  check "fiber: a cell is found by its SRC.ARROW spelling" (snd cell = 0);
+  check "fiber: an unknown cell is not" (Fiber.cell_index sp "s.nope" = None);
+  check "fiber: the values in order of first appearance"
+    (Fiber.values_of sp 0 = [ "down"; "up" ]);
+  (* `never up` fails in the up fiber and holds in the down one: the question
+     narrows to the situations the fiber holds, the dynamics do not. *)
+  let never_up = prop "n" Never (is "s" "pos" "up") in
+  let fs = Fiber.outcomes sp [ cell ] never_up in
+  check "fiber: one outcome per value" (List.length fs = 2);
+  check "fiber: never holds where the value is absent"
+    (match fs with (_, Checker.Holds _) :: _ -> true | _ -> false);
+  check "fiber: and fails where it is present, with the route in"
+    (match fs with
+    | [ _; (_, Checker.Fails { route = [ "raise" ]; _ }) ] -> true
+    | _ -> false);
+  let lines = Report.fiber_lines sp fs in
+  check "fiber: the report labels each fiber by cell and value"
+    (contains ~sub:"fiber s.pos=down" (List.hd lines)
+    && contains ~sub:"holds" (List.hd lines));
+  check "fiber: a failing fiber says FAILS with its witness"
+    (contains ~sub:"fiber s.pos=up" (List.nth lines 1)
+    && contains ~sub:"FAILS   witness: 1. raise → #1" (List.nth lines 1));
+  (* `live down`: from the up fiber the toggle can still lower, so it holds
+     there too — the dynamics stayed whole. *)
+  let live_down = prop "l" Live (is "s" "pos" "down") in
+  check "fiber: live asks reachability through the whole space"
+    (List.for_all
+       (fun (_, o) -> match o with Checker.Holds _ -> true | _ -> false)
+       (Fiber.outcomes sp [ cell ] live_down));
+  (* two cells: the product of their values *)
+  let both = Fiber.outcomes sp [ cell; cell ] never_up in
+  check "fiber: several cells give the product" (List.length both = 4)
 
 (* --- inevitable: the gap between "can still" and "cannot avoid" ------------- *)
 
@@ -424,6 +495,7 @@ let anti_schema : Schema.t =
         {
           name = "same-agency";
           body = Guard.Is (ind "investigator", Guard.Chain (ind "prosecutor"));
+          origin = None;
         };
       ];
   }

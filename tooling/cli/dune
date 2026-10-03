@@ -28,10 +28,18 @@
   cmd_schema
   cmd_derive
   cmd_show
+  cmd_graph
   cmd_sql
   help
   writ_dispatch)
- (libraries writ_data writ_syntax writ_runtime writ_loadpath writ_sql))
+ (libraries
+  writ_data
+  writ_syntax
+  writ_runtime
+  writ_loadpath
+  writ_sql
+  writ_json
+  writ_report_json))
 
 (executable
  (name writ)

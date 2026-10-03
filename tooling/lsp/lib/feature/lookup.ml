@@ -47,7 +47,13 @@ let reserved_desc =
 (* The interrogator's file-format words (kernel §9) — not the language. *)
 let interrogator_desc =
   [
-    ("property", "(property NAME \"text\" (MODALITY FORMULA)) — a claim");
+    ( "property",
+      "(property NAME \"text\" (MODALITY FORMULA) [(show QUERY…)]) — a claim" );
+    ( "show",
+      "(show QUERY…) — after a property's modality: answer these queries at \
+       the situation the verdict singles out — the stuck one of a failing \
+       live/inevitable, the violating one of a failing never, the satisfying \
+       one of a holding possible" );
     ("never", "(never F) — no reachable state satisfies F");
     ("possible", "(possible F) — some reachable state satisfies F");
     ("live", "(live F) — from every reachable state, an F-state stays reachable");

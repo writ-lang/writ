@@ -32,6 +32,12 @@ type cursor = {
   mutable off : int;
   mutable line : int;
   mutable col : int;
+  (* [; writ:TEXT] comments, by line. A comment is nothing to the language —
+     the reader drops it — but a TOOL may read one: `; writ:origin FILE:LINE`
+     above a datum is how a generated model says where the next move or law
+     came from (docs/bridges.md). Collected here because this is the only
+     place that sees comments at all. *)
+  mutable pragmas : (int * string) list;
 }
 
 (* Raised inside the reader, converted to a [result] at the boundary. *)
@@ -66,14 +72,31 @@ let rec skip_trivia c =
       skip c;
       skip_trivia c
   | Some ';' ->
+      let line = c.line in
+      let buf = Buffer.create 32 in
       let rec to_eol () =
         match peek c with
         | None | Some '\n' -> ()
         | Some _ ->
-            skip c;
+            Buffer.add_char buf (bump c);
             to_eol ()
       in
       to_eol ();
+      (* Strip the comment markers, then look for the tool prefix. *)
+      let text = Buffer.contents buf in
+      let n = String.length text in
+      let rec skip_marks i =
+        if i < n && (text.[i] = ';' || text.[i] = ' ') then skip_marks (i + 1)
+        else i
+      in
+      let i = skip_marks 0 in
+      let body = String.sub text i (n - i) in
+      let prefix = "writ:" in
+      let lp = String.length prefix in
+      if String.length body >= lp && String.sub body 0 lp = prefix then
+        c.pragmas <-
+          (line, String.trim (String.sub body lp (String.length body - lp)))
+          :: c.pragmas;
       skip_trivia c
   | Some _ | None -> ()
 
@@ -143,13 +166,16 @@ let rec read_datum c =
    it is not a degraded mode, it is the honest answer for text that has no file
    (a query typed on the command line, an unnamed buffer), and reading that way
    behaves exactly as it always did. *)
-let read_string ?file s =
-  let c = { file; src = s; off = 0; line = 1; col = 1 } in
+let read_string_with_pragmas ?file s =
+  let c = { file; src = s; off = 0; line = 1; col = 1; pragmas = [] } in
   let rec go acc =
     skip_trivia c;
-    if eof c then Ok (List.rev acc) else go (read_datum c :: acc)
+    if eof c then Ok (List.rev acc, List.rev c.pragmas)
+    else go (read_datum c :: acc)
   in
   try go [] with Bad (p, msg) -> Error { Errors.pos = Some p; msg }
+
+let read_string ?file s = Result.map fst (read_string_with_pragmas ?file s)
 
 (* Split a dotted atom [E.a1.…an] into its literal words. The parser uses this
    to turn a path atom into a [Value.path]. *)

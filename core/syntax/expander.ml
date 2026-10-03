@@ -134,8 +134,14 @@ let instantiate (fd : Forms.form_def) (args : Reader.t list) (pos : Errors.pos)
   let* env, rest = bind fd args pos in
   map_r (subst env rest) fd.Forms.template
 
-let expand ?(open_heads = false) (datums : Reader.t list) :
-    (Reader.t list, Errors.t) result =
+(* [expand_grouped] keeps, for every top-level datum, the datums it became —
+   one for a plain declaration, several for a form invocation, none for a
+   form definition. A tool that attached something to a datum before expansion
+   (a provenance pragma, say) can then attach it to everything the datum
+   produced; the language itself never looks at the grouping. [expand] is the
+   flat view. *)
+let expand_grouped ?(open_heads = false) (datums : Reader.t list) :
+    ((Reader.t * Reader.t list) list, Errors.t) result =
   let forms = ref [] in
   let find n =
     List.find_opt (fun (fd : Forms.form_def) -> fd.name = n) !forms
@@ -206,6 +212,12 @@ let expand ?(open_heads = false) (datums : Reader.t list) :
             go acc rest
         | _ ->
             let* ds = stmt 0 d in
-            go (List.rev_append ds acc) rest)
+            go ((d, ds) :: acc) rest)
   in
   go [] datums
+
+let expand ?(open_heads = false) (datums : Reader.t list) :
+    (Reader.t list, Errors.t) result =
+  Result.map
+    (fun groups -> List.concat_map snd groups)
+    (expand_grouped ~open_heads datums)

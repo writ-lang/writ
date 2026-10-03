@@ -122,6 +122,10 @@ let emit_forms (b : Buffer.t) (u : usage) =
 let rec guard (subject : string) (c : check) : string =
   let path col = subject ^ "." ^ col in
   match c with
+  (* Unreachable: [Sql_parse.cut_regions] rewrites every comparison into a
+     membership test or declines it before a model is emitted. *)
+  | C_cmp (col, _, _) ->
+      invalid_arg ("a comparison on " ^ col ^ " survived the region cut")
   | C_and cs -> "(and " ^ String.concat " " (List.map (guard subject) cs) ^ ")"
   | C_or cs -> "(or " ^ String.concat " " (List.map (guard subject) cs) ^ ")"
   | C_not x -> "(not " ^ guard subject x ^ ")"
@@ -164,7 +168,8 @@ let column_datum (c : column) : string =
         ^ ")"
       else "(" ^ n ^ (if c.nullable then "?" else "") ^ " " ^ c.cname ^ ")"
 
-let emit_schema (b : Buffer.t) (name : string) (db : db) (u : usage) =
+let emit_schema (b : Buffer.t) ~(source : string) (name : string) (db : db)
+    (u : usage) =
   buf_add b ("\n(schema " ^ name ^ "\n");
   buf_add b
     "\n\
@@ -220,9 +225,19 @@ let emit_schema (b : Buffer.t) (name : string) (db : db) (u : usage) =
       \  ;; A CHECK is a claim the world is measured against, not a filter on\n\
       \  ;; it: `writ check` reports not only where a law is broken but WHICH\n\
       \  ;; move can break it.\n";
+    (* Each law carries where it was written, as a provenance pragma the
+       loader reads (docs/bridges.md): a violation then names the CHECK's
+       line in the DDL, not only the law's name in this file. *)
     List.iter
       (fun (t, (n, c)) ->
-        buf_add b ("  (equation " ^ n ^ "\n    " ^ guard t.tname c ^ ")\n"))
+        let line =
+          match List.assoc_opt n t.check_lines with
+          | Some l -> l
+          | None -> t.tline
+        in
+        buf_add b
+          ("  ; writ:origin " ^ source ^ ":" ^ string_of_int line ^ "\n"
+         ^ "  (equation " ^ n ^ "\n    " ^ guard t.tname c ^ ")\n"))
       laws
   end;
   buf_add b ")\n"
@@ -241,7 +256,14 @@ let value_for (db : db) (u : usage) (c : column) (v : string option) : string =
               if String.lowercase_ascii raw = "t" then "true"
               else if String.lowercase_ascii raw = "f" then "false"
               else Sql_names.ident_to_pol raw
-          | Sql_names.Enum _ -> Sql_names.ident_to_pol raw
+          | Sql_names.Enum ename -> (
+              (* a region domain classifies a seed row's number into the
+                 piece it falls in; any other enum takes the literal *)
+              match
+                (List.assoc_opt ename db.regions, float_of_string_opt raw)
+              with
+              | Some cuts, Some x -> Sql_regions.classify cuts x
+              | _ -> Sql_names.ident_to_pol raw)
           | Sql_names.Opaque n -> (
               ignore db;
               try List.assoc n u.members with Not_found -> n ^ "*")))
@@ -327,7 +349,7 @@ let file ~(name : string) ~(source : string) (db : db) : string * decline list =
       ;;\n\
       ;; What the DDL said and this file does not is on stderr, by line.\n\n");
   emit_forms b u;
-  emit_schema b name db u;
+  emit_schema b ~source name db u;
   emit_instance b name db u;
   buf_add b ("\n(use " ^ name ^ ")\n(initial seed)\n");
   (Buffer.contents b, name_clashes db u)

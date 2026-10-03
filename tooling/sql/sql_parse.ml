@@ -227,6 +227,22 @@ and p_atom (ts : tok list) : check option * tok list =
           (Some (C_not (C_is (c, v))), r)
       | { tk = Op "<>"; _ } :: { tk = Str v; _ } :: r ->
           (Some (C_not (C_is (c, v))), r)
+      (* a column against an integer constant: kept as a comparison here and
+         cut into regions by [cut_regions], once every constant is known *)
+      | { tk = Op op; _ } :: { tk = Num n; _ } :: r -> (
+          let cmp =
+            match op with
+            | "<" -> Some Lt
+            | "<=" -> Some Le
+            | ">" -> Some Gt
+            | ">=" -> Some Ge
+            | "=" -> Some Eq
+            | "<>" | "!=" -> Some Ne
+            | _ -> None
+          in
+          match (cmp, int_of_string_opt n) with
+          | Some cmp, Some k -> (Some (C_cmp (c, cmp, k)), r)
+          | _ -> (None, rest))
       | _ -> (None, rest))
 
 let parse_check (ts : tok list) : check option =
@@ -407,7 +423,7 @@ let parse_column ~(tname : string) ~(pragmas : (int * string) list)
 type tcon =
   | Tc_pk of string list
   | Tc_fk of string * string  (** column, referenced table *)
-  | Tc_check of string * check
+  | Tc_check of string * check * int  (** name, body, its line *)
   | Tc_declined of decline
 
 let constraint_leader =
@@ -465,7 +481,7 @@ let parse_constraint ~(tname : string) (ts : tok list) : tcon =
                 | Some n -> n
                 | None -> tname ^ "-check-" ^ string_of_int line
               in
-              Tc_check (n, c)
+              Tc_check (n, c, line)
           | None ->
               dec
                 "CHECK outside the expressible fragment (null-ness, \
@@ -521,6 +537,7 @@ let parse_create_table ~(pragmas : (int * string) list) (st : stmt)
           let items = split_commas inner in
           let cols = ref []
           and checks = ref []
+          and clines = ref []
           and pk = ref []
           and fks = ref []
           and decls = ref [] in
@@ -530,7 +547,9 @@ let parse_create_table ~(pragmas : (int * string) list) (st : stmt)
                 match parse_constraint ~tname item with
                 | Tc_pk cs -> pk := cs
                 | Tc_fk (c, t) -> fks := (c, t) :: !fks
-                | Tc_check (n, c) -> checks := (n, c) :: !checks
+                | Tc_check (n, c, l) ->
+                    checks := (n, c) :: !checks;
+                    clines := (n, l) :: !clines
                 | Tc_declined d -> decls := d :: !decls
               else
                 let r = parse_column ~tname ~pragmas item in
@@ -546,6 +565,11 @@ let parse_create_table ~(pragmas : (int * string) list) (st : stmt)
                     then pk := [ c.cname ]
                 | None -> ());
                 checks := r.ck @ !checks;
+                (match r.col with
+                | Some c ->
+                    clines :=
+                      List.map (fun (n, _) -> (n, c.cline)) r.ck @ !clines
+                | None -> ());
                 decls := List.rev_append r.cdecl !decls)
             items;
           (* attach table-level foreign keys to their columns *)
@@ -573,6 +597,7 @@ let parse_create_table ~(pragmas : (int * string) list) (st : stmt)
                 columns = cols;
                 pk = !pk;
                 checks = List.rev !checks;
+                check_lines = List.rev !clines;
                 comment = None;
                 tline = st.sline;
               }
@@ -663,12 +688,16 @@ let parse_alter_table ~(pragmas : (int * string) list) (st : stmt)
                   db.tables
               in
               { db with tables }
-          | Tc_check (n, c) ->
+          | Tc_check (n, c, l) ->
               let tables =
                 List.map
                   (fun x ->
                     if x.tname = tname then
-                      { x with checks = x.checks @ [ (n, c) ] }
+                      {
+                        x with
+                        checks = x.checks @ [ (n, c) ];
+                        check_lines = x.check_lines @ [ (n, l) ];
+                      }
                     else x)
                   db.tables
               in
@@ -819,6 +848,151 @@ let is_textual = function
    about the column — it IS the column's type, spelled in the only notation SQL
    has for one. Promoting it is what lets those members cross with their
    identities intact instead of collapsing into one opaque value. *)
+(* ---- regions: a column compared against constants ------------------------ *)
+
+(* The constants a table's checks compare a column against cut its range into
+   regions on which every check is constant: below the least, exactly each,
+   strictly between each adjacent pair, above the greatest. Each region
+   becomes a member of an enumerated domain and each comparison a membership
+   test — lossless, because nothing in the schema could tell two values in one
+   region apart. An integer column skips an empty open interval (nothing lies
+   strictly between 4 and 5). *)
+let numeric_domain = function
+  | Sql_names.Opaque n ->
+      List.exists
+        (fun p ->
+          String.length n >= String.length p
+          && String.sub n 0 (String.length p) = p)
+        [ "int"; "bigint"; "smallint"; "numeric"; "real"; "double"; "decimal" ]
+  | _ -> false
+
+let integral_domain = function
+  | Sql_names.Opaque ("int" | "bigint" | "smallint") -> true
+  | _ -> false
+
+let sat (rep : float) (op : cmp) (k : int) : bool =
+  let k = float_of_int k in
+  match op with
+  | Lt -> rep < k
+  | Le -> rep <= k
+  | Gt -> rep > k
+  | Ge -> rep >= k
+  | Eq -> rep = k
+  | Ne -> rep <> k
+
+let rec cmp_columns (c : check) : (string * int) list =
+  match c with
+  | C_cmp (col, _, k) -> [ (col, k) ]
+  | C_and cs | C_or cs -> List.concat_map cmp_columns cs
+  | C_not c -> cmp_columns c
+  | C_null _ | C_notnull _ | C_is _ | C_in _ -> []
+
+let rec rewrite_cmp (regions : (string * (string * float) list) list)
+    (c : check) : check =
+  match c with
+  | C_cmp (col, op, k) -> (
+      match List.assoc_opt col regions with
+      | Some rs ->
+          C_in
+            ( col,
+              List.filter_map
+                (fun (n, rep) -> if sat rep op k then Some n else None)
+                rs )
+      | None -> c)
+  | C_and cs -> C_and (List.map (rewrite_cmp regions) cs)
+  | C_or cs -> C_or (List.map (rewrite_cmp regions) cs)
+  | C_not c -> C_not (rewrite_cmp regions c)
+  | C_null _ | C_notnull _ | C_is _ | C_in _ -> c
+
+let cut_regions (db : db) : db =
+  let extra_enums = ref [] and decls = ref [] and region_cuts = ref [] in
+  let tables =
+    List.map
+      (fun t ->
+        let mentioned =
+          List.concat_map (fun (_, c) -> cmp_columns c) t.checks
+        in
+        let cols = List.sort_uniq compare (List.map fst mentioned) in
+        (* a column may be cut iff it exists here and is numeric *)
+        let cuttable, uncuttable =
+          List.partition
+            (fun col ->
+              match column_named t col with
+              | Some c -> numeric_domain c.domain
+              | None -> false)
+            cols
+        in
+        let regions =
+          List.map
+            (fun col ->
+              let integral =
+                match column_named t col with
+                | Some c -> integral_domain c.domain
+                | None -> false
+              in
+              let cuts =
+                List.sort_uniq compare
+                  (List.filter_map
+                     (fun (c, k) -> if c = col then Some k else None)
+                     mentioned)
+              in
+              (* `-range`, because a column-level CHECK's law is auto-named
+                 `T-col` and the two share one namespace *)
+              let ename = t.tname ^ "-" ^ col ^ "-range" in
+              let rs = Sql_regions.pieces ~integral cuts in
+              extra_enums :=
+                { ename; emembers = List.map fst rs } :: !extra_enums;
+              region_cuts := (ename, cuts) :: !region_cuts;
+              (col, rs))
+            cuttable
+        in
+        let columns =
+          List.map
+            (fun c ->
+              if List.mem_assoc c.cname regions then
+                {
+                  c with
+                  domain = Sql_names.Enum (t.tname ^ "-" ^ c.cname ^ "-range");
+                }
+              else c)
+            t.columns
+        in
+        let checks =
+          List.filter_map
+            (fun (n, c) ->
+              if
+                List.exists
+                  (fun (col, _) -> List.mem col uncuttable)
+                  (cmp_columns c)
+              then begin
+                decls :=
+                  {
+                    dline =
+                      (match List.assoc_opt n t.check_lines with
+                      | Some l -> l
+                      | None -> t.tline);
+                    what = "CHECK " ^ n;
+                    why =
+                      "a comparison against a constant on a column that is not \
+                       numeric, or that this table does not declare";
+                  }
+                  :: !decls;
+                None
+              end
+              else Some (n, rewrite_cmp regions c))
+            t.checks
+        in
+        { t with columns; checks })
+      db.tables
+  in
+  {
+    db with
+    tables;
+    enums = db.enums @ List.rev !extra_enums;
+    declines = db.declines @ List.rev !decls;
+    regions = db.regions @ List.rev !region_cuts;
+  }
+
 let promote_enums (db : db) : db =
   let extra_enums = ref [] and decls = ref [] in
   let tables =
@@ -923,7 +1097,7 @@ let vet_checks (db : db) : db =
               match column_named t c with
               | None -> Some ("no column `" ^ c ^ "`")
               | Some _ -> None)
-          | C_is (c, _) | C_in (c, _) -> bad_col c
+          | C_is (c, _) | C_in (c, _) | C_cmp (c, _, _) -> bad_col c
         and first = function [] -> None | x :: _ -> Some x in
         let keep =
           List.filter
@@ -1064,7 +1238,9 @@ let parse ?(with_data = false) (src : string) : db =
       empty stmts
   in
   let db = { db with tables = List.rev db.tables; enums = List.rev db.enums } in
-  let db = db |> resolve_enum_columns |> promote_enums |> vet_checks in
+  let db =
+    db |> resolve_enum_columns |> promote_enums |> cut_regions |> vet_checks
+  in
   let db = vet_keys db in
   let db = if with_data then resolve_rows db else db in
   {

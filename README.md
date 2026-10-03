@@ -7,6 +7,13 @@
 A model is one page. What it *means* is every situation those rules can
 produce — that page writ large, which is where the language gets its name.
 
+In practice: **a model checker for finite business and governance systems** —
+approval workflows, entitlements and access, schema migrations, deployment
+runbooks, configuration spaces, protocols — whose negative answer is a
+**census, not a search that gave up**. "No reachable situation breaks this
+rule" is checked over every situation there is, because the schema fixes how
+many there are; and every "yes" comes with the route that proves it.
+
 A writ model is a state machine written down: a **schema** (the kinds of things
 that exist and the typed arrows between them, plus the laws certain arrow-chains
 must obey), an **instance** (one starting configuration), and **transitions**
@@ -43,26 +50,56 @@ states: 36   edges: 76
 gaps: none
 dead ends: none
 holds  solvable
-  witness:  1. cross-goat-LR
-            2. cross-empty-RL
-            3. cross-wolf-LR
-            4. cross-goat-RL
-            5. cross-cabbage-LR
-            6. cross-empty-RL
-            7. cross-goat-LR
+  "everything can reach the right bank intact"
+  witness:  1. cross-goat-LR      → #3   farmer.at: left → right, goat.at: left → right
+            2. cross-empty-RL     → #8   farmer.at: right → left
+            3. cross-wolf-LR      → #14   farmer.at: left → right, wolf.at: left → right
+            4. cross-goat-RL      → #22   farmer.at: right → left, goat.at: right → left
+            5. cross-cabbage-LR   → #30   farmer.at: left → right, cabbage.at: left → right
+            6. cross-empty-RL     → #33   farmer.at: right → left
+            7. cross-goat-LR      → #34   farmer.at: left → right, goat.at: left → right
 fails  no-blunders
-  stuck at: (farmer.at=right wolf.at=left goat.at=left cabbage.at=left)
-  witness:  1. cross-empty-LR
+  "from every reachable arrangement, the crossing can still succeed"
+  stuck at: #1 (farmer.at=right wolf.at=left goat.at=left cabbage.at=left)
+  witness:  1. cross-empty-LR   → #1   farmer.at: left → right
 ```
 
 `writ` proves the crossing is possible **and prints one** (a holding `possible`
 shows its solution) — the real safe crossing, right down to bringing the goat
-*back* on move 4. It also finds the blunder: one careless crossing strands a
-predator with its prey, and from there the crossing can never succeed.
+*back* on move 4. Every step says where it lands (`#3` is a situation `writ
+show --at 3` will render) and what it changed, in the model's own words. It
+also finds the blunder: one careless crossing strands a predator with its
+prey, and from there the crossing can never succeed.
 
 **Want to write one?** [The tour](docs/tour.md) goes from a three-line model to
 the whole language in ten runnable steps, and ends in a one-page cheat sheet.
 The rest of this page is why the language is shaped the way it is.
+
+## What it is for
+
+The same six shapes of question — a trap, a law violation, a vacancy, a
+silence, a comparison, an embedding — asked of different furniture.
+[Appendix G](docs/kernel-spec.md#appendix-g--problems-tractable-with-writ)
+lists the questions per domain; the worked models live in
+[writ-problems](https://github.com/writ-lang/writ-problems):
+
+| domain | the question it is usually asked | worked |
+| --- | --- | --- |
+| access and privilege | is there a grant sequence after which some privilege can never be revoked? | `access/` |
+| regulated case-work | can a case reach a state that is neither settleable nor closable? | `workflow/` |
+| constitutional and institutional design | can lawful moves alone permanently disable the oversight pipeline? | `oversight/`, `gotha/` |
+| protocols and agreement | can the parties finish disagreeing, or be left waiting for ever? | `two-phase-commit/` |
+| schema migrations and runbooks | is this plan safe at every instant, including mid-rollout? | `db-migration-problems/` |
+| system design from a parts bank | which architectures satisfy the brief, and what does the brief fail to say? | `arch/` |
+| scheduling and allocation | does a valid schedule exist, and is the one a solver produced acceptable? | `jobshop-*/`, `timetable/` |
+| economic arrangements | which guarantees does one rule's repeal cost? | `calculation/` |
+| games and puzzles | is it solvable, and is there a first-move blunder? | `river/`, `island/`, `queens/` |
+| safety interlocks, clinical protocols, succession, incident runbooks | see Appendix G | — |
+
+What does not fit, and the test for telling in advance, is
+[docs/tractability.md](docs/tractability.md): a fixed cast; quantities
+compared against constants, never against each other; moves that set a slot to
+a name; an answer set small enough to want.
 
 ## Language design
 
@@ -169,6 +206,27 @@ construct ever needed an operator or a precedence rule, guards included; the
 notation states its own structure; and every worked model's properties are read
 twice — once in branching time, once relationally — by two engines that agree.
 
+**Where the bound comes from** is the distinguishing claim, and it is worth
+stating against the neighbours
+([Appendix H](docs/kernel-spec.md#appendix-h--design-notes-neighbouring-languages)
+has the full table):
+
+| | the space searched | "no counterexample" means |
+| --- | --- | --- |
+| Alloy, TLC, bounded SMT | a scope or depth the **user** chose | none within that scope — a hedge that never goes away |
+| writ | every situation the **schema** admits | none exists — a census |
+
+The price of the second row is the whole of §2.4: no arithmetic, no unbounded
+populations, no "for every *n*". What it buys is that `never` means what it
+says.
+
+Whether a *particular* domain fits is a test, not a feeling:
+[docs/tractability.md](docs/tractability.md) states it in four conditions — a
+fixed cast; thresholds, not comparisons; settling, not computing; an answer
+set you would read — and says precisely where the line falls (a quantity
+compared against a constant is fine at any range; one compared against
+another varying quantity is not).
+
 ## What an answer costs
 
 Enumerating *every* situation invites one question ahead of all others: how big
@@ -231,6 +289,11 @@ farmer can row back, so a crossing can be undone and made again, and no move
 settles anything for good. There the product of the cells is real, and 36 is
 what it costs.
 
+`writ check` says which kind a model is, under its size line — `regime:
+committing — no move can be undone`, or `regime: reversible — 36 of 36
+situations lie on cycles` — measured from the space rather than guessed from
+the syntax, so the author knows at once whether adding vocabulary is free.
+
 ## The CLI
 
 | Command | Does |
@@ -247,6 +310,8 @@ what it costs.
 | `writ derive MODEL RULES.rules "(R A…)"` | …keeping only the rows that match, ALL-CAPS being a free variable, any position bindable (so the dynamics run backward) |
 | `writ derive MODEL RULES.rules --why "(R A…)"` | print one fact's derivation tree instead of rows |
 | `writ show MODEL [--at STATE]…` | print what a situation is — its cells, the fewest moves to it, and every move out |
+| `writ graph MODEL [--witness P] [--states] [--d2\|--dot\|--json]` | draw the state space: the **phase** quotient by default — one node per class of mutually reachable situations, edges the one-way moves between them, gaps as dashed exits — with a property's witness lit; `--states` draws every situation, under a cap |
+| `… --json` | on `check`, `query`, `compare`, `show` and `derive`: the same answer as one JSON object, witnesses carrying the situation each move lands in ([docs/json.md](docs/json.md)) |
 | `writ help VERB` · `writ VERB --help` | one verb's reference — usage, options, examples, exit status |
 | `writ --help` · `writ --version` | the full reference · the version this binary was built from |
 
@@ -339,12 +404,24 @@ dropped in silence, because a schema imported quietly would let "writ proved
 this safe" be a claim about a schema nobody has. `UNIQUE` is the interesting
 one: it is **unsayable**, not unimplemented, because a writ law ranges over one
 entity of its subject type and a bare `some` binder is not comparable, so "two
-distinct rows agree" has no spelling. Arithmetic in a `CHECK` is refused for
-the reason the whole language is: there are no numbers, and inventing them
-would cost the negative answer.
+distinct rows agree" has no spelling. A `CHECK` comparing a numeric column
+against **constants** is not refused: the constants cut the column into the
+regions on which every check is constant — `qty < 500` makes `orders-qty-range` an
+enumerated domain `(below-500 exactly-500 above-500)` and the law a
+membership test — which loses nothing, since nothing in the schema could tell
+two values in one region apart ([docs/tractability.md](docs/tractability.md)
+§3). A `CHECK` comparing two **columns** has no such quotient and is refused,
+for the reason the whole language has no numbers: inventing them would cost
+the negative answer.
 
 pg_dump is the input that matters, so casts, `= ANY (ARRAY[…])`, `ALTER TABLE …
 ADD CONSTRAINT` and dollar-quoted function bodies all read correctly.
+
+Every law the import writes carries a **provenance pragma** — `; writ:origin
+shop.sql:14` on the line above it — which `writ check` echoes beside the law,
+so a violation names the `CHECK`'s line in the DDL. The pragma is a comment
+and the language ignores it; [docs/bridges.md](docs/bridges.md) is the
+contract for writing a bridge of your own, including this one.
 
 Round-tripping is defined on the **model**, not the text — the export
 normalises spellings on purpose — and the two facts SQL cannot state (whether a
@@ -496,8 +573,19 @@ The client finds the server on `PATH` with nothing to configure.
 ### From an AI assistant
 
 `writ-mcp` is an MCP server over the same engine, exposing `writ_check`,
-`writ_query` and `writ_derive` — so an assistant can model a problem and get an
-answer with a **witness route** rather than a plausible guess.
+`writ_show`, `writ_compare`, `writ_query` and `writ_derive` — so an assistant
+can model a problem and get an answer with a **witness route** rather than a
+plausible guess, read back the situation a witness names, and price its own
+edit before calling it done. Every tool takes `json: true`.
+
+Two things make it a verifier an assistant cannot argue with. Start it with
+`writ-mcp --claims-dir DIR` and every claims file is read from DIR by its
+basename, whatever path a call names: the model is the assistant's, the
+questions are yours. And the server remembers the last model checked against
+each claims file, so every `writ_check` ends with a `revision:` block naming
+the guarantees this model **LOST** against the previous one — an edit that
+makes one property pass by losing another, or by making its question `n/a`,
+is reported in the same reply.
 
 ```jsonc
 // .mcp.json — this repository ships one already

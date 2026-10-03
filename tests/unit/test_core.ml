@@ -68,6 +68,7 @@ let schema : Schema.t =
                           Guard.Chain
                             (path "case" [ "investigator"; "independence" ]) ));
                  ]);
+          origin = None;
         };
       ];
   }

@@ -34,10 +34,12 @@ let rec ats (acc : string list) (argv : string list) : string list =
   | "--at" :: n :: rest -> ats (n :: acc) rest
   | _ -> die 2 "writ show MODEL.writ [--at STATE]…"
 
-let run (model : string) (argv : string list) =
+let run ?(json = false) (model : string) (argv : string list) =
   let m = load_model (make_resolve model) model in
   let sp = build_space model m in
   let idxs = List.map (index sp) (ats [] argv) in
-  say (String.concat "\n\n" (List.map (Report.situation sp) idxs));
+  say
+    (if json then Json.to_string (Report_json.show sp idxs)
+     else String.concat "\n\n" (List.map (Report.situation sp) idxs));
   flush stdout;
   exit 0

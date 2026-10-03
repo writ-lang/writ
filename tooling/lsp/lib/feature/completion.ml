@@ -69,6 +69,7 @@ let interrogator =
   ("property" :: List.map fst Writ_syntax.Claims_parser.modalities)
   @ [
       "fair";
+      "show";
       "query";
       "where";
       "accept";

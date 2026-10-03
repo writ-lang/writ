@@ -88,12 +88,51 @@ let inline (resolve : resolve) (datums : Reader.t list) :
   in
   walk [] [] datums
 
+(* Provenance (docs/bridges.md). A `; writ:origin TEXT` comment on the line
+   above a datum attaches TEXT to the move or law that datum declares — and,
+   for a form invocation, to every move it expands into, since the invocation
+   is the line the author wrote. Read from the model's own file; a library's
+   comments are its own. The language never sees any of it: an origin is a
+   note a tool echoes, and deleting every one changes no verdict. *)
+let origins_of ~(file : string) (pragmas : (int * string) list) :
+    (int * string) list =
+  ignore file;
+  List.filter_map
+    (fun (line, text) ->
+      let prefix = "origin " in
+      let lp = String.length prefix in
+      if String.length text > lp && String.sub text 0 lp = prefix then
+        Some (line, String.trim (String.sub text lp (String.length text - lp)))
+      else None)
+    pragmas
+
 let read_model (resolve : resolve) (path : string) : (Model.t, Errors.t) result
     =
-  let* datums = read_datums resolve ~file:path (Filename.basename path) in
+  let name = Filename.basename path in
+  let* src = resolve name in
+  let* datums, pragmas = Reader.read_string_with_pragmas ~file:path src in
+  let origins = origins_of ~file:path pragmas in
+  let above (d : Reader.t) : string option =
+    let p = Reader.pos_of d in
+    if p.Errors.file = Some path then List.assoc_opt (p.Errors.line - 1) origins
+    else None
+  in
   let* inlined = inline resolve datums in
-  let* expanded = Expander.expand inlined in
-  Parser.parse_model expanded
+  let* groups = Expander.expand_grouped inlined in
+  let expanded = List.concat_map snd groups in
+  (* Everything a top-level datum became inherits the pragma above it. *)
+  let inherited =
+    List.concat_map
+      (fun (src, outs) ->
+        match above src with
+        | Some o -> List.map (fun d -> (d, o)) outs
+        | None -> [])
+      groups
+  in
+  let origin (d : Reader.t) : string option =
+    match above d with Some o -> Some o | None -> List.assq_opt d inherited
+  in
+  Parser.parse_model ~origin expanded
 
 let load_library (resolve : resolve) (name : string) :
     (Reader.t list, Errors.t) result =

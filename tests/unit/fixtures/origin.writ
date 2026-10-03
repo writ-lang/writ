@@ -1,0 +1,24 @@
+; origin.writ — provenance pragmas (docs/bridges.md): a `; writ:origin …`
+; comment on the line above a datum attaches its text to the move or law the
+; datum declares, and to every move a form invocation expands into.
+(schema lamps
+  (type pos-t (off on))
+  (type lamp (arrow pos (to pos-t)))
+  ; writ:origin rules.txt:7
+  (equation never-both (not (and (is lamp.pos on) (is lamp.pos off)))))
+
+(instance start lamps (lamp l (pos off)))
+(use lamps)
+(initial start)
+
+(form (flip N FROM TO)
+  (transition N (when (is l.pos FROM)) (do (set l.pos TO))))
+
+; writ:origin switches.yaml:3
+(transition raise (when (is l.pos off)) (do (set l.pos on)))
+
+; writ:origin switches.yaml:9
+(flip lower on off)
+
+; a comment that is not a pragma, above a move that therefore has no origin
+(transition blink (when (is l.pos on)) (do (set l.pos on)))

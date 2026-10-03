@@ -14,7 +14,10 @@ Reach for this when the honest answer needs a **proof over all cases** rather
 than an argument. It is the right tool for deadlock, reachability, "can this
 ever happen", scheduling feasibility and optimality on small instances, and
 "can this policy be broken". It is the wrong tool for anything numeric,
-recursive or unbounded — Writ has no arithmetic by design.
+recursive or unbounded — Writ has no arithmetic by design. The test for a
+new domain is `docs/tractability.md` in the writ repository: a fixed cast;
+quantities compared against constants, never against each other; moves that
+set a slot to a named value; an answer set small enough to want.
 
 ## The loop
 
@@ -33,9 +36,10 @@ states: 51   edges: 87        how big the world turned out to be
 gaps: none                    places the rules declare themselves silent
 dead ends: 3                  situations with no move left, each with a route
 holds  all-finish             true — and the witness route IS the example
-  witness: 1. a-enters …
+  witness: 1. a-enters   → #1   m1.held-by: ∅ → a
+           2. …                 each step: where it lands, what it changed
 fails  never-stuck            false — with the shortest counterexample
-  stuck at: …
+  stuck at: #7 (…)            the index is what `writ_show` / `show --at` take
 ```
 
 **A witness under a holding `possible` is the answer, not evidence for it.** If
@@ -102,10 +106,28 @@ Time is a ladder of named ticks walked by an arrow, never a number.
 ## Tools
 
 - **`writ_check`** — the verb to reach for first. Model, optional claims.
+  When the same claims file was checked before in this session, the reply
+  ends with a `revision:` block saying which guarantees this model **LOST**
+  against the previous one. Read it before calling an edit done: an edit that
+  makes one property pass by losing another is reported right there.
+- **`writ_show`** — what a situation IS, by the index a witness step or a
+  `stuck at:` line names. Quote the situation, not the number.
+- **`writ_compare`** — which guarantees an edit kept, LOST and gained, the
+  old model's claims put to both. Price your own edit with it.
 - **`writ_query`** — one named query, optionally at a chosen situation.
 - **`writ_derive`** — a relation from a `.rules` file. `why: true` returns the
   **derivation tree**: why the engine believes a fact, down to the model facts
   it rests on. Use it when the answer matters enough to show your working.
+- Every tool takes `json: true` to answer as the object `writ … --json`
+  prints, witnesses carrying the situation each move lands in.
+
+**Two rules the verifier holds you to.** A property reported `n/a` names
+structure the model lacks — an arrow you deleted, a value you renamed — and it
+is a **failure**, never a pass; do not make a check green by making its
+question unaskable. And the questions are not yours to edit: when the server
+runs with `--claims-dir`, every claims file is read from that directory by
+its basename whatever path you pass, and the reply says which file it read.
+Change the model until the human's questions hold.
 
 A derivation answers with **state indices**, and an index is not an answer:
 `17` means nothing until you ask what it holds. One numbering runs through the
