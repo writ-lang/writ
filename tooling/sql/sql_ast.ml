@@ -9,7 +9,16 @@
    told about turns "writ proved this schema safe" into a claim about a schema
    nobody has. *)
 
+(* A comparison of a column against an integer constant. It never reaches the
+   model as arithmetic: [cut_regions] turns every such column into an
+   enumerated domain of the REGIONS the constants cut its range into, and the
+   comparison into membership of the regions that satisfy it — the quotient
+   docs/tractability.md §3 proves exact. A comparison between two columns has
+   no such quotient and stays declined. *)
+type cmp = Lt | Le | Gt | Ge | Eq | Ne
+
 type check =
+  | C_cmp of string * cmp * int  (** col OP constant, before the cut *)
   | C_and of check list
   | C_or of check list
   | C_not of check
@@ -67,9 +76,12 @@ type db = {
   enums : enum_def list;
   rows : row list;
   declines : decline list;
+  regions : (string * int list) list;
+      (** a region domain's name -> the sorted constants that cut it; what
+          [Emit_writ.value_for] classifies a seed row's number against *)
 }
 
-let empty = { tables = []; enums = []; rows = []; declines = [] }
+let empty = { tables = []; enums = []; rows = []; declines = []; regions = [] }
 
 let column_named (t : table) (c : string) : column option =
   List.find_opt (fun col -> col.cname = c) t.columns

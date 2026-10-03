@@ -357,9 +357,15 @@ dropped in silence, because a schema imported quietly would let "writ proved
 this safe" be a claim about a schema nobody has. `UNIQUE` is the interesting
 one: it is **unsayable**, not unimplemented, because a writ law ranges over one
 entity of its subject type and a bare `some` binder is not comparable, so "two
-distinct rows agree" has no spelling. Arithmetic in a `CHECK` is refused for
-the reason the whole language is: there are no numbers, and inventing them
-would cost the negative answer.
+distinct rows agree" has no spelling. A `CHECK` comparing a numeric column
+against **constants** is not refused: the constants cut the column into the
+regions on which every check is constant — `qty < 500` makes `orders-qty-range` an
+enumerated domain `(below-500 exactly-500 above-500)` and the law a
+membership test — which loses nothing, since nothing in the schema could tell
+two values in one region apart ([docs/tractability.md](docs/tractability.md)
+§3). A `CHECK` comparing two **columns** has no such quotient and is refused,
+for the reason the whole language has no numbers: inventing them would cost
+the negative answer.
 
 pg_dump is the input that matters, so casts, `= ANY (ARRAY[…])`, `ALTER TABLE …
 ADD CONSTRAINT` and dollar-quoted function bodies all read correctly.

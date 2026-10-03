@@ -48,8 +48,9 @@ let model_of_string (what : string) (s : string) : Model.t =
           | Error e -> failwith (what ^ ": parse: " ^ Errors.to_string e)
           | Ok m -> m))
 
-let import ?(name = "t") (sql : string) : string * Sql_ast.db =
-  let db = Sql_parse.parse sql in
+let import ?(name = "t") ?(with_data = false) (sql : string) :
+    string * Sql_ast.db =
+  let db = Sql_parse.parse ~with_data sql in
   let text, _ = Emit_writ.file ~name ~source:"t.sql" db in
   (text, db)
 
@@ -183,10 +184,12 @@ let () =
        "CREATE TABLE t (id text PRIMARY KEY, a text, UNIQUE (a));");
   check "CREATE UNIQUE INDEX is declined"
     (declined_for ~sub:"UNIQUE" "CREATE UNIQUE INDEX i ON t (a);");
-  (* arithmetic has no reading in a language with no numbers *)
+  (* arithmetic has no reading in a language with no numbers — a SUM couples
+     two quantities and has no quotient; a column against a constant does,
+     and crosses as regions (tested under "regions" below) *)
   check "an arithmetic CHECK is declined"
     (declined_for ~sub:"expressible fragment"
-       "CREATE TABLE t (id text PRIMARY KEY, n int CHECK (n > 0));");
+       "CREATE TABLE t (id text PRIMARY KEY, n int, m int, CHECK (n + m > 0));");
   (* comparing an opaque column to a literal names a member that cannot exist *)
   check "a CHECK against an opaque column is declined"
     (declined_for ~sub:"opaque domain"
@@ -343,5 +346,67 @@ let () =
              e.name = "shipped-needs-stamp" && e.origin = Some "t.sql:5")
            m.Model.schema.Schema.equations)
   | Error e -> check ("origin: read back: " ^ Errors.to_string e) false
+
+(* --- regions: a column compared against constants --------------------------- *)
+
+let () =
+  let text, db =
+    import ~with_data:true
+      "CREATE TABLE orders (\n\
+      \  id uuid PRIMARY KEY,\n\
+      \  qty int NOT NULL CHECK (qty >= 1),\n\
+      \  CONSTRAINT small_order CHECK (qty < 500),\n\
+      \  CONSTRAINT bulk_needs_review CHECK (qty < 100 OR qty = 100)\n\
+       );\n\
+       INSERT INTO orders (id, qty) VALUES ('o1', 42);"
+  in
+  let m = model_of_string "regions" text in
+  let s = m.Model.schema in
+  check "regions: the column becomes an enumerated domain of its pieces"
+    (match
+       List.find_opt
+         (fun (t : Schema.ty) -> t.name = "orders-qty-range")
+         s.types
+     with
+    | Some
+        {
+          flavor =
+            Schema.Enumerated
+              [
+                "below-1";
+                "exactly-1";
+                "between-1-and-100";
+                "exactly-100";
+                "between-100-and-500";
+                "exactly-500";
+                "above-500";
+              ];
+          _;
+        } ->
+        true
+    | _ -> false);
+  check "regions: every CHECK survives as a law"
+    (List.for_all
+       (fun n ->
+         List.exists (fun (e : Schema.equation) -> e.name = n) s.equations)
+       [ "small-order"; "bulk-needs-review" ]);
+  check "regions: nothing was declined" (db.declines = []);
+  check "regions: a seed row's number lands in its piece"
+    (contains ~sub:"(qty between-1-and-100)" text);
+  (* an integral column has no piece strictly between adjacent integers *)
+  let text, _ =
+    import
+      "CREATE TABLE t (id uuid PRIMARY KEY, n int CHECK (n > 4 AND n < 5));"
+  in
+  check "regions: no empty piece between adjacent integers"
+    (contains ~sub:"(type t-n-range (below-4 exactly-4 exactly-5 above-5))" text);
+  (* a comparison between two columns has no quotient and stays declined;
+     one on a text column is declined by name *)
+  check "regions: two columns compared is still declined"
+    (declined_for ~sub:"expressible fragment"
+       "CREATE TABLE t (id uuid PRIMARY KEY, a int, b int, CHECK (a < b));");
+  check "regions: a constant against a text column is declined"
+    (declined_for ~sub:"not numeric"
+       "CREATE TABLE t (id uuid PRIMARY KEY, a text, CHECK (a < 5));")
 
 let () = print_string ("test_sql: " ^ string_of_int !passed ^ " passed\n")

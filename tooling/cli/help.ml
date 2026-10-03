@@ -192,7 +192,10 @@ Nothing is loaded; the emitted model is kernel-only.
 
 WHAT DOES NOT. Everything the DDL says that an olog cannot hold is
 reported on stderr by line and reason, aggregated, never dropped in
-silence — UNIQUE, arithmetic in a CHECK, DEFAULT, indexes, triggers.
+silence — UNIQUE, a CHECK comparing two columns, DEFAULT, indexes,
+triggers. A CHECK comparing a numeric column against constants crosses:
+the constants cut the column into regions, which become an enumerated
+domain, and the CHECK becomes a membership test — losing nothing.
 UNIQUE is declined as UNSAYABLE rather than unimplemented: a law
 ranges over one entity of its subject type and a bare `some` binder
 is not comparable, so "two distinct rows agree" has no spelling.

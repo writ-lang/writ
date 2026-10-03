@@ -36,12 +36,17 @@ mgtt2writ()  { (cd "$root/mgtt2writ" && MGTT2WRIT=mgtt2writ sh test/pipeline.sh)
 # The editor client: its own suites, and test/engine.test.js, which drives the
 # real writ-lsp and the `writ` command lines the extension builds. Required
 # here, so a missing server is a failure rather than that test's polite skip.
-# A ref from before that test existed still runs the rest, and says so.
+# A ref from before those files existed says so in a line rather than failing:
+# what is missing there is the extension's tests, not anything writ broke.
 vscode() {
   (cd "$root/writ-vscode" || exit 1
+   if [ ! -f scripts/test.sh ]; then
+     echo "  [skip] writ-vscode has no scripts/test.sh at this ref: nothing to run"
+     exit 0
+   fi
    [ -f test/engine.test.js ] \
      || echo "  [note] no test/engine.test.js at this ref: the engine is not exercised"
-   WRIT_E2E_REQUIRED=1 scripts/test.sh)
+   WRIT_E2E_REQUIRED=1 sh scripts/test.sh)
 }
 
 suites="problems crosscheck arch scheduling mgtt2writ vscode"

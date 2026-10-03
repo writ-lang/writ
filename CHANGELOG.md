@@ -5,6 +5,20 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**`writ sql` cuts a column by the constants its `CHECK`s mention.** `CHECK
+(qty < 500)` used to be declined as arithmetic; now `orders-qty-range` becomes the
+enumerated domain `(below-500 exactly-500 above-500)` and the law a
+membership test, which is exact rather than conservative — nothing in the
+schema could tell two values in one region apart (`docs/tractability.md`
+§3). Several constants cut finer; an integral column has no piece between
+adjacent integers; a seed row's number lands in its piece. A `CHECK`
+comparing two columns stays declined, as does one against a non-numeric
+column, by name. `UNIQUE` stays declined too, and the reason is now
+recorded in `sql.md`'s successor below rather than only argued: the rules
+language has no inequality on atoms either, so "two DISTINCT rows agree"
+has no spelling there — `(dup X Y)` would match every row against itself.
+Recommendations Gap #4, as a tool feature.
+
 **Provenance pragmas, and the bridge contract.** A `; writ:origin TEXT`
 comment above a `transition` or `equation` — or above a form invocation,
 for every move it expands into — attaches TEXT to what the datum declares,
