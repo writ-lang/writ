@@ -88,15 +88,29 @@ let () =
      has — no verb, and nothing in the engine, learns that stdin exists. *)
   | _ :: "check" :: rest -> (
       let json, rest = Writ_dispatch.take_json rest in
+      let certificate, rest = Writ_dispatch.take_certificate rest in
+      let off, rest = Writ_dispatch.take_no_certificate rest in
+      (* on unless switched off; a named file wins over the default place *)
+      let certificate =
+        match (off, certificate) with
+        | true, _ -> Cmd_check.Off
+        | false, Some f -> Cmd_check.To f
+        | false, None -> Cmd_check.Beside
+      in
+      let version = Version.v in
       let fibers, rest = Writ_dispatch.take_fibers rest in
       let stdin_, rest = Writ_dispatch.take_stdin rest in
       match (stdin_, rest) with
-      | true, [] -> Cmd_check.run ~json ~fibers Cli_io.stdin_name None
+      | true, [] ->
+          Cmd_check.run ~json ~fibers ~certificate ~version Cli_io.stdin_name
+            None
       | true, [ "--claims"; c ] ->
-          Cmd_check.run ~json ~fibers Cli_io.stdin_name (Some c)
-      | false, [ model ] -> Cmd_check.run ~json ~fibers model None
+          Cmd_check.run ~json ~fibers ~certificate ~version Cli_io.stdin_name
+            (Some c)
+      | false, [ model ] ->
+          Cmd_check.run ~json ~fibers ~certificate ~version model None
       | false, [ model; "--claims"; c ] ->
-          Cmd_check.run ~json ~fibers model (Some c)
+          Cmd_check.run ~json ~fibers ~certificate ~version model (Some c)
       | _ -> die 2 usage)
   | _ :: "query" :: rest -> (
       let json, rest = Writ_dispatch.take_json rest in

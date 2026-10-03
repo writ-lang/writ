@@ -1,0 +1,29 @@
+; Each property needs a different kind of evidence.
+
+; a run can flip for ever, so: a lasso through off/on
+(property loops "every run finishes" (inevitable (is l.at done)))
+
+; fairness to `finish` rules out flipping for ever, but not spinning, where
+; finish is never on offer: a FAIR lasso through spin-a/spin-b
+(property spins "every fair run finishes" (inevitable (is l.at done) (fair finish)))
+
+; fair to `finish` and to `flip` and `spin-back`… still spinning: spin-back is
+; taken on the spin cycle, flip is not on offer there
+(property spins-too "fair to more" (inevitable (is l.at done) (fair finish spin-back)))
+
+; any situation outside {off, on, done} counts: now the only way to avoid it is
+; flipping, which fairness to finish forbids — HOLDS by an Emerson–Lei round
+(property settles "every fair run leaves the lamp"
+  (inevitable (or (is l.at done) (is l.at spin-a)) (fair finish)))
+
+; with no fairness the same holds only where no cycle avoids it: it does not
+(property settles-unfair "every run leaves the lamp"
+  (inevitable (or (is l.at done) (is l.at spin-a))))
+
+; holds outright: from spin-a/spin-b nothing ends, but they satisfy it
+(property leaves-off "every run leaves off"
+  (inevitable (not (is l.at off))))
+
+(property can-finish "done is reachable from everywhere" (live (is l.at done)))
+(property can-spin "spinning is reachable" (possible (is l.at spin-b)))
+(property never-gone "the lamp is never vacant" (never (not (defined l.at))))

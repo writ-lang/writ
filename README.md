@@ -435,6 +435,13 @@ also installs without opam at all. Every route lands the same layout — `bin/`
 holding `writ`, `writ-lsp` and `writ-mcp`, plus the `.writ` standard library at
 `share/writ/lib`, which is where the resolver looks.
 
+The tarball and the image also carry **`writ-cert`**, the certificate checker
+every `writ check` hands its answer to ([docs/certificates.md](docs/certificates.md)):
+with it the report ends `certified`; without it, `not certified`. It is written
+in Lean, so routes that build from source (opam, `make install-writ`) do not
+build it — `make writ-cert-bin` does, in docker, and `make install-writ` then
+installs it too.
+
 ### A released tarball
 
 Nothing to build, and no toolchain to install. Every version tag publishes a
@@ -451,8 +458,9 @@ tar xzf $v.tar.gz && cd $v && ./install.sh     # -> ~/.local
 ```
 
 The same tarball `make release` builds locally — the release job builds it,
-unpacks it, installs it into an empty prefix and runs all three binaries out of
-it before attaching it, so what is published is what was exercised.
+unpacks it, installs it into an empty prefix and runs all four binaries out of
+it — down to a `writ check` that must come back `certified` — before attaching
+it, so what is published is what was exercised.
 
 ### With opam
 
@@ -511,9 +519,10 @@ cd writ-<version>-linux-x86_64 && ./install.sh          # -> ~/.local
                                  ./install.sh /usr/local   # -> a prefix you name
 ```
 
-Building the tarball needs a static libc (`libc.a`) on the *build* host; where
-there is none — macOS — use `make release STATIC=0` and accept a binary that
-only travels between similar machines. `make release` prints what the binary
+Building the tarball needs a static libc (`libc.a`) on the *build* host, and
+docker for `writ-cert` (built in the Lean box, `lean/Dockerfile`); where there is
+no static libc — macOS — use `make release STATIC=0 CERT=0` and accept a binary
+that only travels between similar machines and certifies nothing. `make release` prints what the binary
 actually requires, so the portability claim is checked, not assumed.
 
 Nothing external is needed to *use* `writ`. The bundled stdlib lets `(load
@@ -525,7 +534,7 @@ file's dir, `$WRIT_LIB`, the copy beside the binary, then `./core/stdlib`); set
 
 | | |
 |---|---|
-| **writ** (this one) | the language, the engine, the CLI, `writ-lsp`, `writ-mcp`, the standard library |
+| **writ** (this one) | the language, the engine, the CLI, `writ-lsp`, `writ-mcp`, `writ-cert` (lean/), the standard library |
 | **[writ-problems](https://github.com/writ-lang/writ-problems)** | worked models — puzzles, scheduling, institutional scenarios — and a runner that checks the answers |
 | **[writ-vscode](https://github.com/writ-lang/writ-vscode)** | the VS Code client |
 

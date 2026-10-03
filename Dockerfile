@@ -71,6 +71,46 @@ RUN opam install -y dune \
  && cp _build/default/tooling/mcp/bin/writ_mcp.exe /tmp/out/bin/writ-mcp \
  && cp core/stdlib/* /tmp/out/share/writ/lib/
 
+# ---- stage 1b: the certificate checker --------------------------------------
+# writ-cert (lean/): the checker `writ check` hands every certificate to. It
+# ships IN the image so that a certified answer is what `docker run writ check`
+# gives by default — a checker that has to be installed separately is a
+# checker nobody runs. Built with the toolchain lean/Dockerfile pins, written
+# out instruction for instruction so the two share cached layers; building
+# writ-cert also re-checks every proof it rests on. Only the binary leaves this
+# stage, statically linked like everything else writ ships.
+FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS lean
+
+ARG ELAN_VERSION=v4.2.4
+ARG LEAN_VERSION=v4.33.1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates=20250419~deb12u1 \
+      curl=7.88.1-10+deb12u15 \
+      git=1:2.39.5-0+deb12u3 \
+      gcc=4:12.2.0-3 \
+      libc6-dev=2.36-9+deb12u14 \
+      make=4.3-4.1 \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV ELAN_HOME=/opt/elan
+ENV PATH=/opt/elan/bin:$PATH
+
+RUN curl -fsSL --proto '=https' --tlsv1.2 \
+      "https://github.com/leanprover/elan/releases/download/${ELAN_VERSION}/elan-$(uname -m)-unknown-linux-gnu.tar.gz" \
+      | tar -xz -C /tmp \
+ && /tmp/elan-init -y --no-modify-path --default-toolchain "leanprover/lean4:${LEAN_VERSION}" \
+ && rm -f /tmp/elan-init \
+ && lean --version && lake --version
+
+WORKDIR /w
+COPY lean/lean-toolchain lean/lakefile.toml lean/WritCert.lean lean/Main.lean ./
+COPY lean/WritCert ./WritCert
+COPY lean/scripts/static-cc.sh ./scripts/
+RUN LEAN_CC=/w/scripts/static-cc.sh lake build writ-cert \
+ && strip .lake/build/bin/writ-cert \
+ && cp .lake/build/bin/writ-cert /writ-cert
+
 # ---- stage 2: runtime -------------------------------------------------------
 FROM debian:12-slim
 
@@ -83,6 +123,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 
 COPY --from=build /tmp/out/bin/ /usr/local/bin/
 COPY --from=build /tmp/out/share/writ/lib /usr/local/share/writ/lib
+COPY --from=lean /writ-cert /usr/local/bin/writ-cert
 
 # Prove the image is wired before anyone uses it: a model written HERE, so the
 # check depends on nothing that could be removed from somewhere else. It also
@@ -104,14 +145,17 @@ RUN printf '%s\n' \
       '(use s)' '(initial i)' \
       '(transition raise (when (is b.f lo)) (do (set b.f hi)))' \
       > /tmp/smoke.writ \
- && cd /tmp && writ check /tmp/smoke.writ | grep -q 'states: 2' \
+ && cd /tmp && writ check /tmp/smoke.writ > /tmp/smoke.out \
+ && grep -q 'states: 2' /tmp/smoke.out \
+ && { grep -q '^certified:' /tmp/smoke.out \
+      || { echo "writ check was not certified:" >&2; cat /tmp/smoke.out >&2; exit 1; }; } \
  && printf '%s\n' '(load "ct.rules")' > /tmp/smoke.rules \
  && writ derive /tmp/smoke.writ /tmp/smoke.rules reach | grep -q '(3 rows)' \
  && printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
       | writ-mcp | grep -q '"protocolVersion"' \
  && { command -v git >/dev/null \
       || { echo "no git: writ compare --git would not run" >&2; exit 1; }; } \
- && rm -f /tmp/smoke.writ /tmp/smoke.rules
+ && rm -f /tmp/smoke.writ /tmp/smoke.rules /tmp/smoke.out /tmp/smoke.cert.json
 
 ENTRYPOINT ["writ"]
 CMD ["--help"]

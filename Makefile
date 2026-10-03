@@ -28,7 +28,7 @@
 DUNE = scripts/with-ocaml.sh dune
 
 .PHONY: build dev test lint fmt run image downstream check-versions \
-        install-writ uninstall-writ opam-install opam-uninstall release \
+        writ-cert-bin install-writ uninstall-writ opam-install opam-uninstall release \
         clean
 build:
 	$(DUNE) build
@@ -82,6 +82,20 @@ run:
 # the resolver's installed layout (bin/../share/writ/lib). No sudo, no npm, no
 # opam — a plain POSIX cp/mkdir. PREFIX overrides the default ~/.local.
 PREFIX ?= $(HOME)/.local
+# writ-cert — the certificate checker every `writ check` hands its answer to
+# (lean/, docs/certificates.md). It is written in Lean, so it is built in the
+# Lean box (lean/Dockerfile, stage `static`) and copied out: a static binary,
+# like the three below. Building it needs docker; nothing else here does.
+CERT     ?= 1
+CERT_BIN  = _build/writ-cert/writ-cert
+
+writ-cert-bin:
+	mkdir -p _build/writ-cert
+	docker build --target static -t writ-cert-static lean
+	id=$$(docker create writ-cert-static) \
+	  && docker cp "$$id:/writ-cert" "$(CERT_BIN)"; \
+	  st=$$?; docker rm "$$id" > /dev/null; exit $$st
+
 install-writ: build
 # The library directory is REPLACED, not merged into: a file dropped from the
 # standard library must disappear on upgrade, or an old copy lingers on the
@@ -98,11 +112,16 @@ install-writ: build
 	  chmod u+w "$(PREFIX)/bin/$$exe"; \
 	done
 	cp -f core/stdlib/* "$(PREFIX)/share/writ/lib/"
+# writ-cert only if it has been built (`make writ-cert-bin`): this target must
+# not start needing docker. `writ check` says "not certified" without it.
+	@if [ -x "$(CERT_BIN)" ]; then \
+	  rm -f "$(PREFIX)/bin/writ-cert"; cp -f "$(CERT_BIN)" "$(PREFIX)/bin/writ-cert"; \
+	else echo "note: no writ-cert installed — run \`make writ-cert-bin\` first to certify every check"; fi
 	@case ":$$PATH:" in *":$(PREFIX)/bin:"*) ;; \
 	  *) printf 'note: add %s to your PATH to run `writ`\n' "$(PREFIX)/bin" ;; esac
 
 uninstall-writ:
-	rm -f "$(PREFIX)/bin/writ" "$(PREFIX)/bin/writ-lsp" "$(PREFIX)/bin/writ-mcp"
+	rm -f "$(PREFIX)/bin/writ" "$(PREFIX)/bin/writ-lsp" "$(PREFIX)/bin/writ-mcp" "$(PREFIX)/bin/writ-cert"
 	rm -rf "$(PREFIX)/share/writ"
 
 # ── Packaging ────────────────────────────────────────────────────────────────
@@ -139,6 +158,10 @@ opam-uninstall:
 # one that built it and REQUIRED on platforms with no static libc (macOS). The
 # recipe prints what the binary actually needs, so the portability claim is
 # checked rather than assumed.
+#
+# CERT=1 (the default) puts writ-cert in the tarball beside writ, so an install
+# from it certifies every check. It is built in docker (`writ-cert-bin`); CERT=0
+# leaves it out — for a macOS build, say, where the Linux binary is no use.
 VERSION  ?= $(shell sed -n 's/^(version \(.*\))/\1/p' dune-project)
 STATIC   ?= 1
 RELPROF   = $(if $(filter 0,$(STATIC)),release,static)
@@ -147,13 +170,14 @@ RELARCH   = $(shell uname -m)
 RELNAME   = writ-$(VERSION)-$(RELOS)-$(RELARCH)
 DIST      = dist
 
-release:
+release: $(if $(filter 1,$(CERT)),writ-cert-bin)
 	$(DUNE) build --profile $(RELPROF) @install
 	rm -rf "$(DIST)/$(RELNAME)"
 	mkdir -p "$(DIST)/$(RELNAME)/bin" "$(DIST)/$(RELNAME)/share/writ/lib"
 	cp -L _build/install/default/bin/writ "$(DIST)/$(RELNAME)/bin/writ"
 	cp -L _build/install/default/bin/writ-lsp "$(DIST)/$(RELNAME)/bin/writ-lsp"
 	cp -L _build/install/default/bin/writ-mcp "$(DIST)/$(RELNAME)/bin/writ-mcp"
+	$(if $(filter 1,$(CERT)),cp "$(CERT_BIN)" "$(DIST)/$(RELNAME)/bin/writ-cert")
 	chmod 755 "$(DIST)/$(RELNAME)/bin/"*
 	cp core/stdlib/* "$(DIST)/$(RELNAME)/share/writ/lib/"
 	cp scripts/release-install.sh "$(DIST)/$(RELNAME)/install.sh"

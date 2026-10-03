@@ -21,6 +21,10 @@ Three conventions hold everywhere:
   `origin`: the text of the `; writ:origin …` pragma above the move or law
   ([bridges.md](bridges.md) §5), or `null`.
 
+`writ check … --certificate FILE` writes this object again, inside a
+certificate that also carries the model it answers about, for a
+second checker to re-derive it from — [certificates.md](certificates.md).
+
 ## `writ check MODEL [--claims F] --json`
 
 ```json

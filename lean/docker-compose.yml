@@ -1,0 +1,44 @@
+# writ in Lean 4. See the Makefile for the shortcuts.
+#
+#   docker compose run --rm build              # lake build: the checker, every proof
+#   docker compose run --rm cert FILE.json     # check a certificate
+#   docker compose run --rm test               # fixtures certify; tampering is refused
+#   docker compose run --rm corpus             # every model in the sibling repositories
+#
+# The toolchain layer is cached, so only the first run pays for it. `test` and
+# `corpus` need writ: build its image first (`make image` in the directory
+# above), or point WRIT_IMAGE at a published one.
+
+services:
+  build:
+    build: { context: ., target: toolchain }
+    image: writ-lean:4.33.1
+    volumes: [ ".:/w" ]
+    working_dir: /w
+    command: ["lake", "build"]
+
+  cert:
+    image: writ-lean:4.33.1
+    volumes: [ ".:/w" ]
+    working_dir: /w
+    entrypoint: ["./.lake/build/bin/writ-cert"]
+
+  test:
+    build:
+      context: .
+      target: with-writ
+      args: { WRIT_IMAGE: "${WRIT_IMAGE:-writ:latest}" }
+    image: writ-lean-writ:4.33.1
+    volumes: [ ".:/w" ]
+    working_dir: /w
+    command: ["sh", "test/run.sh"]
+
+  # The whole corpus: the writ repository above and its siblings, read-only.
+  corpus:
+    image: writ-lean-writ:4.33.1
+    depends_on: [test]
+    volumes: [ ".:/w", "../..:/projects:ro" ]
+    working_dir: /w
+    command: ["sh", "scripts/corpus.sh", "writ", "/tmp/corpus",
+              "/projects/writ/tests", "/projects/writ-problems",
+              "/projects/writ-arch", "/projects/writ-scheduling-verification"]

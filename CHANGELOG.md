@@ -5,6 +5,28 @@ Versions are the one in `dune-project`: what opam publishes, what `writ
 
 ## Unreleased
 
+**Certificates, and a checker proved sound in Lean.** Every `writ check` now
+writes `MODEL.cert.json` beside the model (`--certificate FILE` elsewhere,
+`--no-certificate` not at all): the model as the kernel sees it, the claims as
+guards, and the very object `--json` prints (docs/certificates.md). No state
+graph — the checker builds and proves its own, so a certificate is a few KB,
+2.8 MB on a 119 000-situation space. And `writ check` hands it to the checker
+at once: the report's last line is `certified`, `NOT CERTIFIED` (exit 1), or —
+where no `writ-cert` is installed — `not certified`, said rather than skipped.
+writ's image and its release tarball ship `writ-cert` — statically linked like
+the rest (4 MB; it reads certificates with its own small JSON reader rather than
+Lean's, which alone was 74 MB) — and both smoke tests require the `certified`
+line; the tarball's runs on Alpine as on Debian. Building from source does not
+need Lean: `make writ-cert-bin` builds the checker in docker when wanted.
+
+**`--json` no longer takes minutes on a large space.** Every witness in the
+JSON carries the situation each move lands in, recovered by replaying the
+route — and the replay looked each step up by scanning every edge in the
+space. A report routes to every dead end, so on the 118 969-situation
+unordered queens (564 880 edges, 10 188 dead ends) `writ check --json` took
+5 min 10 s against the prose report's 40 s. A step now re-fires the named
+move instead: one guard and one move. Same answers; 40 s.
+
 **Positioning.** The README now says in its second paragraph what the tool
 is for, in domain words — a model checker for finite business and
 governance systems whose negative answer is a census — and where the bound
